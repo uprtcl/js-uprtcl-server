@@ -1,3 +1,5 @@
+/** architecture from https://itnext.io/production-ready-node-js-rest-apis-setup-using-typescript-postgresql-and-redis-a9525871407 */
+
 import http from "http";
 import express from "express";
 import { applyMiddleware, applyRoutes } from "./utils";

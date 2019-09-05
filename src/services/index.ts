@@ -1,3 +1,3 @@
-import searchRoutes from "./search/routes";
+import uprtclRoutes from "./uprtcl/routes";
 
-export default [...searchRoutes];
+export default [...uprtclRoutes];

@@ -4,7 +4,7 @@ import { applyMiddleware, applyRoutes } from "../../utils";
 import promiseRequest from "request-promise";
 import middleware from "../../middleware";
 import errorHandlers from "../../middleware/errorHandlers";
-import routes from "../../services/search/routes";
+import routes from "./routes";
 
 jest.mock("request-promise");
 (promiseRequest as any).mockImplementation(() => '{"features": []}');
@@ -19,18 +19,8 @@ describe("routes", () => {
     applyMiddleware(errorHandlers, router);
   });
 
-  test("a valid string query", async () => {
-    const response = await request(router).get("/api/v1/search?q=Cham");
+  test("creates a new context", async () => {
+    const response = await request(router).post("/uprtcl/1/ctx");
     expect(response.status).toEqual(200);
-  });
-
-  test("a non-existing api method", async () => {
-    const response = await request(router).get("/api/v11/search");
-    expect(response.status).toEqual(404);
-  });
-  
-  test("an empty string", async () => {
-    const response = await request(router).get("/api/v1/search?q=");
-    expect(response.status).toEqual(400);
   });
 });
