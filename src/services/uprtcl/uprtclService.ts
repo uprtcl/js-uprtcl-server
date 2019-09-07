@@ -5,23 +5,33 @@ import { localCidConfig } from "../ipld";
 
 dotenv.config();
 
-export const createContext = async (context: Context, loggedUserId: string) => {
-  if (context.id) {
-    let valid = await ipldService.validateCid(
-      context.id,
-      context,
-      PropertyOrder.Context
-    );
-    if (!valid) {
-      throw new Error(`Invalid cid ${context.id}`);
-    }
-  } else {
-    context.id = await ipldService.generateCidOrdered(
-      context,
-      localCidConfig,
-      PropertyOrder.Context
-    );
+export class UprtclService {
+
+  private db: any;
+
+  constructor(_db: any) {
+    this.db = _db;
   }
-  
-  console.log(context);
-};
+
+  async createContext(context: Context, loggedUserId: string) {
+    if (context.id) {
+      let valid = await ipldService.validateCid(
+        context.id,
+        context,
+        PropertyOrder.Context
+      );
+      if (!valid) {
+        throw new Error(`Invalid cid ${context.id}`);
+      }
+    } else {
+      context.id = await ipldService.generateCidOrdered(
+        context,
+        localCidConfig,
+        PropertyOrder.Context
+      );
+    }
+    let uid = await this.db.createContext(context);
+    console.log(uid);
+  };
+}
+
