@@ -1,3 +1,3 @@
-import uprtclRoutes from "./uprtcl/routes";
+import { controller } from "./uprtcl/uprtcl.controller";
 
-export default [...uprtclRoutes];
+export default [...controller.routes()];

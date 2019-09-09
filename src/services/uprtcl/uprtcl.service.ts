@@ -2,18 +2,19 @@ import dotenv from "dotenv";
 import { Context, PropertyOrder } from "./types";
 import { ipldService } from "../ipld/ipldService";
 import { localCidConfig } from "../ipld";
+import { DGraphService } from "../../db/dgraphService";
 
 dotenv.config();
 
 export class UprtclService {
 
-  private db: any;
+  private db: DGraphService;
 
-  constructor(_db: any) {
-    this.db = _db;
+  constructor(_host: string) {
+    this.db = new DGraphService(_host);
   }
 
-  async createContext(context: Context, loggedUserId: string) {
+  async createContext(context: Context, loggedUserId: string): Promise<string> {
     if (context.id) {
       let valid = await ipldService.validateCid(
         context.id,
@@ -31,7 +32,7 @@ export class UprtclService {
       );
     }
     let uid = await this.db.createContext(context);
-    console.log(uid);
+    return uid;
   };
 }
 

@@ -23,14 +23,13 @@ applyMiddleware(middleware, router);
 applyRoutes(routes, router);
 applyMiddleware(errorHandlers, router);
 
-const db = new DGraphService('localhost:9080');
-db.connect();
-db.dropAll();
-db.setSchema();
-
 const { PORT = 3000 } = process.env;
 const server = http.createServer(router);
 
 server.listen(PORT, () =>
   console.log(`Server is running http://localhost:${PORT}...`)
 );
+
+export {
+  router
+}
