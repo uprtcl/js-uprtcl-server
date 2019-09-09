@@ -34,5 +34,10 @@ export class UprtclService {
     let uid = await this.db.createContext(context);
     return uid;
   };
+
+  async getContext(contextId: string, loggedUserId: string): Promise<Context> {
+    let context = await this.db.getContext(contextId);
+    return context;
+  };
 }
 

@@ -1,5 +1,5 @@
 export interface Context {
-  id?: string,
+  id: string,
   creatorId: string,
   timestamp: number,
   nonce: number

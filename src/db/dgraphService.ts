@@ -2,9 +2,18 @@ import { Context } from "../services/uprtcl/types";
 
 const dgraph = require("dgraph-js");
 const grpc = require("grpc");
+let ready = false;
 
 const CONTEXT_SCHEMA_NAME = 'Context';
 const AUTHOR_SCHEMA_NAME = 'Author';
+
+interface DgContext {
+  xid: string,
+  creatorId: string,
+  timestamp: number,
+  nonce: number,
+  'dgraph.type': string
+}
 export class DGraphService {
 
   private host: string;
@@ -34,19 +43,14 @@ export class DGraphService {
 
   async setSchema() {
     let schema = `
-      type ${AUTHOR_SCHEMA_NAME} {
-        did: string
-      }
-
       type ${CONTEXT_SCHEMA_NAME} {
-        id: xid
-        creator: Author
-        timestamp: dateTime
+        xid: string
+        creatorId: string
+        timestamp: datetime
         nonce: int
       }
       
       xid: string @index(exact) .
-      did: string @index(exact) .
     `;
     const op = new dgraph.Operation();
     op.setSchema(schema);
@@ -54,8 +58,7 @@ export class DGraphService {
   }
 
   ready(): Promise<void> {
-    if (this.ready) return Promise.resolve();
-    else return this.connectionReady;
+    return this.connectionReady;
   }
 
   async createContext(context: Context) {
@@ -63,41 +66,40 @@ export class DGraphService {
     const txn = this.client.newTxn();
     const mu = new dgraph.Mutation();
     
-    let dgContext = {
-      id: context.id,
+    /** rename id as xid for dgraph external Id */
+    let dgContext: DgContext = {
+      xid: context.id,
       creatorId: context.creatorId,
       timestamp: context.timestamp,
-      'dgraph.type': 'context'
+      nonce: context.nonce,
+      'dgraph.type': CONTEXT_SCHEMA_NAME
     }
 
     mu.setSetJson(dgContext);
     
     const response = await txn.mutate(mu);
-    await txn.commit();
-    
-    return response.getUidsMap().arr_[0][1];
+    await txn.commit();''
+    return context.id;
   }
 
-  async getContext(id: string): Promise<Context> {
+  async getContext(contextId: string): Promise<Context> {
     await this.ready();
-    const query = `query all($a: string) {
-        all(func: eq(name, $a)) {
-            uid
-            name
-            age
-            married
-            loc
-            dob
-            friend {
-                name
-                age
-            }
-            school {
-                name
-            }
-        }
-    }`;
-    const vars = { $id: id };
-    return this.client.newTxn().queryWithVars(query, vars);
+    const query = `{
+      context(func: eq(xid, ${contextId})) {
+        expand(_all_) { expand(_all_) }
+      }
+    }
+    `;
+    // TODO: issue with variables UNKNOWN: Variable not defined 
+    // let vars = {$contextId: $contextId}
+    let result = await this.client.newTxn().query(query);
+    let dcontext: DgContext = result.getJson().context[0];
+    let context: Context = {
+      id: dcontext.xid,
+      creatorId: dcontext.creatorId,
+      nonce: dcontext.nonce,
+      timestamp: dcontext.timestamp
+    }
+    return context;
   }
 }

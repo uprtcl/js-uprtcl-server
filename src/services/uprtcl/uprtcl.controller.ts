@@ -22,6 +22,18 @@ export class UprtclController {
             res.status(200).send(result);
           }
         ]
+      },
+
+      {
+        path: "/uprtcl/1/ctx/:contextId",
+        method: "get",
+        handler: [
+          checksPlaceholder,
+          async ({ params }: Request, res: Response) => {
+            const result = await this.uprtclService.getContext(params.contextId, '');
+            res.status(200).send(result);
+          }
+        ]
       }
     ]
   }
