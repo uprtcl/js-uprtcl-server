@@ -5,14 +5,21 @@ const grpc = require("grpc");
 let ready = false;
 
 const CONTEXT_SCHEMA_NAME = 'Context';
-const AUTHOR_SCHEMA_NAME = 'Author';
+const PROFILE_SCHEMA_NAME = 'Profile';
+
+interface DgProfile {
+  uid?: string,
+  did: string,
+  'dgraph.type'?: string
+}
 
 interface DgContext {
+  uid?: string,
   xid: string,
-  creatorId: string,
+  creator: Array<DgProfile>,
   timestamp: number,
   nonce: number,
-  'dgraph.type': string
+  'dgraph.type'?: string
 }
 export class DGraphService {
 
@@ -43,15 +50,20 @@ export class DGraphService {
 
   async setSchema() {
     let schema = `
+      type ${PROFILE_SCHEMA_NAME} {
+        did: string
+      }
+
       type ${CONTEXT_SCHEMA_NAME} {
         xid: string
-        creatorId: string
+        creator: string
         timestamp: datetime
         nonce: int
       }
       
       xid: string @index(exact) .
     `;
+
     const op = new dgraph.Operation();
     op.setSchema(schema);
     return this.client.alter(op);
@@ -61,15 +73,62 @@ export class DGraphService {
     return this.connectionReady;
   }
 
+  async upsertProfile(_did: string) {
+    /*
+    const txn = this.client.newTxn();
+    
+    let query = `query {
+      profile as var(func: eq(did, "${did}"))
+    }`;
+
+    let mutation = new dgraph.Mutation();
+    mutation.setSetJson({
+      "did": did
+    });
+  
+    const req = new dgraph.Request();
+    req.setQuery(query);
+    req.setMutationsList([mutation]);
+    req.setCommitNow(true);
+    
+
+     // Update account only if matching uid found.
+    const response = await txn.doRequest(req);
+    let uid = response.getUidsMap().get(`uid(profile)`);
+    return uid;
+    */
+
+   const txn = this.client.newTxn();
+   const mu = new dgraph.Mutation();
+
+   /** rename id as xid for dgraph external Id */
+   let dgProfile: DgProfile = {
+     uid: '_:profile',
+     did: _did,
+     'dgraph.type': PROFILE_SCHEMA_NAME
+   }
+
+   mu.setSetJson(dgProfile);
+   
+   const response = await txn.mutate(mu);
+   await txn.commit();''
+   let uid = response.getUidsMap().get('profile');
+   return uid;
+  }
+
   async createContext(context: Context) {
     await this.ready();
+
+    debugger
     const txn = this.client.newTxn();
     const mu = new dgraph.Mutation();
+
+    let profileUid = await this.upsertProfile(context.creatorId);
     
     /** rename id as xid for dgraph external Id */
     let dgContext: DgContext = {
       xid: context.id,
-      creatorId: context.creatorId,
+      creator: [{ uid: profileUid, did: context.creatorId }],
       timestamp: context.timestamp,
       nonce: context.nonce,
       'dgraph.type': CONTEXT_SCHEMA_NAME
@@ -78,15 +137,20 @@ export class DGraphService {
     mu.setSetJson(dgContext);
     
     const response = await txn.mutate(mu);
-    await txn.commit();''
+    const result = await txn.commit();''
     return context.id;
   }
 
   async getContext(contextId: string): Promise<Context> {
     await this.ready();
-    const query = `{
+    const query = `query {
       context(func: eq(xid, ${contextId})) {
-        expand(_all_) { expand(_all_) }
+        xid,
+        creator {
+          did
+        }
+        timestamp
+        nonce
       }
     }
     `;
@@ -96,7 +160,7 @@ export class DGraphService {
     let dcontext: DgContext = result.getJson().context[0];
     let context: Context = {
       id: dcontext.xid,
-      creatorId: dcontext.creatorId,
+      creatorId: dcontext.creator[0].did,
       nonce: dcontext.nonce,
       timestamp: dcontext.timestamp
     }
