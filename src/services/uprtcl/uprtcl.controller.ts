@@ -12,25 +12,26 @@ export class UprtclController {
 
   routes() {
     return [
+      
       {
-        path: "/uprtcl/1/ctx",
+        path: "/uprtcl/1/persp",
         method: "post",
         handler: [
           checksPlaceholder,
           async ({ body }: Request, res: Response) => {
-            const result = await this.uprtclService.createContext(body, '');
+            const result = await this.uprtclService.createPerspective(body, '');
             res.status(200).send(result);
           }
         ]
       },
 
       {
-        path: "/uprtcl/1/ctx/:contextId",
+        path: "/uprtcl/1/ctx/:perspectiveId",
         method: "get",
         handler: [
           checksPlaceholder,
           async ({ params }: Request, res: Response) => {
-            const result = await this.uprtclService.getContext(params.contextId, '');
+            const result = await this.uprtclService.getPerspective(params.perspectiveId, '');
             res.status(200).send(result);
           }
         ]

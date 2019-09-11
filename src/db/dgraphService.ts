@@ -1,11 +1,16 @@
-import { Context } from "../services/uprtcl/types";
+import { Context, Perspective } from "../services/uprtcl/types";
 
 const dgraph = require("dgraph-js");
 const grpc = require("grpc");
 let ready = false;
 
-const CONTEXT_SCHEMA_NAME = 'Context';
+const PERSPECTIVE_SCHEMA_NAME = 'Perspective';
 const PROFILE_SCHEMA_NAME = 'Profile';
+const LOCAL_PROVIDER = 'http://collectiveone.org/uprtcl/1';
+
+interface DgRef {
+  uid: string
+}
 
 interface DgProfile {
   uid?: string,
@@ -13,12 +18,14 @@ interface DgProfile {
   'dgraph.type'?: string
 }
 
-interface DgContext {
+interface DgPerspective {
   uid?: string,
   xid: string,
-  creator: Array<DgProfile>,
+  name: string,
+  context: string,
+  origin: string,
+  creator: Array<DgRef>,
   timestamp: number,
-  nonce: number,
   'dgraph.type'?: string
 }
 export class DGraphService {
@@ -54,9 +61,10 @@ export class DGraphService {
         did: string
       }
 
-      type ${CONTEXT_SCHEMA_NAME} {
+      type ${PERSPECTIVE_SCHEMA_NAME} {
         xid: string
-        creator: string
+        creator: [${PROFILE_SCHEMA_NAME}]
+        context: string
         timestamp: datetime
         nonce: int
       }
@@ -116,36 +124,41 @@ export class DGraphService {
    return uid;
   }
 
-  async createContext(context: Context) {
+  async createPerspective(perspective: Perspective) {
     await this.ready();
 
     debugger
     const txn = this.client.newTxn();
     const mu = new dgraph.Mutation();
 
-    let profileUid = await this.upsertProfile(context.creatorId);
+    let profileUid = await this.upsertProfile(perspective.creatorId);
     
     /** rename id as xid for dgraph external Id */
-    let dgContext: DgContext = {
-      xid: context.id,
-      creator: [{ uid: profileUid, did: context.creatorId }],
-      timestamp: context.timestamp,
-      nonce: context.nonce,
-      'dgraph.type': CONTEXT_SCHEMA_NAME
+    let dgPerspective: DgPerspective = {
+      xid: perspective.id,
+      name: perspective.name,
+      context: perspective.context,
+      creator: [{ uid: profileUid }],
+      timestamp: perspective.timestamp,
+      origin: LOCAL_PROVIDER,
+      'dgraph.type': PERSPECTIVE_SCHEMA_NAME
     }
 
-    mu.setSetJson(dgContext);
+    mu.setSetJson(dgPerspective);
     
     const response = await txn.mutate(mu);
     const result = await txn.commit();''
-    return context.id;
+    return perspective.id;
   }
 
-  async getContext(contextId: string): Promise<Context> {
+  async getPerspective(perspectiveId: string): Promise<Context> {
     await this.ready();
     const query = `query {
-      context(func: eq(xid, ${contextId})) {
-        xid,
+      perspective(func: eq(xid, ${perspectiveId})) {
+        xid
+        name
+        context
+        origin
         creator {
           did
         }
@@ -157,12 +170,12 @@ export class DGraphService {
     // TODO: issue with variables UNKNOWN: Variable not defined 
     // let vars = {$contextId: $contextId}
     let result = await this.client.newTxn().query(query);
-    let dcontext: DgContext = result.getJson().context[0];
+    let dperspective: DgPerspective = result.getJson().context[0];
     let context: Context = {
-      id: dcontext.xid,
-      creatorId: dcontext.creator[0].did,
+      id: dperspective.xid,
+      creatorId: dperspective.creator[0].did,
       nonce: dcontext.nonce,
-      timestamp: dcontext.timestamp
+      timestamp: dperspective.timestamp
     }
     return context;
   }

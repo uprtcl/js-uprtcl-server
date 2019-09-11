@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { Context, PropertyOrder } from "./types";
+import { Context, PropertyOrder, Perspective } from "./types";
 import { ipldService } from "../ipld/ipldService";
 import { localCidConfig } from "../ipld";
 import { DGraphService } from "../../db/dgraphService";
@@ -15,7 +15,7 @@ export class UprtclService {
   }
 
   async createContext(context: Context, loggedUserId: string): Promise<string> {
-    if (context.id) {
+    if (context.id !== '') {
       let valid = await ipldService.validateCid(
         context.id,
         context,
@@ -35,9 +35,30 @@ export class UprtclService {
     return uid;
   };
 
-  async getContext(contextId: string, loggedUserId: string): Promise<Context> {
-    let context = await this.db.getContext(contextId);
-    return context;
+  async createPerspective(perspective: Perspective, loggedUserId: string): Promise<string> {
+    if (perspective.id !== '') {
+      let valid = await ipldService.validateCid(
+        perspective.id,
+        perspective,
+        PropertyOrder.Perspective
+      );
+      if (!valid) {
+        throw new Error(`Invalid cid ${perspective.id}`);
+      }
+    } else {
+      perspective.id = await ipldService.generateCidOrdered(
+        perspective,
+        localCidConfig,
+        PropertyOrder.Perspective
+      );
+    }
+    let uid = await this.db.createPerspective(perspective);
+    return uid;
+  };
+
+  async getPerspective(perspectiveId: string, loggedUserId: string): Promise<Context> {
+    let perspective = await this.db.getPerspective(perspectiveId);
+    return perspective;
   };
 }
 

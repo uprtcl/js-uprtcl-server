@@ -10,7 +10,7 @@ export interface Perspective {
   origin: string;
   creatorId: string;
   timestamp: number;
-  contextId: string;
+  context: string;
   name: string;
 }
 

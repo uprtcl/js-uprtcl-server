@@ -29,63 +29,41 @@ describe("routes", () => {
     }
   })
 
-  test("CRUD contexts", async () => {
-    const creatorId = 'did:method:12345';
-    const nonce = 0;
-    const timestamp = 1568027451547;
-
-    const context: Context = {
-      id: '',
-      creatorId: creatorId,
-      timestamp: timestamp,
-      nonce: nonce
-    }
-    const post = await request(router).post('/uprtcl/1/ctx')
-    .send(context);
-    expect(post.status).toEqual(200);
-    (expect(post.text) as unknown as ExtendedMatchers).toBeValidCid();
-
-    let contextUid = post.text;
-
-    const get = await request(router).get(`/uprtcl/1/ctx/${contextUid}`);
-    expect(get.status).toEqual(200);
-    
-    let contextRead: Context = JSON.parse(get.text);
-    
-    expect(contextRead.id).toEqual(contextUid);
-    expect(contextRead.creatorId).toEqual(creatorId);
-    expect(contextRead.timestamp).toEqual(timestamp);
-    expect(contextRead.nonce).toEqual(nonce);
-  });
-
   test("CRUD perspectives", async () => {
     const creatorId = 'did:method:12345';
-    const nonce = 0;
     const timestamp = 1568027451547;
+    const name = 'test';
+    const context = 'wikipedia.barack_obama';
 
     const perspective: Perspective = {
-      contextId: 'wikipedia.barack_obama',
+      id: '',
+      name: name,
+      context: context,
       origin: '',
       creatorId: creatorId,
       timestamp: timestamp
     }
 
     const post = await request(router).post('/uprtcl/1/persp')
-    .send();
+    .send(perspective);
     expect(post.status).toEqual(200);
     (expect(post.text) as unknown as ExtendedMatchers).toBeValidCid();
 
-    let contextUid = post.text;
+    let perspectiveId = post.text;
 
-    const get = await request(router).get(`/uprtcl/1/ctx/${contextUid}`);
+    const get = await request(router).get(`/uprtcl/1/persp/${perspectiveId}`);
     expect(get.status).toEqual(200);
     
-    let contextRead: Context = JSON.parse(get.text);
+    let perspectiveRead: Perspective = JSON.parse(get.text);
     
-    expect(contextRead.id).toEqual(contextUid);
-    expect(contextRead.creatorId).toEqual(creatorId);
-    expect(contextRead.timestamp).toEqual(timestamp);
-    expect(contextRead.nonce).toEqual(nonce);
+    const origin = 'http://collectiveone.org/uprtcl/1';
+
+    expect(perspectiveRead.id).toEqual(perspectiveId);
+    expect(perspectiveRead.creatorId).toEqual(creatorId);
+    expect(perspectiveRead.timestamp).toEqual(timestamp);
+    expect(perspectiveRead.name).toEqual(name);
+    expect(perspectiveRead.context).toEqual(context);
+    expect(perspectiveRead.origin).toEqual(origin);
   });
   
 });
