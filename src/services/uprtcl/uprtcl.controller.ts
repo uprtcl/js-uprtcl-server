@@ -26,7 +26,7 @@ export class UprtclController {
       },
 
       {
-        path: "/uprtcl/1/ctx/:perspectiveId",
+        path: "/uprtcl/1/persp/:perspectiveId",
         method: "get",
         handler: [
           checksPlaceholder,

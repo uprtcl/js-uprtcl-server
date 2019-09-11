@@ -1,4 +1,4 @@
-import { Context, Perspective } from "../services/uprtcl/types";
+import { Perspective } from "../services/uprtcl/types";
 
 const dgraph = require("dgraph-js");
 const grpc = require("grpc");
@@ -9,6 +9,7 @@ const PROFILE_SCHEMA_NAME = 'Profile';
 const LOCAL_PROVIDER = 'http://collectiveone.org/uprtcl/1';
 
 interface DgRef {
+  [x: string]: string;
   uid: string
 }
 
@@ -151,7 +152,7 @@ export class DGraphService {
     return perspective.id;
   }
 
-  async getPerspective(perspectiveId: string): Promise<Context> {
+  async getPerspective(perspectiveId: string): Promise<Perspective> {
     await this.ready();
     const query = `query {
       perspective(func: eq(xid, ${perspectiveId})) {
@@ -170,13 +171,15 @@ export class DGraphService {
     // TODO: issue with variables UNKNOWN: Variable not defined 
     // let vars = {$contextId: $contextId}
     let result = await this.client.newTxn().query(query);
-    let dperspective: DgPerspective = result.getJson().context[0];
-    let context: Context = {
+    let dperspective: DgPerspective = result.getJson().perspective[0];
+    let perspective: Perspective = {
       id: dperspective.xid,
+      name: dperspective.name,
+      context: dperspective.context,
+      origin: dperspective.origin,
       creatorId: dperspective.creator[0].did,
-      nonce: dcontext.nonce,
-      timestamp: dperspective.timestamp
+      timestamp: dperspective.timestamp,
     }
-    return context;
+    return perspective;
   }
 }

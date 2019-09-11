@@ -1,10 +1,3 @@
-export interface Context {
-  id: string,
-  creatorId: string,
-  timestamp: number,
-  nonce: number
-}
-
 export interface Perspective {
   id: string;
   origin: string;

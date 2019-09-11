@@ -2,7 +2,7 @@ import request from "supertest";
 import promiseRequest from "request-promise";
 import { router } from '../../server';
 import CID from 'cids';
-import { Context, Perspective } from "./types";
+import { Perspective } from "./types";
 
 jest.mock("request-promise");
 (promiseRequest as any).mockImplementation(() => '{"features": []}');
