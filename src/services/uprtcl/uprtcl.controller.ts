@@ -35,6 +35,54 @@ export class UprtclController {
             res.status(200).send(result);
           }
         ]
+      },
+
+      {
+        path: "/uprtcl/1/data",
+        method: "post",
+        handler: [
+          checksPlaceholder,
+          async ({ body }: Request, res: Response) => {
+            const result = await this.uprtclService.createData(body, '');
+            res.status(200).send(result);
+          }
+        ]
+      },
+
+      {
+        path: "/uprtcl/1/data/:dataId",
+        method: "get",
+        handler: [
+          checksPlaceholder,
+          async ({ params }: Request, res: Response) => {
+            const result = await this.uprtclService.getData(params.dataId);
+            res.status(200).send(result);
+          }
+        ]
+      },
+
+      {
+        path: "/uprtcl/1/commit",
+        method: "post",
+        handler: [
+          checksPlaceholder,
+          async ({ body }: Request, res: Response) => {
+            const result = await this.uprtclService.createCommit(body, '');
+            res.status(200).send(result);
+          }
+        ]
+      },
+
+      {
+        path: "/uprtcl/1/commit/:commitId",
+        method: "get",
+        handler: [
+          checksPlaceholder,
+          async ({ params }: Request, res: Response) => {
+            const result = await this.uprtclService.getCommit(params.commitId, '');
+            res.status(200).send(result);
+          }
+        ]
       }
     ]
   }
