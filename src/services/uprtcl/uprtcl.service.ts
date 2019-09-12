@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import { Perspective, Commit, DataDto } from "./types";
-import { DGraphService } from "../../db/dgraphService";
+import { DGraphService } from "../../db/dgraph.service";
 
 dotenv.config();
 

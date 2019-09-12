@@ -57,6 +57,27 @@ const createText = async (text: string):Promise<string> => {
   return post.text;
 }
 
+const createTextNode = async (text: string, links: string[]):Promise<string> => {
+  const data = {
+    id: '',
+    text: text,
+    links: links
+  }
+
+  const dataDto: DataDto = {
+    id: '',
+    data:  data,
+    type: DataType.TEXT_NODE
+  }
+
+  const post = await request(router).post('/uprtcl/1/data')
+  .send(dataDto);
+  expect(post.status).toEqual(200);
+  (expect(post.text) as unknown as ExtendedMatchers).toBeValidCid();
+
+  return post.text;
+}
+
 const getData = async (dataId: string):Promise<any> => {
   const get = await request(router).get(`/uprtcl/1/data/${dataId}`);
   expect(get.status).toEqual(200);
@@ -100,7 +121,7 @@ describe("routes", () => {
     expect(perspectiveRead.origin).toEqual(origin);
   });
 
-  test("CRUD text data", async () => {
+  test.skip("CRUD text data", async () => {
     let text = 'an example text';
 
     let dataId = await createText(text);
@@ -110,34 +131,24 @@ describe("routes", () => {
     expect(dataRead.text).toEqual(text);
   });
 
-  test.skip("CRUD text node data", async () => {
-    let text = 'an example text';
+  test("CRUD text node data", async () => {
+    let text1 = 'a paragraph 1';
+    let par1Id = await createText(text1);
 
-    const data = {
-      id: '',
-      text: text
-    }
+    let text2 = 'a paragraph 2';
+    let par2Id = await createText(text2);
 
-    const dataDto: DataDto = {
-      id: '',
-      data:  data,
-      type: DataType.TEXT
-    }
+    let text3 = 'a title';
+    let links = [par1Id, par2Id];
+    let dataId = await createTextNode(text3, links);
 
-    const post = await request(router).post('/uprtcl/1/data')
-    .send(dataDto);
-    expect(post.status).toEqual(200);
-    (expect(post.text) as unknown as ExtendedMatchers).toBeValidCid();
-
-    let dataId = post.text;
-
-    const get = await request(router).get(`/uprtcl/1/data/${dataId}`);
-    expect(get.status).toEqual(200);
-
-    let dataRead = JSON.parse(get.text);
+    let dataRead = await getData(dataId)
     
     expect(dataRead.id).toEqual(dataId);
-    expect(dataRead.text).toEqual(text);
+    expect(dataRead.text).toEqual(text3);
+    expect(dataRead.links.length).toEqual(2);
+    expect(dataRead.links[0]).toEqual(par1Id);
+    expect(dataRead.links[1]).toEqual(par2Id);
   });
   
 });

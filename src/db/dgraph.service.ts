@@ -1,19 +1,19 @@
 import { Perspective, Commit, PropertyOrder, DataDto, dataTypeOrder, DataType } from "../services/uprtcl/types";
 import { ipldService } from "../services/ipld/ipldService";
 import { localCidConfig } from "../services/ipld";
-import { linkSync } from "fs";
+import { 
+  SCHEMA, 
+  PROFILE_SCHEMA_NAME, 
+  PERSPECTIVE_SCHEMA_NAME, 
+  COMMIT_SCHEMA_NAME, 
+  TEXT_SCHEMA_NAME, 
+  TEXT_NODE_SCHEMA_NAME, 
+  DOCUMENT_NODE_SCHEMA_NAME, 
+  DATA_SCHEMA_NAME} from "./schema";
 
 const dgraph = require("dgraph-js");
 const grpc = require("grpc");
 let ready = false;
-
-const PERSPECTIVE_SCHEMA_NAME = 'Perspective';
-const PROFILE_SCHEMA_NAME = 'Profile';
-const COMMIT_SCHEMA_NAME = 'Commit';
-const DATA_SCHEMA_NAME = 'Data';
-const TEXT_SCHEMA_NAME = 'Text';
-const TEXT_NODE_SCHEMA_NAME = 'TextNode';
-const DOCUMENT_NODE_SCHEMA_NAME = 'DocumentNode';
 
 const LOCAL_PROVIDER = 'http://collectiveone.org/uprtcl/1';
 
@@ -84,53 +84,7 @@ export class DGraphService {
   }
 
   async setSchema() {
-    let schema = `
-      type ${PROFILE_SCHEMA_NAME} {
-        did: string
-      }
-
-      type ${PERSPECTIVE_SCHEMA_NAME} {
-        xid: string
-        creator: [${PROFILE_SCHEMA_NAME}]
-        context: string
-        timestamp: datetime
-        nonce: int
-      }
-
-      type ${COMMIT_SCHEMA_NAME} {
-        xid: string
-        creator: [${PROFILE_SCHEMA_NAME}]
-        timestamp: datetime
-        message: string
-        parents: [${COMMIT_SCHEMA_NAME}]
-        data: [${DATA_SCHEMA_NAME}]
-      }
-
-      type ${DATA_SCHEMA_NAME} {
-        xid: string
-      }
-
-      type ${TEXT_SCHEMA_NAME} {
-        xid: string
-        text: string
-      }
-
-      type ${TEXT_NODE_SCHEMA_NAME} {
-        xid: string
-        text: string
-        links: [${PERSPECTIVE_SCHEMA_NAME}]
-      }
-
-      type ${DOCUMENT_NODE_SCHEMA_NAME} {
-        xid: string
-        text: string
-        node_type: string
-        links: [${PERSPECTIVE_SCHEMA_NAME}]
-      }
-      
-      xid: string @index(exact) .
-      text: string @index(exact) .
-    `;
+    let schema = SCHEMA;
 
     const op = new dgraph.Operation();
     op.setSchema(schema);
@@ -336,7 +290,7 @@ export class DGraphService {
 
   async createData(dataDto: DataDto) {
     await this.ready();
-    
+
     if (dataDto.id !== '') {
       let valid = await ipldService.validateCid(
         dataDto.id,
@@ -354,12 +308,13 @@ export class DGraphService {
       );
     }
 
-    const txn = this.client.newTxn();
     const mu = new dgraph.Mutation();
-
+    const req = new dgraph.Request();
+    
     const data = dataDto.data;
 
     let nquads = `_:data <xid> "${dataDto.id}" .`;
+    nquads = nquads.concat(`\n_:data <dgraph.type> "${DATA_SCHEMA_NAME}" .`);
 
     switch (dataDto.type) {
       case DataType.TEXT:
@@ -368,12 +323,18 @@ export class DGraphService {
         break;
 
       case DataType.TEXT_NODE:
+        /** get the uids of the links (they must exist!) */
+        const query = `query {
+          links as var(func: eq(xid, [${dataDto.data.links.join(' ')}]))
+        }`
+
+        req.setQuery(query);
+
         nquads = nquads.concat(`\n_:data <dgraph.type> "${TEXT_SCHEMA_NAME}" .`);
         nquads = nquads.concat(`\n_:data <dgraph.type> "${TEXT_NODE_SCHEMA_NAME}" .`);
         nquads = nquads.concat(`\n_:data <text> "${dataDto.data.text}" .`);
-        for (let ix = 0; ix < data.links.length; ix++) {
-          nquads = nquads.concat(`\n_:data <link> "${dataDto.data.links[ix]}" (order=${ix}) .`)
-        }
+        /** set links to uids of the links */
+        nquads = nquads.concat(`\n_:data <link> uid(links) .`)
         break;
 
       case DataType.DOCUMENT_NODE:
@@ -390,10 +351,10 @@ export class DGraphService {
 
     mu.setSetNquads(nquads);
 
-    const response = await txn.mutate(mu);
-    await txn.commit(); ''
-    let uid = response.getUidsMap().get('data');
-    // console.log(`[DGRAPH - createData()]`, {uid}, {id: dataDto.id}, {data: dataDto.data});
+    req.setMutationsList([mu]);
+    req.setCommitNow(true);
+
+    await this.client.newTxn().doRequest(req);
     return dataDto.id;
   }
 
@@ -402,7 +363,7 @@ export class DGraphService {
 
     const query = `query {
       data(func: eq(xid, ${dataId})) {
-        expand(_all_)
+        expand(_all_) { expand(_all_) }
         <dgraph.type>
       }
     }
@@ -423,7 +384,7 @@ export class DGraphService {
     }
 
     if (dgraphTypes.includes(TEXT_NODE_SCHEMA_NAME)) {
-      data['links'] = ddata['links'];
+      data['links'] = ddata['link'].map((link: { xid: any; }) => link.xid);
     }
 
     if (dgraphTypes.includes(DOCUMENT_NODE_SCHEMA_NAME)) {
