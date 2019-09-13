@@ -261,6 +261,7 @@ export class DGraphService {
 
   async getPerspectiveHead(perspectiveId: string): Promise<string> {
     await this.ready();
+
     const query = `query {
       perspective(func: eq(xid, ${perspectiveId})) {
        head {
@@ -269,11 +270,9 @@ export class DGraphService {
       }
     }`;
 
-    debugger
-
     let result = await this.client.newTxn().query(query);
-    let dperspective: DgPerspective = result.getJson().perspective[0];
-    return dperspective.xid;
+    let perspectivehead = result.getJson().perspective[0];
+    return perspectivehead.head[0].xid;
   }
 
   async getCommit(commitId: string): Promise<Commit> {
