@@ -334,7 +334,7 @@ export class DGraphService {
         nquads = nquads.concat(`\n_:data <dgraph.type> "${TEXT_NODE_SCHEMA_NAME}" .`);
         nquads = nquads.concat(`\n_:data <text> "${dataDto.data.text}" .`);
         /** set links to uids of the links */
-        nquads = nquads.concat(`\n_:data <link> uid(links) .`)
+        nquads = nquads.concat(`\n_:data <links> uid(links) .`)
         break;
 
       case DataType.DOCUMENT_NODE:
@@ -344,7 +344,7 @@ export class DGraphService {
         nquads = nquads.concat(`\n_:data <text> "${dataDto.data.text}" .`);
         nquads = nquads.concat(`\n_:data <doc_node_type> "${dataDto.data.type}" .`);
         for (let ix = 0; ix < data.links.length; ix++) {
-          nquads = nquads.concat(`\n_:data <link> "${dataDto.data.links[ix]}" (order=${ix}) .`)
+          nquads = nquads.concat(`\n_:data <links> "${dataDto.data.links[ix]}" (order=${ix}) .`)
         }
         break;
     }
@@ -362,8 +362,11 @@ export class DGraphService {
     await this.ready();
 
     const query = `query {
-      data(func: eq(xid, ${dataId})) {
-        expand(_all_) { expand(_all_) }
+      data(func: eq(xid, ${dataId})) @recurse {
+        xid
+        text
+        links
+        doc_node_type
         <dgraph.type>
       }
     }
@@ -384,7 +387,7 @@ export class DGraphService {
     }
 
     if (dgraphTypes.includes(TEXT_NODE_SCHEMA_NAME)) {
-      data['links'] = ddata['link'].map((link: { xid: any; }) => link.xid);
+      data['links'] = ddata['links'];
     }
 
     if (dgraphTypes.includes(DOCUMENT_NODE_SCHEMA_NAME)) {

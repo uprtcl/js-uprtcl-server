@@ -138,17 +138,34 @@ describe("routes", () => {
     let text2 = 'a paragraph 2';
     let par2Id = await createText(text2);
 
+    let text12 = 'a paragraph 1.2';
+    let par12Id = await createText(text12);
+
+    let subtitle1 = 'a subtitle 2';
+    let sub1Id = await createTextNode(subtitle1, [par12Id]);
+
     let text3 = 'a title';
-    let links = [par1Id, par2Id];
-    let dataId = await createTextNode(text3, links);
+    let dataId = await createTextNode(text3, [par1Id, par2Id, sub1Id]);
 
     let dataRead = await getData(dataId)
     
     expect(dataRead.id).toEqual(dataId);
     expect(dataRead.text).toEqual(text3);
-    expect(dataRead.links.length).toEqual(2);
-    expect(dataRead.links[0]).toEqual(par1Id);
-    expect(dataRead.links[1]).toEqual(par2Id);
+    expect(dataRead.links.length).toEqual(3);
+    
+    expect(dataRead.links[0].xid).toEqual(par1Id);
+    expect(dataRead.links[0].text).toEqual(text1);
+
+    expect(dataRead.links[1].xid).toEqual(par2Id);
+    expect(dataRead.links[1].text).toEqual(text2);
+
+    expect(dataRead.links[2].xid).toEqual(sub1Id);
+    expect(dataRead.links[2].text).toEqual(subtitle1);
+    
+    expect(dataRead.links[2].links.length).toEqual(1);
+    
+    expect(dataRead.links[2].links[0].xid).toEqual(par12Id);
+    expect(dataRead.links[2].links[0].text).toEqual(text12);
   });
   
 });

@@ -42,18 +42,18 @@ type ${TEXT_SCHEMA_NAME} {
 type ${TEXT_NODE_SCHEMA_NAME} {
   xid: string
   text: string
-  link: [uid]
+  links: [uid]
 }
 
 type ${DOCUMENT_NODE_SCHEMA_NAME} {
   xid: string
   text: string
   node_type: string
-  link: [uid]
+  links: [uid]
 }
 
 xid: string @index(exact) .
-link: [uid] @reverse .
+links: [uid] @reverse .
 text: string @index(fulltext) .
 
 `
