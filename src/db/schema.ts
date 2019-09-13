@@ -6,6 +6,7 @@ export const DATA_SCHEMA_NAME = 'Data';
 export const TEXT_SCHEMA_NAME = 'Text';
 export const TEXT_NODE_SCHEMA_NAME = 'TextNode';
 export const DOCUMENT_NODE_SCHEMA_NAME = 'DocumentNode';
+export const KNOWN_SOURCES_SCHEMA_NAME = 'KnownSources';
 
 export const SCHEMA = `
 
@@ -52,9 +53,17 @@ type ${DOCUMENT_NODE_SCHEMA_NAME} {
   links: [uid]
 }
 
+# elementId is like xid but for elements *not* stored locally
+type ${KNOWN_SOURCES_SCHEMA_NAME} {
+  elementId: string
+  sources: [string]
+}
+
 xid: string @index(exact) .
 did: string @index(exact) .
 links: [uid] @reverse .
+elementId: string @index(exact) .
+sources: [string] .
 text: string @index(fulltext) .
 
 `

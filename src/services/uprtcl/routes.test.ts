@@ -54,6 +54,33 @@ const createCommit = async (
   return post.text;
 }
 
+const addKnownSources = async (
+  elementId: string, 
+  sources: Array<string>) : Promise<void> => {
+  
+  const post = await request(router).put(`/uprtcl/1/discovery/${elementId}`)
+  .send(sources);
+  expect(post.status).toEqual(200);
+}
+
+const getKnownSources = async (
+  elementId: string) : Promise<Array<string>> => {
+  
+  const get = await request(router).get(`/uprtcl/1/discovery/${elementId}`);
+  expect(get.status).toEqual(200);
+  
+  return JSON.parse(get.text);
+}
+
+const getOrigin = async (
+  elementId: string) : Promise<string> => {
+  
+  const get = await request(router).get(`/uprtcl/1/discovery/you`);
+  expect(get.status).toEqual(200);
+  
+  return get.text;
+}
+
 const getPerspective = async (perspectiveId: string):Promise<Perspective> => {
   const get = await request(router).get(`/uprtcl/1/persp/${perspectiveId}`);
   expect(get.status).toEqual(200);
@@ -217,8 +244,7 @@ describe("routes", () => {
     expect(commitRead.dataId).toEqual(par1Id);
     expect(commitRead.parentsIds.length).toEqual(0);
 
-    let text11 = 'a paragraph 1 updated';
-    let par11Id = await createText(text1);
+    let par11Id = await createText('a paragraph 1 updated');
     
     let message2 = 'udpated text';
 
@@ -233,6 +259,31 @@ describe("routes", () => {
     expect(commit11Read.parentsIds.length).toEqual(1);
     expect(commit11Read.parentsIds[0]).toEqual(commit1Id);
 
+  });
+
+  test("Discovery", async () => {
+    let par1Id = await createText('a paragraph 1');
+
+    const origin = 'http://collectiveone.org/uprtcl/1';
+
+    let source1 = 'eth://12345';
+    let source2 = 'holochain://456789';
+    let source3 = origin;
+    
+    await addKnownSources(par1Id, [source1, source2, source3]);
+
+    let sourcesRead = await getKnownSources(par1Id);
+
+    expect(sourcesRead.length).toEqual(3);
+    expect(sourcesRead[0]).toEqual(source1);
+    expect(sourcesRead[1]).toEqual(source2);
+    expect(sourcesRead[2]).toEqual(source3);
+
+    let par2Id = await createText('a paragraph 2');
+    
+    let sourcesRead2 = await getKnownSources(par2Id);
+    expect(sourcesRead2.length).toEqual(1);
+    expect(sourcesRead2[0]).toEqual(origin);
   });
   
 });

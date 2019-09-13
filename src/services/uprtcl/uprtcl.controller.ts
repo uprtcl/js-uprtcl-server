@@ -83,6 +83,42 @@ export class UprtclController {
             res.status(200).send(result);
           }
         ]
+      },
+
+      {
+        path: "/uprtcl/1/discovery/:elementId",
+        method: "put",
+        handler: [
+          checksPlaceholder,
+          async ({ params, body }: Request, res: Response) => {
+            const result = await this.uprtclService.addKnownSources(params.elementId, body);
+            res.status(200).send(result);
+          }
+        ]
+      },
+
+      {
+        path: "/uprtcl/1/discovery/:elementId",
+        method: "get",
+        handler: [
+          checksPlaceholder,
+          async ({ params, }: Request, res: Response) => {
+            const result = await this.uprtclService.getKnownSources(params.elementId);
+            res.status(200).send(result);
+          }
+        ]
+      },
+
+      {
+        path: "/uprtcl/1/discovery/you",
+        method: "get",
+        handler: [
+          checksPlaceholder,
+          async ({ params }: Request, res: Response) => {
+            const result = this.uprtclService.getOrigin();
+            res.status(200).send(result);
+          }
+        ]
       }
     ]
   }

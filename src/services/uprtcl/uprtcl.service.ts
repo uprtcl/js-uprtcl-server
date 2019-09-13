@@ -41,5 +41,18 @@ export class UprtclService {
     let uid = await this.db.getData(dataId);
     return uid;
   };
+
+  async addKnownSources(elementId: string, sources: Array<string>) {
+    await this.db.addKnownSources(elementId, sources);
+  }
+
+  async getKnownSources(elementId: string):Promise<Array<string>> {
+    let sources = this.db.getKnownSources(elementId);
+    return sources;
+  }
+
+  getOrigin():Promise<string> {
+    return this.db.getOrigin();
+  }
 }
 

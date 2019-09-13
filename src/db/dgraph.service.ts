@@ -9,7 +9,8 @@ import {
   TEXT_SCHEMA_NAME, 
   TEXT_NODE_SCHEMA_NAME, 
   DOCUMENT_NODE_SCHEMA_NAME, 
-  DATA_SCHEMA_NAME} from "./schema";
+  DATA_SCHEMA_NAME,
+  KNOWN_SOURCES_SCHEMA_NAME} from "./schema";
 
 const dgraph = require("dgraph-js");
 const grpc = require("grpc");
@@ -185,9 +186,6 @@ export class DGraphService {
     /** make sure creatorId exist */
     await this.upsertProfile(commit.creatorId);
     
-    let nquads = `_:commit <xid> "${commit.id}" .`;
-    nquads = nquads.concat(`\n_:commit <dgraph.type> "${COMMIT_SCHEMA_NAME}" .`);
-
     let query = ``;
     if (commit.parentsIds.length > 0) query = query.concat(`\nparents as var(func: eq(xid, [${commit.parentsIds.join(' ')}]))`);
     query = query.concat(`\ndata as var(func: eq(xid, "${commit.dataId}"))`);
@@ -195,6 +193,8 @@ export class DGraphService {
   
     req.setQuery(`query{${query}}`);
 
+    let nquads = `_:commit <xid> "${commit.id}" .`;
+    nquads = nquads.concat(`\n_:commit <dgraph.type> "${COMMIT_SCHEMA_NAME}" .`);
     nquads = nquads.concat(`\n_:commit <message> "${commit.message}" .`);
     nquads = nquads.concat(`\n_:commit <creator> uid(profile) .`);
     nquads = nquads.concat(`\n_:commit <timestamp> "${commit.timestamp}"^^<xs:int> .`);
@@ -374,5 +374,61 @@ export class DGraphService {
     }
 
     return data;
+  }
+
+  async addKnownSources(elementId: string, sources: Array<string>):Promise<void> {
+    await this.ready();
+
+    const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
+
+    sources = sources.filter(source => source !== LOCAL_PROVIDER);
+    
+    let query = `element as var(func: eq(elementId, "${elementId}"))`;
+    req.setQuery(`query{${query}}`);
+
+    let nquads = `uid(element) <elementId> "${elementId}" .`;
+    nquads = nquads.concat(`\nuid(element) <dgraph.type> "${KNOWN_SOURCES_SCHEMA_NAME}" .`);
+    for (let ix = 0; ix < sources.length; ix++) {
+      nquads = nquads.concat(`\nuid(element) <sources> "${sources[ix]}" .`);
+    }
+    
+    mu.setSetNquads(nquads);
+    req.setMutationsList([mu]);
+    req.setCommitNow(true);
+
+    await this.client.newTxn().doRequest(req);
+  }
+
+  async getKnownSources(elementId: string):Promise<Array<string>> {
+    await this.ready();
+
+    const query = `
+    query {
+      sources(func: eq(elementId, ${elementId})) {
+        sources
+      }
+    }`;
+
+    let result = await this.client.newTxn().query(query);
+    let sources = result.getJson().sources.length > 0 ? result.getJson().sources[0].sources : []
+
+    const queryLocal = `
+    query {
+      element(func: eq(xid, ${elementId})) {
+        xid
+      }
+    }`;
+
+    /** check if there is an xid for this element (it means we have a local copy of it) */
+    let resultLocal = await this.client.newTxn().query(queryLocal);
+    let elements = resultLocal.getJson().element;
+    if (elements.length > 0) sources.push(LOCAL_PROVIDER);
+
+    return sources;
+  }
+
+  async getOrigin():Promise<string> {
+    return LOCAL_PROVIDER;
   }
 }
