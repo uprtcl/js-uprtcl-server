@@ -22,6 +22,15 @@ export class UprtclService {
     return perspective;
   };
 
+  async updatePerspective(perspectiveId: string, headId: string): Promise<void> {
+    await this.db.updatePerspective(perspectiveId, headId);
+  };
+
+  async getPerspectiveHead(perspectiveId: string): Promise<string> {
+    let perspective = await this.db.getPerspectiveHead(perspectiveId);
+    return perspective;
+  };  
+
   async createCommit(commit: Commit, loggedUserId: string): Promise<string> {
     let uid = await this.db.createCommit(commit);
     return uid;

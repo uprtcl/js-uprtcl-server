@@ -16,10 +16,12 @@ type ${PROFILE_SCHEMA_NAME} {
 
 type ${PERSPECTIVE_SCHEMA_NAME} {
   xid: string
+  name: string
   creator: [${PROFILE_SCHEMA_NAME}]
   context: string
+  origin: string
   timestamp: datetime
-  nonce: int
+  head: [${COMMIT_SCHEMA_NAME}]
 }
 
 type ${COMMIT_SCHEMA_NAME} {

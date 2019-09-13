@@ -38,6 +38,30 @@ export class UprtclController {
       },
 
       {
+        path: "/uprtcl/1/persp/:perspectiveId/head",
+        method: "get",
+        handler: [
+          checksPlaceholder,
+          async ({ params }: Request, res: Response) => {
+            const result = await this.uprtclService.getPerspectiveHead(params.perspectiveId);
+            res.status(200).send(result);
+          }
+        ]
+      },
+
+      {
+        path: "/uprtcl/1/persp/:perspectiveId",
+        method: "put",
+        handler: [
+          checksPlaceholder,
+          async ({ params, query }: Request, res: Response) => {
+            const result = await this.uprtclService.updatePerspective(params.perspectiveId, query.headId);
+            res.status(200).send(result);
+          }
+        ]
+      },
+
+      {
         path: "/uprtcl/1/data",
         method: "post",
         handler: [

@@ -30,6 +30,12 @@ const createPerspective = async (creatorId: string, name: string, context: strin
   return post.text;
 }
 
+const updatePerspective = async (perspectiveId: string, headId: string):Promise<void> => {
+  const put = await request(router).put(`/uprtcl/1/persp/${perspectiveId}?headId=${headId}`)
+  .send();
+  expect(put.status).toEqual(200);
+}
+
 const createCommit = async (
   creatorId: string, 
   timestamp: number, 
@@ -86,6 +92,13 @@ const getPerspective = async (perspectiveId: string):Promise<Perspective> => {
   expect(get.status).toEqual(200);
   
   return JSON.parse(get.text);
+}
+
+const getPerspectiveHead = async (perspectiveId: string):Promise<string> => {
+  const get = await request(router).get(`/uprtcl/1/persp/${perspectiveId}/head`);
+  expect(get.status).toEqual(200);
+  
+  return get.text;
 }
 
 const getCommit = async (commitId: string):Promise<Commit> => {
@@ -177,6 +190,19 @@ describe("routes", () => {
     expect(perspectiveRead.name).toEqual(name);
     expect(perspectiveRead.context).toEqual(context);
     expect(perspectiveRead.origin).toEqual(origin);
+
+    /** update head */
+    const message = 'commit message';
+    
+    let text1 = 'new content';
+    let par1Id = await createText(text1); 
+    let commit1Id = await createCommit(creatorId, timestamp, message, [], par1Id);
+
+    await updatePerspective(perspectiveId, commit1Id);
+    let perspectiveHeadRead = await getPerspectiveHead(perspectiveId);
+
+    expect(perspectiveHeadRead).toEqual(commit1Id);
+
   });
 
   test("CRUD text data", async () => {

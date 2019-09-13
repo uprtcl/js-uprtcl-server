@@ -160,6 +160,27 @@ export class DGraphService {
     return perspective.id;
   }
 
+  async updatePerspective(perspectiveId: string, headId: string):Promise<void> {
+    await this.ready();
+
+    const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
+
+    /** make sure creatorId exist */
+    let query = `perspective as var(func: eq(xid, "${perspectiveId}"))`;
+    query = query.concat(`\nhead as var(func: eq(xid, "${headId}"))`)
+    req.setQuery(`query{${query}}`);
+
+    let nquads = `uid(perspective) <xid> "${perspectiveId}" .`;
+    nquads = nquads.concat(`\nuid(perspective) <head> uid(head) .`);
+    
+    mu.setSetNquads(nquads);
+    req.setMutationsList([mu]);
+    req.setCommitNow(true);
+
+    await this.client.newTxn().doRequest(req);
+  }
+
   async createCommit(commit: Commit) {
     await this.ready();
 
@@ -236,6 +257,23 @@ export class DGraphService {
       timestamp: dperspective.timestamp,
     }
     return perspective;
+  }
+
+  async getPerspectiveHead(perspectiveId: string): Promise<string> {
+    await this.ready();
+    const query = `query {
+      perspective(func: eq(xid, ${perspectiveId})) {
+       head {
+         xid
+       }
+      }
+    }`;
+
+    debugger
+
+    let result = await this.client.newTxn().query(query);
+    let dperspective: DgPerspective = result.getJson().perspective[0];
+    return dperspective.xid;
   }
 
   async getCommit(commitId: string): Promise<Commit> {
