@@ -338,32 +338,26 @@ export class DGraphService {
     nquads = nquads.concat(`\nuid(data) <dgraph.type> "${DATA_SCHEMA_NAME}" .`);
 
     switch (dataDto.type) {
-      case DataType.TEXT:
-        nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_SCHEMA_NAME}" .`);
-        nquads = nquads.concat(`\nuid(data) <text> "${dataDto.data.text}" .`);
-        break;
+      case DataType.DOCUMENT_NODE:
+        nquads = nquads.concat(`\nuid(data) <dgraph.type> "${DOCUMENT_NODE_SCHEMA_NAME}" .`);
+        nquads = nquads.concat(`\nuid(data) <doc_node_type> "${dataDto.data.type}" .`);
+        /** NO BREAK */
 
       case DataType.TEXT_NODE:
         /** get the uids of the links (they must exist!) */
         query = query.concat(`links as var(func: eq(xid, [${dataDto.data.links.join(' ')}]))`);
 
-        nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_SCHEMA_NAME}" .`);
         nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_NODE_SCHEMA_NAME}" .`);
-        nquads = nquads.concat(`\nuid(data) <text> "${dataDto.data.text}" .`);
         /** set links to uids of the links */
         nquads = nquads.concat(`\nuid(data) <links> uid(links) .`)
-        break;
+        /** NO BREAK */
+  
 
-      case DataType.DOCUMENT_NODE:
+      case DataType.TEXT:
         nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_SCHEMA_NAME}" .`);
-        nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_NODE_SCHEMA_NAME}" .`);
-        nquads = nquads.concat(`\nuid(data) <dgraph.type> "${DOCUMENT_NODE_SCHEMA_NAME}" .`);
         nquads = nquads.concat(`\nuid(data) <text> "${dataDto.data.text}" .`);
-        nquads = nquads.concat(`\nuid(data) <doc_node_type> "${dataDto.data.type}" .`);
-        for (let ix = 0; ix < data.links.length; ix++) {
-          nquads = nquads.concat(`\nuid(data) <links> "${dataDto.data.links[ix]}" (order=${ix}) .`)
-        }
         break;
+      
     }
     req.setQuery(`query {${query}}`);
     mu.setSetNquads(nquads);

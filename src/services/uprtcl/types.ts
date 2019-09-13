@@ -22,6 +22,12 @@ export enum DataType {
   DOCUMENT_NODE = 'DOCUMENT_NODE'
 }
 
+export enum DocNodeType {
+  title = 'title',
+  paragraph = 'paragraph'
+} 
+
+
 export interface DataDto {
   id: string,
   type: DataType,

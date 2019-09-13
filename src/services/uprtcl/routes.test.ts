@@ -2,7 +2,7 @@ import request from "supertest";
 import promiseRequest from "request-promise";
 import { router } from '../../server';
 import CID from 'cids';
-import { Perspective, DataDto, DataType, Commit } from "./types";
+import { Perspective, DataDto, DataType, Commit, DocNodeType } from "./types";
 
 jest.mock("request-promise");
 (promiseRequest as any).mockImplementation(() => '{"features": []}');
@@ -149,6 +149,28 @@ const createTextNode = async (text: string, links: string[]):Promise<string> => 
   return post.text;
 }
 
+const createDocNode = async (text: string, doc_node_type: DocNodeType, links: string[]):Promise<string> => {
+  const data = {
+    id: '',
+    text: text,
+    type: doc_node_type,
+    links: links
+  }
+
+  const dataDto: DataDto = {
+    id: '',
+    data:  data,
+    type: DataType.TEXT_NODE
+  }
+
+  const post = await request(router).post('/uprtcl/1/data')
+  .send(dataDto);
+  expect(post.status).toEqual(200);
+  (expect(post.text) as unknown as ExtendedMatchers).toBeValidCid();
+
+  return post.text;
+}
+
 const getData = async (dataId: string):Promise<any> => {
   const get = await request(router).get(`/uprtcl/1/data/${dataId}`);
   expect(get.status).toEqual(200);
@@ -250,6 +272,34 @@ describe("routes", () => {
     
     expect(dataRead.links[2].links[0].xid).toEqual(par12Id);
     expect(dataRead.links[2].links[0].text).toEqual(text12);
+  });
+
+  test("CRUD doc node data", async () => {
+    // let subtitle1 = 'a subtitle 2';
+    // let sub1Id = await createDocNode(subtitle1, [par12Id]);
+
+    // let text3 = 'a title';
+    // let dataId = await createTextNode(text3, [par1Id, par2Id, sub1Id]);
+
+    // let dataRead = await getData(dataId)
+    
+    // expect(dataRead.id).toEqual(dataId);
+    // expect(dataRead.text).toEqual(text3);
+    // expect(dataRead.links.length).toEqual(3);
+    
+    // expect(dataRead.links[0].xid).toEqual(par1Id);
+    // expect(dataRead.links[0].text).toEqual(text1);
+
+    // expect(dataRead.links[1].xid).toEqual(par2Id);
+    // expect(dataRead.links[1].text).toEqual(text2);
+
+    // expect(dataRead.links[2].xid).toEqual(sub1Id);
+    // expect(dataRead.links[2].text).toEqual(subtitle1);
+    
+    // expect(dataRead.links[2].links.length).toEqual(1);
+    
+    // expect(dataRead.links[2].links[0].xid).toEqual(par12Id);
+    // expect(dataRead.links[2].links[0].text).toEqual(text12);
   });
 
   test("CRUD commits", async () => {
