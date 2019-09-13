@@ -217,9 +217,22 @@ describe("routes", () => {
     expect(commitRead.dataId).toEqual(par1Id);
     expect(commitRead.parentsIds.length).toEqual(0);
 
+    let text11 = 'a paragraph 1 updated';
+    let par11Id = await createText(text1);
+    
+    let message2 = 'udpated text';
+
+    let commit11Id = await createCommit(creatorId, timestamp, message2, [commit1Id], par11Id);
+    let commit11Read = await getCommit(commit11Id);
+
+    expect(commit11Read.id).toEqual(commit11Id);
+    expect(commit11Read.creatorId).toEqual(creatorId);
+    expect(commit11Read.timestamp).toEqual(timestamp);
+    expect(commit11Read.message).toEqual(message2);
+    expect(commit11Read.dataId).toEqual(par11Id);
+    expect(commit11Read.parentsIds.length).toEqual(1);
+    expect(commit11Read.parentsIds[0]).toEqual(commit1Id);
 
   });
-
-
   
 });

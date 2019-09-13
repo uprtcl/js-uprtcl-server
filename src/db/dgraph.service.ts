@@ -250,12 +250,13 @@ export class DGraphService {
         data {
           xid
         }
+        parents {
+          xid
+        }
         timestamp
       }
-    }
-    `;
-    // TODO: issue with variables UNKNOWN: Variable not defined 
-    // let vars = {$contextId: $contextId}
+    }`;
+
     let result = await this.client.newTxn().query(query);
     let dcommit: DgCommit = result.getJson().commit[0];
     let commit: Commit = {
@@ -264,7 +265,7 @@ export class DGraphService {
       dataId: dcommit.data[0].xid,
       timestamp: dcommit.timestamp,
       message: dcommit.message,
-      parentsIds: []
+      parentsIds: dcommit.parents ? dcommit.parents.map(parent => parent.xid) : []
     }
     return commit;
   }
