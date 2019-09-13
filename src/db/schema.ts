@@ -53,6 +53,7 @@ type ${DOCUMENT_NODE_SCHEMA_NAME} {
 }
 
 xid: string @index(exact) .
+did: string @index(exact) .
 links: [uid] @reverse .
 text: string @index(fulltext) .
 

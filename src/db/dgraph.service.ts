@@ -57,7 +57,6 @@ interface DgData {
 }
 
 export class DGraphService {
-
   private host: string;
   private client: any;
   connectionReady: Promise<any>;
@@ -95,48 +94,24 @@ export class DGraphService {
     return this.connectionReady;
   }
 
-  async upsertProfile(_did: string) {
+  async upsertProfile(did: string):Promise<void> {
     await this.ready();
-    /*
-    const txn = this.client.newTxn();
     
-    let query = `query {
-      profile as var(func: eq(did, "${did}"))
-    }`;
-
-    let mutation = new dgraph.Mutation();
-    mutation.setSetJson({
-      "did": did
-    });
-  
-    const req = new dgraph.Request();
-    req.setQuery(query);
-    req.setMutationsList([mutation]);
-    req.setCommitNow(true);
-    
-
-     // Update account only if matching uid found.
-    const response = await txn.doRequest(req);
-    let uid = response.getUidsMap().get(`uid(profile)`);
-    return uid;
-    */
-
-    const txn = this.client.newTxn();
     const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
 
-    /** rename id as xid for dgraph external Id */
-    let dgProfile: DgProfile = {
-      uid: '_:profile',
-      did: _did,
-      'dgraph.type': PROFILE_SCHEMA_NAME
-    }
+    let query = `profile as var(func: eq(did, "${did}"))`;
+  
+    req.setQuery(`query{${query}}`);
 
-    mu.setSetJson(dgProfile);
+    let nquads = `uid(profile) <did> "${did}" .`;
+    nquads = nquads.concat(`\nuid(profile) <dgraph.type> "${PROFILE_SCHEMA_NAME}" .`);
 
-    const response = await txn.mutate(mu);
-    await txn.commit(); ''
-    let uid = response.getUidsMap().get('profile');
-    return uid;
+    mu.setSetNquads(nquads);
+    req.setMutationsList([mu]);
+    req.setCommitNow(true);
+
+    await this.client.newTxn().doRequest(req);
   }
 
   async createPerspective(perspective: Perspective) {
@@ -159,26 +134,28 @@ export class DGraphService {
       );
     }
 
-    const txn = this.client.newTxn();
     const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
 
-    let profileUid = await this.upsertProfile(perspective.creatorId);
+    /** make sure creatorId exist */
+    await this.upsertProfile(perspective.creatorId);
+    
+    let query = `profile as var(func: eq(did, "${perspective.creatorId}"))`;
+    req.setQuery(`query{${query}}`);
 
-    /** rename id as xid for dgraph external Id */
-    let dgPerspective: DgPerspective = {
-      xid: perspective.id,
-      name: perspective.name,
-      context: perspective.context,
-      creator: [{ uid: profileUid }],
-      timestamp: perspective.timestamp,
-      origin: LOCAL_PROVIDER,
-      'dgraph.type': PERSPECTIVE_SCHEMA_NAME
-    }
+    let nquads = `_:perspective <xid> "${perspective.id}" .`;
+    nquads = nquads.concat(`\n_:perspective <name> "${perspective.name}" .`);
+    nquads = nquads.concat(`\n_:perspective <context> "${perspective.context}" .`);
+    nquads = nquads.concat(`\n_:perspective <creator> uid(profile) .`);
+    nquads = nquads.concat(`\n_:perspective <timestamp> "${perspective.timestamp}"^^<xs:int> .`);
+    nquads = nquads.concat(`\n_:perspective <origin> "${LOCAL_PROVIDER}" .`);
+    nquads = nquads.concat(`\n_:perspective <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`);
+    
+    mu.setSetNquads(nquads);
+    req.setMutationsList([mu]);
+    req.setCommitNow(true);
 
-    mu.setSetJson(dgPerspective);
-
-    const response = await txn.mutate(mu);
-    const result = await txn.commit(); ''
+    await this.client.newTxn().doRequest(req);
     return perspective.id;
   }
 
@@ -202,27 +179,33 @@ export class DGraphService {
       );
     }
 
-    const txn = this.client.newTxn();
     const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
 
-    let profileUid = await this.upsertProfile(commit.creatorId);
-    let dataUid = ''; // await this.getData();
+    /** make sure creatorId exist */
+    await this.upsertProfile(commit.creatorId);
+    
+    let nquads = `_:commit <xid> "${commit.id}" .`;
+    nquads = nquads.concat(`\n_:commit <dgraph.type> "${COMMIT_SCHEMA_NAME}" .`);
 
-    /** rename id as xid for dgraph external Id */
-    let dgCommit: DgCommit = {
-      xid: commit.id,
-      creator: [{ uid: profileUid }],
-      timestamp: commit.timestamp,
-      message: commit.message,
-      parents: [], // TODO: efficiently convert list of ids into uids...
-      data: [{ uid: dataUid }],
-      'dgraph.type': COMMIT_SCHEMA_NAME
-    }
+    let query = ``;
+    if (commit.parentsIds.length > 0) query = query.concat(`\nparents as var(func: eq(xid, [${commit.parentsIds.join(' ')}]))`);
+    query = query.concat(`\ndata as var(func: eq(xid, "${commit.dataId}"))`);
+    query = query.concat(`\nprofile as var(func: eq(did, "${commit.creatorId}"))`);
+  
+    req.setQuery(`query{${query}}`);
 
-    mu.setSetJson(dgCommit);
+    nquads = nquads.concat(`\n_:commit <message> "${commit.message}" .`);
+    nquads = nquads.concat(`\n_:commit <creator> uid(profile) .`);
+    nquads = nquads.concat(`\n_:commit <timestamp> "${commit.timestamp}"^^<xs:int> .`);
+    if (commit.parentsIds.length > 0) nquads = nquads.concat(`\n_:commit <parents> uid(parents) .`)
+    nquads = nquads.concat(`\n_:commit <data> uid(data) .`)
+    
+    mu.setSetNquads(nquads);
+    req.setMutationsList([mu]);
+    req.setCommitNow(true);
 
-    const response = await txn.mutate(mu);
-    const result = await txn.commit(); ''
+    await this.client.newTxn().doRequest(req);
     return commit.id;
   }
 
@@ -240,10 +223,8 @@ export class DGraphService {
         timestamp
         nonce
       }
-    }
-    `;
-    // TODO: issue with variables UNKNOWN: Variable not defined 
-    // let vars = {$contextId: $contextId}
+    }`;
+
     let result = await this.client.newTxn().query(query);
     let dperspective: DgPerspective = result.getJson().perspective[0];
     let perspective: Perspective = {
@@ -313,44 +294,41 @@ export class DGraphService {
     
     const data = dataDto.data;
 
-    let nquads = `_:data <xid> "${dataDto.id}" .`;
-    nquads = nquads.concat(`\n_:data <dgraph.type> "${DATA_SCHEMA_NAME}" .`);
+    let query = `data as var(func: eq(xid, ${dataDto.id}))`;
+
+    let nquads = `uid(data) <xid> "${dataDto.id}" .`;
+    nquads = nquads.concat(`\nuid(data) <dgraph.type> "${DATA_SCHEMA_NAME}" .`);
 
     switch (dataDto.type) {
       case DataType.TEXT:
-        nquads = nquads.concat(`\n_:data <dgraph.type> "${TEXT_SCHEMA_NAME}" .`);
-        nquads = nquads.concat(`\n_:data <text> "${dataDto.data.text}" .`);
+        nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_SCHEMA_NAME}" .`);
+        nquads = nquads.concat(`\nuid(data) <text> "${dataDto.data.text}" .`);
         break;
 
       case DataType.TEXT_NODE:
         /** get the uids of the links (they must exist!) */
-        const query = `query {
-          links as var(func: eq(xid, [${dataDto.data.links.join(' ')}]))
-        }`
+        query = query.concat(`links as var(func: eq(xid, [${dataDto.data.links.join(' ')}]))`);
 
-        req.setQuery(query);
-
-        nquads = nquads.concat(`\n_:data <dgraph.type> "${TEXT_SCHEMA_NAME}" .`);
-        nquads = nquads.concat(`\n_:data <dgraph.type> "${TEXT_NODE_SCHEMA_NAME}" .`);
-        nquads = nquads.concat(`\n_:data <text> "${dataDto.data.text}" .`);
+        nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_SCHEMA_NAME}" .`);
+        nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_NODE_SCHEMA_NAME}" .`);
+        nquads = nquads.concat(`\nuid(data) <text> "${dataDto.data.text}" .`);
         /** set links to uids of the links */
-        nquads = nquads.concat(`\n_:data <links> uid(links) .`)
+        nquads = nquads.concat(`\nuid(data) <links> uid(links) .`)
         break;
 
       case DataType.DOCUMENT_NODE:
-        nquads = nquads.concat(`\n_:data <dgraph.type> "${TEXT_SCHEMA_NAME}" .`);
-        nquads = nquads.concat(`\n_:data <dgraph.type> "${TEXT_NODE_SCHEMA_NAME}" .`);
-        nquads = nquads.concat(`\n_:data <dgraph.type> "${DOCUMENT_NODE_SCHEMA_NAME}" .`);
-        nquads = nquads.concat(`\n_:data <text> "${dataDto.data.text}" .`);
-        nquads = nquads.concat(`\n_:data <doc_node_type> "${dataDto.data.type}" .`);
+        nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_SCHEMA_NAME}" .`);
+        nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_NODE_SCHEMA_NAME}" .`);
+        nquads = nquads.concat(`\nuid(data) <dgraph.type> "${DOCUMENT_NODE_SCHEMA_NAME}" .`);
+        nquads = nquads.concat(`\nuid(data) <text> "${dataDto.data.text}" .`);
+        nquads = nquads.concat(`\nuid(data) <doc_node_type> "${dataDto.data.type}" .`);
         for (let ix = 0; ix < data.links.length; ix++) {
-          nquads = nquads.concat(`\n_:data <links> "${dataDto.data.links[ix]}" (order=${ix}) .`)
+          nquads = nquads.concat(`\nuid(data) <links> "${dataDto.data.links[ix]}" (order=${ix}) .`)
         }
         break;
     }
-
+    req.setQuery(`query {${query}}`);
     mu.setSetNquads(nquads);
-
     req.setMutationsList([mu]);
     req.setCommitNow(true);
 

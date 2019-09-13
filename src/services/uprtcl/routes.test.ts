@@ -2,7 +2,7 @@ import request from "supertest";
 import promiseRequest from "request-promise";
 import { router } from '../../server';
 import CID from 'cids';
-import { Perspective, DataDto, DataType } from "./types";
+import { Perspective, DataDto, DataType, Commit } from "./types";
 
 jest.mock("request-promise");
 (promiseRequest as any).mockImplementation(() => '{"features": []}');
@@ -30,8 +30,39 @@ const createPerspective = async (creatorId: string, name: string, context: strin
   return post.text;
 }
 
+const createCommit = async (
+  creatorId: string, 
+  timestamp: number, 
+  message: string, 
+  parentsIds: Array<string>, 
+  dataId: string) : Promise<string> => {
+  
+  const commit: Commit = {
+    id: '',
+    creatorId: creatorId,
+    timestamp: timestamp,
+    message: message,
+    parentsIds: parentsIds,
+    dataId: dataId
+  }
+
+  const post = await request(router).post('/uprtcl/1/commit')
+  .send(commit);
+  expect(post.status).toEqual(200);
+  (expect(post.text) as unknown as ExtendedMatchers).toBeValidCid();
+
+  return post.text;
+}
+
 const getPerspective = async (perspectiveId: string):Promise<Perspective> => {
   const get = await request(router).get(`/uprtcl/1/persp/${perspectiveId}`);
+  expect(get.status).toEqual(200);
+  
+  return JSON.parse(get.text);
+}
+
+const getCommit = async (commitId: string):Promise<Commit> => {
+  const get = await request(router).get(`/uprtcl/1/commit/${commitId}`);
   expect(get.status).toEqual(200);
   
   return JSON.parse(get.text);
@@ -102,7 +133,7 @@ describe("routes", () => {
     }
   })
 
-  test.skip("CRUD perspectives", async () => {
+  test("CRUD perspectives", async () => {
     const creatorId = 'did:method:12345';
     const name = 'test';
     const context = 'wikipedia.barack_obama';
@@ -121,7 +152,7 @@ describe("routes", () => {
     expect(perspectiveRead.origin).toEqual(origin);
   });
 
-  test.skip("CRUD text data", async () => {
+  test("CRUD text data", async () => {
     let text = 'an example text';
 
     let dataId = await createText(text);
@@ -167,5 +198,28 @@ describe("routes", () => {
     expect(dataRead.links[2].links[0].xid).toEqual(par12Id);
     expect(dataRead.links[2].links[0].text).toEqual(text12);
   });
+
+  test("CRUD commits", async () => {
+    const creatorId = 'did:method:12345';
+    const message = 'commit message';
+    const timestamp = 1568027451547;
+
+    let text1 = 'a paragraph 1';
+    let par1Id = await createText(text1); 
+
+    let commit1Id = await createCommit(creatorId, timestamp, message, [], par1Id);
+    let commitRead = await getCommit(commit1Id);
+    
+    expect(commitRead.id).toEqual(commit1Id);
+    expect(commitRead.creatorId).toEqual(creatorId);
+    expect(commitRead.timestamp).toEqual(timestamp);
+    expect(commitRead.message).toEqual(message);
+    expect(commitRead.dataId).toEqual(par1Id);
+    expect(commitRead.parentsIds.length).toEqual(0);
+
+
+  });
+
+
   
 });
