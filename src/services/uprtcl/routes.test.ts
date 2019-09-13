@@ -116,7 +116,7 @@ const createText = async (text: string):Promise<string> => {
 
   const dataDto: DataDto = {
     id: '',
-    data:  data,
+    jsonData: JSON.stringify(data),
     type: DataType.TEXT
   }
 
@@ -137,7 +137,7 @@ const createTextNode = async (text: string, links: string[]):Promise<string> => 
 
   const dataDto: DataDto = {
     id: '',
-    data:  data,
+    jsonData: JSON.stringify(data),
     type: DataType.TEXT_NODE
   }
 
@@ -159,7 +159,7 @@ const createDocNode = async (text: string, doc_node_type: DocNodeType, links: st
 
   const dataDto: DataDto = {
     id: '',
-    data:  data,
+    jsonData: JSON.stringify(data),
     type: DataType.DOCUMENT_NODE
   }
 

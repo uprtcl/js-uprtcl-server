@@ -310,10 +310,12 @@ export class DGraphService {
   async createData(dataDto: DataDto) {
     await this.ready();
 
+    const data = JSON.parse(dataDto.jsonData);
+
     if (dataDto.id !== '') {
       let valid = await ipldService.validateCid(
         dataDto.id,
-        dataDto.data,
+        data,
         dataTypeOrder(dataDto.type)
       );
       if (!valid) {
@@ -321,7 +323,7 @@ export class DGraphService {
       }
     } else {
       dataDto.id = await ipldService.generateCidOrdered(
-        dataDto.data,
+        data,
         localCidConfig,
         dataTypeOrder(dataDto.type)
       );
@@ -330,7 +332,7 @@ export class DGraphService {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
     
-    const data = dataDto.data;
+    
 
     let query = `data as var(func: eq(xid, ${dataDto.id}))`;
 
@@ -340,22 +342,22 @@ export class DGraphService {
     switch (dataDto.type) {
       case DataType.DOCUMENT_NODE:
         nquads = nquads.concat(`\nuid(data) <dgraph.type> "${DOCUMENT_NODE_SCHEMA_NAME}" .`);
-        nquads = nquads.concat(`\nuid(data) <doc_node_type> "${dataDto.data.doc_node_type}" .`);
+        nquads = nquads.concat(`\nuid(data) <doc_node_type> "${data.doc_node_type}" .`);
         /** NO BREAK */
 
       case DataType.TEXT_NODE:
         /** get the uids of the links (they must exist!) */
-        if (dataDto.data.links.length > 0) query = query.concat(`\nlinks as var(func: eq(xid, [${dataDto.data.links.join(' ')}]))`);
+        if (data.links.length > 0) query = query.concat(`\nlinks as var(func: eq(xid, [${data.links.join(' ')}]))`);
 
         nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_NODE_SCHEMA_NAME}" .`);
         /** set links to uids of the links */
-        if (dataDto.data.links.length > 0) nquads = nquads.concat(`\nuid(data) <links> uid(links) .`)
+        if (data.links.length > 0) nquads = nquads.concat(`\nuid(data) <links> uid(links) .`)
         /** NO BREAK */
   
 
       case DataType.TEXT:
         nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_SCHEMA_NAME}" .`);
-        nquads = nquads.concat(`\nuid(data) <text> "${dataDto.data.text}" .`);
+        nquads = nquads.concat(`\nuid(data) <text> "${data.text}" .`);
         break;
       
     }

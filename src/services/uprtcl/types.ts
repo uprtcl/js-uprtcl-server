@@ -31,7 +31,7 @@ export enum DocNodeType {
 export interface DataDto {
   id: string,
   type: DataType,
-  data: any,
+  jsonData: any,
 }
 
 export const PropertyOrder = {
