@@ -153,14 +153,14 @@ const createDocNode = async (text: string, doc_node_type: DocNodeType, links: st
   const data = {
     id: '',
     text: text,
-    type: doc_node_type,
+    doc_node_type: doc_node_type,
     links: links
   }
 
   const dataDto: DataDto = {
     id: '',
     data:  data,
-    type: DataType.TEXT_NODE
+    type: DataType.DOCUMENT_NODE
   }
 
   const post = await request(router).post('/uprtcl/1/data')
@@ -275,31 +275,31 @@ describe("routes", () => {
   });
 
   test("CRUD doc node data", async () => {
-    // let subtitle1 = 'a subtitle 2';
-    // let sub1Id = await createDocNode(subtitle1, [par12Id]);
 
-    // let text3 = 'a title';
-    // let dataId = await createTextNode(text3, [par1Id, par2Id, sub1Id]);
+    let par1 = 'a doc parragraph 1';
+    let par1Id = await createDocNode(par1, DocNodeType.paragraph, []);
 
-    // let dataRead = await getData(dataId)
-    
-    // expect(dataRead.id).toEqual(dataId);
-    // expect(dataRead.text).toEqual(text3);
-    // expect(dataRead.links.length).toEqual(3);
-    
-    // expect(dataRead.links[0].xid).toEqual(par1Id);
-    // expect(dataRead.links[0].text).toEqual(text1);
+    let par2 = 'a doc parragraph 2';
+    let par2Id = await createDocNode(par2, DocNodeType.paragraph, []);
 
-    // expect(dataRead.links[1].xid).toEqual(par2Id);
-    // expect(dataRead.links[1].text).toEqual(text2);
+    let title1 = 'a doc title';
+    let title1Id = await createDocNode(title1, DocNodeType.title, [par1Id, par2Id]);
 
-    // expect(dataRead.links[2].xid).toEqual(sub1Id);
-    // expect(dataRead.links[2].text).toEqual(subtitle1);
+    let dataRead = await getData(title1Id)
     
-    // expect(dataRead.links[2].links.length).toEqual(1);
+    expect(dataRead.id).toEqual(title1Id);
+    expect(dataRead.text).toEqual(title1);
+    expect(dataRead.doc_node_type).toEqual(DocNodeType.title);
+
+    expect(dataRead.links.length).toEqual(2);
     
-    // expect(dataRead.links[2].links[0].xid).toEqual(par12Id);
-    // expect(dataRead.links[2].links[0].text).toEqual(text12);
+    expect(dataRead.links[0].xid).toEqual(par1Id);
+    expect(dataRead.links[0].text).toEqual(par1);
+    expect(dataRead.links[0].doc_node_type).toEqual(DocNodeType.paragraph);
+
+    expect(dataRead.links[1].xid).toEqual(par2Id);
+    expect(dataRead.links[1].text).toEqual(par2);
+    expect(dataRead.links[1].doc_node_type).toEqual(DocNodeType.paragraph);
   });
 
   test("CRUD commits", async () => {

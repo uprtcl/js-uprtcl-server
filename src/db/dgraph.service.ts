@@ -340,16 +340,16 @@ export class DGraphService {
     switch (dataDto.type) {
       case DataType.DOCUMENT_NODE:
         nquads = nquads.concat(`\nuid(data) <dgraph.type> "${DOCUMENT_NODE_SCHEMA_NAME}" .`);
-        nquads = nquads.concat(`\nuid(data) <doc_node_type> "${dataDto.data.type}" .`);
+        nquads = nquads.concat(`\nuid(data) <doc_node_type> "${dataDto.data.doc_node_type}" .`);
         /** NO BREAK */
 
       case DataType.TEXT_NODE:
         /** get the uids of the links (they must exist!) */
-        query = query.concat(`links as var(func: eq(xid, [${dataDto.data.links.join(' ')}]))`);
+        if (dataDto.data.links.length > 0) query = query.concat(`\nlinks as var(func: eq(xid, [${dataDto.data.links.join(' ')}]))`);
 
         nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_NODE_SCHEMA_NAME}" .`);
         /** set links to uids of the links */
-        nquads = nquads.concat(`\nuid(data) <links> uid(links) .`)
+        if (dataDto.data.links.length > 0) nquads = nquads.concat(`\nuid(data) <links> uid(links) .`)
         /** NO BREAK */
   
 
@@ -379,10 +379,8 @@ export class DGraphService {
         doc_node_type
         <dgraph.type>
       }
-    }
-    `;
-    // TODO: issue with variables UNKNOWN: Variable not defined 
-    // let vars = {$contextId: $contextId
+    }`;
+    
     let result = await this.client.newTxn().query(query);
     let ddata = result.getJson().data[0];
 
@@ -401,7 +399,7 @@ export class DGraphService {
     }
 
     if (dgraphTypes.includes(DOCUMENT_NODE_SCHEMA_NAME)) {
-      data['type'] = ddata['doc_node_type'];
+      data['doc_node_type'] = ddata['doc_node_type'];
     }
 
     return data;
