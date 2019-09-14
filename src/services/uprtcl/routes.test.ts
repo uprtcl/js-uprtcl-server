@@ -25,9 +25,11 @@ const createPerspective = async (creatorId: string, name: string, context: strin
   const post = await request(router).post('/uprtcl/1/persp')
   .send(perspective);
   expect(post.status).toEqual(200);
-  (expect(post.text) as unknown as ExtendedMatchers).toBeValidCid();
 
-  return post.text;
+  let result: any = JSON.parse(post.text).elementIds[0];
+  (expect(result) as unknown as ExtendedMatchers).toBeValidCid();
+
+  return result;
 }
 
 const updatePerspective = async (perspectiveId: string, headId: string):Promise<void> => {
@@ -55,9 +57,10 @@ const createCommit = async (
   const post = await request(router).post('/uprtcl/1/commit')
   .send(commit);
   expect(post.status).toEqual(200);
-  (expect(post.text) as unknown as ExtendedMatchers).toBeValidCid();
+  let result: any = JSON.parse(post.text).elementIds[0];
+  (expect(result) as unknown as ExtendedMatchers).toBeValidCid();
 
-  return post.text;
+  return result;
 }
 
 const addKnownSources = async (
@@ -75,7 +78,7 @@ const getKnownSources = async (
   const get = await request(router).get(`/uprtcl/1/discovery/${elementId}`);
   expect(get.status).toEqual(200);
   
-  return JSON.parse(get.text);
+  return JSON.parse(get.text).data;
 }
 
 const getOrigin = async (
@@ -84,28 +87,28 @@ const getOrigin = async (
   const get = await request(router).get(`/uprtcl/1/discovery/you`);
   expect(get.status).toEqual(200);
   
-  return get.text;
+  return JSON.parse(get.text).data;
 }
 
 const getPerspective = async (perspectiveId: string):Promise<Perspective> => {
   const get = await request(router).get(`/uprtcl/1/persp/${perspectiveId}`);
   expect(get.status).toEqual(200);
   
-  return JSON.parse(get.text);
+  return JSON.parse(get.text).data;
 }
 
 const getPerspectiveHead = async (perspectiveId: string):Promise<string> => {
   const get = await request(router).get(`/uprtcl/1/persp/${perspectiveId}/head`);
   expect(get.status).toEqual(200);
   
-  return get.text;
+  return JSON.parse(get.text).data;
 }
 
 const getCommit = async (commitId: string):Promise<Commit> => {
   const get = await request(router).get(`/uprtcl/1/commit/${commitId}`);
   expect(get.status).toEqual(200);
   
-  return JSON.parse(get.text);
+  return JSON.parse(get.text).data;
 }
 
 const createText = async (text: string):Promise<string> => {
@@ -123,9 +126,10 @@ const createText = async (text: string):Promise<string> => {
   const post = await request(router).post('/uprtcl/1/data')
   .send(dataDto);
   expect(post.status).toEqual(200);
-  (expect(post.text) as unknown as ExtendedMatchers).toBeValidCid();
+  let result: any = JSON.parse(post.text).elementIds[0];
+  (expect(result) as unknown as ExtendedMatchers).toBeValidCid();
 
-  return post.text;
+  return result;
 }
 
 const createTextNode = async (text: string, links: string[]):Promise<string> => {
@@ -144,9 +148,10 @@ const createTextNode = async (text: string, links: string[]):Promise<string> => 
   const post = await request(router).post('/uprtcl/1/data')
   .send(dataDto);
   expect(post.status).toEqual(200);
-  (expect(post.text) as unknown as ExtendedMatchers).toBeValidCid();
+  let result: any = JSON.parse(post.text).elementIds[0];
+  (expect(result) as unknown as ExtendedMatchers).toBeValidCid();
 
-  return post.text;
+  return result;
 }
 
 const createDocNode = async (text: string, doc_node_type: DocNodeType, links: string[]):Promise<string> => {
@@ -166,15 +171,16 @@ const createDocNode = async (text: string, doc_node_type: DocNodeType, links: st
   const post = await request(router).post('/uprtcl/1/data')
   .send(dataDto);
   expect(post.status).toEqual(200);
-  (expect(post.text) as unknown as ExtendedMatchers).toBeValidCid();
+  let result: any = JSON.parse(post.text).elementIds[0];
+  (expect(result) as unknown as ExtendedMatchers).toBeValidCid();
 
-  return post.text;
+  return result;
 }
 
 const getData = async (dataId: string):Promise<any> => {
   const get = await request(router).get(`/uprtcl/1/data/${dataId}`);
   expect(get.status).toEqual(200);
-  return JSON.parse(get.text);
+  return JSON.parse(get.text).data;
 }
 
 describe("routes", () => {

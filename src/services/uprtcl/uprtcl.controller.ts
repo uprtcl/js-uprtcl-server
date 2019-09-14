@@ -2,6 +2,20 @@ import { Request, Response } from "express";
 import { checksPlaceholder } from "../../middleware/checks";
 import { UprtclService } from "./uprtcl.service";
 
+interface PostResult {
+  result: string;
+  message: string;
+  elementIds: string[];
+}
+
+interface GetResult {
+  result: string;
+  message: string;
+  data: any;
+}
+
+const SUCCESS = 'success';
+
 export class UprtclController {
 
   uprtclService: UprtclService;
@@ -19,7 +33,12 @@ export class UprtclController {
         handler: [
           checksPlaceholder,
           async ({ body }: Request, res: Response) => {
-            const result = await this.uprtclService.createPerspective(body, '');
+            const elementId = await this.uprtclService.createPerspective(body, '');
+            let result: PostResult = {
+              result: SUCCESS,
+              message: '',
+              elementIds: [elementId]
+            }
             res.status(200).send(result);
           }
         ]
@@ -31,7 +50,12 @@ export class UprtclController {
         handler: [
           checksPlaceholder,
           async ({ params }: Request, res: Response) => {
-            const result = await this.uprtclService.getPerspective(params.perspectiveId, '');
+            const data = await this.uprtclService.getPerspective(params.perspectiveId, '');
+            let result: GetResult = {
+              result: SUCCESS,
+              message: '',
+              data: data
+            }
             res.status(200).send(result);
           }
         ]
@@ -43,7 +67,12 @@ export class UprtclController {
         handler: [
           checksPlaceholder,
           async ({ params }: Request, res: Response) => {
-            const result = await this.uprtclService.getPerspectiveHead(params.perspectiveId);
+            const data = await this.uprtclService.getPerspectiveHead(params.perspectiveId);
+            let result: GetResult = {
+              result: SUCCESS,
+              message: '',
+              data: data
+            }
             res.status(200).send(result);
           }
         ]
@@ -55,7 +84,12 @@ export class UprtclController {
         handler: [
           checksPlaceholder,
           async ({ params, query }: Request, res: Response) => {
-            const result = await this.uprtclService.updatePerspective(params.perspectiveId, query.headId);
+            await this.uprtclService.updatePerspective(params.perspectiveId, query.headId);
+            let result: PostResult = {
+              result: SUCCESS,
+              message: '',
+              elementIds: []
+            }
             res.status(200).send(result);
           }
         ]
@@ -67,7 +101,12 @@ export class UprtclController {
         handler: [
           checksPlaceholder,
           async ({ body }: Request, res: Response) => {
-            const result = await this.uprtclService.createData(body, '');
+            const elementId = await this.uprtclService.createData(body, '');
+            let result: PostResult = {
+              result: SUCCESS,
+              message: '',
+              elementIds: [elementId]
+            }
             res.status(200).send(result);
           }
         ]
@@ -79,7 +118,12 @@ export class UprtclController {
         handler: [
           checksPlaceholder,
           async ({ params }: Request, res: Response) => {
-            const result = await this.uprtclService.getData(params.dataId);
+            const data = await this.uprtclService.getData(params.dataId);
+            let result: GetResult = {
+              result: SUCCESS,
+              message: '',
+              data: data
+            }
             res.status(200).send(result);
           }
         ]
@@ -91,7 +135,12 @@ export class UprtclController {
         handler: [
           checksPlaceholder,
           async ({ body }: Request, res: Response) => {
-            const result = await this.uprtclService.createCommit(body, '');
+            const elementId = await this.uprtclService.createCommit(body, '');
+            let result: PostResult = {
+              result: SUCCESS,
+              message: '',
+              elementIds: [elementId]
+            }
             res.status(200).send(result);
           }
         ]
@@ -103,7 +152,12 @@ export class UprtclController {
         handler: [
           checksPlaceholder,
           async ({ params }: Request, res: Response) => {
-            const result = await this.uprtclService.getCommit(params.commitId, '');
+            const data = await this.uprtclService.getCommit(params.commitId, '');
+            let result: GetResult = {
+              result: SUCCESS,
+              message: '',
+              data: data
+            }
             res.status(200).send(result);
           }
         ]
@@ -115,7 +169,12 @@ export class UprtclController {
         handler: [
           checksPlaceholder,
           async ({ params, body }: Request, res: Response) => {
-            const result = await this.uprtclService.addKnownSources(params.elementId, body);
+            await this.uprtclService.addKnownSources(params.elementId, body);
+            let result: PostResult = {
+              result: SUCCESS,
+              message: '',
+              elementIds: []
+            }
             res.status(200).send(result);
           }
         ]
@@ -127,7 +186,12 @@ export class UprtclController {
         handler: [
           checksPlaceholder,
           async ({ params, }: Request, res: Response) => {
-            const result = await this.uprtclService.getKnownSources(params.elementId);
+            const data = await this.uprtclService.getKnownSources(params.elementId);
+            let result: GetResult = {
+              result: SUCCESS,
+              message: '',
+              data: data
+            }
             res.status(200).send(result);
           }
         ]
@@ -139,7 +203,12 @@ export class UprtclController {
         handler: [
           checksPlaceholder,
           async ({ params }: Request, res: Response) => {
-            const result = this.uprtclService.getOrigin();
+            const data = await this.uprtclService.getOrigin();
+            let result: GetResult = {
+              result: SUCCESS,
+              message: '',
+              data: data
+            }
             res.status(200).send(result);
           }
         ]

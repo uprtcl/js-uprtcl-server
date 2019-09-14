@@ -104,7 +104,7 @@ export class DGraphService {
       } catch (e) {
         let regexp = new RegExp('please retry', 'i');
         if(regexp.test(e.message) && retry < 10) {
-          console.log('[DGRAPH] retrying transaction', req)
+          console.log('[DGRAPH] retrying upsert', req.getQuery())
           setTimeout(() => {
             resolve(this.callRequest(req, retry + 1))
           }, 100);
