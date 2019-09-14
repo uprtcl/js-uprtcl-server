@@ -455,7 +455,7 @@ export class DGraphService {
     req.setMutationsList([mu]);
     req.setCommitNow(true);
 
-    let result = await this.client.newTxn().doRequest(req);
+    let result = await this.callRequest(req);
     console.log('[DGRAPH] addKnownSources', {query}, {nquads}, result.getUidsMap().toArray());
   }
 
