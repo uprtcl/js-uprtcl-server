@@ -68,6 +68,7 @@ export class DGraphService {
       await this.connect();
       await this.dropAll();
       await this.setSchema();
+      console.log('[DGRAPH] Initialized');
       resolve();
     })
   }
@@ -95,6 +96,25 @@ export class DGraphService {
     return this.connectionReady;
   }
 
+  private async callRequest(req: any, retry: number = 0): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        let result = await this.client.newTxn().doRequest(req);
+        resolve(result)
+      } catch (e) {
+        let regexp = new RegExp('please retry', 'i');
+        if(regexp.test(e.message) && retry < 10) {
+          console.log('[DGRAPH] retrying transaction', req)
+          setTimeout(() => {
+            resolve(this.callRequest(req, retry + 1))
+          }, 100);
+        } else {
+          reject()
+        }
+      }
+    })
+  }
+
   async upsertProfile(did: string):Promise<void> {
     await this.ready();
     
@@ -112,7 +132,8 @@ export class DGraphService {
     req.setMutationsList([mu]);
     req.setCommitNow(true);
 
-    await this.client.newTxn().doRequest(req);
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] upsertProfile', {query}, {nquads}, result.getUidsMap().toArray());
   }
 
   async createPerspective(perspective: Perspective) {
@@ -156,7 +177,8 @@ export class DGraphService {
     req.setMutationsList([mu]);
     req.setCommitNow(true);
 
-    await this.client.newTxn().doRequest(req);
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] createPerspective', {query}, {nquads}, result.getUidsMap().toArray());
     return perspective.id;
   }
 
@@ -178,7 +200,8 @@ export class DGraphService {
     req.setMutationsList([mu]);
     req.setCommitNow(true);
 
-    await this.client.newTxn().doRequest(req);
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] updatePerspective', {query}, {nquads}, result.getUidsMap().toArray());
   }
 
   async createCommit(commit: Commit) {
@@ -226,7 +249,8 @@ export class DGraphService {
     req.setMutationsList([mu]);
     req.setCommitNow(true);
 
-    await this.client.newTxn().doRequest(req);
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] createCommit', {query}, {nquads}, result.getUidsMap().toArray());
     return commit.id;
   }
 
@@ -247,6 +271,7 @@ export class DGraphService {
     }`;
 
     let result = await this.client.newTxn().query(query);
+    console.log('[DGRAPH] getPerspective', {query}, result.getJson());
     let dperspective: DgPerspective = result.getJson().perspective[0];
     let perspective: Perspective = {
       id: dperspective.xid,
@@ -271,6 +296,7 @@ export class DGraphService {
     }`;
 
     let result = await this.client.newTxn().query(query);
+    console.log('[DGRAPH] getPerspectiveHead', {query}, result.getJson());
     let perspectivehead = result.getJson().perspective[0];
     return perspectivehead.head[0].xid;
   }
@@ -332,8 +358,6 @@ export class DGraphService {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
     
-    
-
     let query = `data as var(func: eq(xid, ${dataDto.id}))`;
 
     let nquads = `uid(data) <xid> "${dataDto.id}" .`;
@@ -366,7 +390,8 @@ export class DGraphService {
     req.setMutationsList([mu]);
     req.setCommitNow(true);
 
-    await this.client.newTxn().doRequest(req);
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] createData', {query}, {nquads}, result.getUidsMap().toArray());
     return dataDto.id;
   }
 
@@ -384,6 +409,8 @@ export class DGraphService {
     }`;
     
     let result = await this.client.newTxn().query(query);
+    console.log('[DGRAPH] getData', {query}, result.getJson());
+
     let ddata = result.getJson().data[0];
 
     let data: any = {};
@@ -428,7 +455,8 @@ export class DGraphService {
     req.setMutationsList([mu]);
     req.setCommitNow(true);
 
-    await this.client.newTxn().doRequest(req);
+    let result = await this.client.newTxn().doRequest(req);
+    console.log('[DGRAPH] addKnownSources', {query}, {nquads}, result.getUidsMap().toArray());
   }
 
   async getKnownSources(elementId: string):Promise<Array<string>> {
@@ -442,6 +470,8 @@ export class DGraphService {
     }`;
 
     let result = await this.client.newTxn().query(query);
+    console.log('[DGRAPH] getKnownSources', {query}, result.getJson());
+
     let sources = result.getJson().sources.length > 0 ? result.getJson().sources[0].sources : []
 
     const queryLocal = `

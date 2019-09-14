@@ -61,10 +61,10 @@ type ${KNOWN_SOURCES_SCHEMA_NAME} {
   sources: [string]
 }
 
-xid: string @index(exact) .
-did: string @index(exact) .
+xid: string @index(exact) @upsert .
+did: string @index(exact) @upsert .
 links: [uid] @reverse .
-elementId: string @index(exact) .
+elementId: string @index(exact) @upsert .
 sources: [string] .
 text: string @index(fulltext) .
 
