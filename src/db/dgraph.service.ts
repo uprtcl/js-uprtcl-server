@@ -16,7 +16,7 @@ const dgraph = require("dgraph-js");
 const grpc = require("grpc");
 let ready = false;
 
-const LOCAL_PROVIDER = 'http://collectiveone.org/uprtcl/1';
+const LOCAL_PROVIDER = 'https://www.collectiveone.org/uprtcl/1';
 
 interface DgRef {
   [x: string]: string;
@@ -206,7 +206,7 @@ export class DGraphService {
 
   async createCommit(commit: Commit) {
     await this.ready();
-
+    
     if (commit.id !== '') {
       let valid = await ipldService.validateCid(
         commit.id,
@@ -282,6 +282,38 @@ export class DGraphService {
       timestamp: dperspective.timestamp,
     }
     return perspective;
+  }
+
+  async getContextPerspectives(context: string):Promise<Perspective[]> {
+    await this.ready();
+    const query = `query {
+      perspective(func: eq(context, ${context})) {
+        xid
+        name
+        context
+        origin
+        creator {
+          did
+        }
+        timestamp
+        nonce
+      }
+    }`;
+
+    let result = await this.client.newTxn().query(query);
+    console.log('[DGRAPH] getContextPerspectives', {query}, result.getJson());
+    let perspectives = result.getJson().perspective.map((dperspective: DgPerspective):Perspective => {
+      return {
+        id: dperspective.xid,
+        name: dperspective.name,
+        context: dperspective.context,
+        origin: dperspective.origin,
+        creatorId: dperspective.creator[0].did,
+        timestamp: dperspective.timestamp,
+      }
+    })
+    
+    return perspectives;
   }
 
   async getPerspectiveHead(perspectiveId: string): Promise<string> {

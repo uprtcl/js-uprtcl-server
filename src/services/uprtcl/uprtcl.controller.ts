@@ -96,6 +96,23 @@ export class UprtclController {
       },
 
       {
+        path: "/uprtcl/1/persp",
+        method: "get",
+        handler: [
+          checksPlaceholder,
+          async ({ query }: Request, res: Response) => {
+            let perspectives = await this.uprtclService.getContextPerspectives(query.context);
+            let result: GetResult = {
+              result: SUCCESS,
+              message: '',
+              data: perspectives
+            }
+            res.status(200).send(result);
+          }
+        ]
+      },
+
+      {
         path: "/uprtcl/1/data",
         method: "post",
         handler: [
@@ -212,7 +229,7 @@ export class UprtclController {
             res.status(200).send(result);
           }
         ]
-      }
+      },
     ]
   }
 };

@@ -67,5 +67,5 @@ links: [uid] @reverse .
 elementId: string @index(exact) @upsert .
 sources: [string] .
 text: string @index(fulltext) .
-
+context: string @index(exact) .
 `
