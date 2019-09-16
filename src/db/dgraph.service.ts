@@ -102,6 +102,7 @@ export class DGraphService {
         let result = await this.client.newTxn().doRequest(req);
         resolve(result)
       } catch (e) {
+        console.log('[DGRAPH] error during request', e.message)
         let regexp = new RegExp('please retry', 'i');
         if(regexp.test(e.message) && retry < 10) {
           console.log('[DGRAPH] retrying upsert', req.getQuery())
@@ -195,6 +196,8 @@ export class DGraphService {
 
     let nquads = `uid(perspective) <xid> "${perspectiveId}" .`;
     nquads = nquads.concat(`\nuid(perspective) <head> uid(head) .`);
+    /** set the head xid in case its was not created */
+    nquads = nquads.concat(`\nuid(head) <xid> "${headId}" .`);
     
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
@@ -230,20 +233,21 @@ export class DGraphService {
     /** make sure creatorId exist */
     await this.upsertProfile(commit.creatorId);
     
-    let query = ``;
+    /** commit object might exist because of parallel update head call */
+    let query = `\ncommit as var(func: eq(xid, ${commit.id}))`;
     if (commit.parentsIds.length > 0) query = query.concat(`\nparents as var(func: eq(xid, [${commit.parentsIds.join(' ')}]))`);
     query = query.concat(`\ndata as var(func: eq(xid, "${commit.dataId}"))`);
     query = query.concat(`\nprofile as var(func: eq(did, "${commit.creatorId}"))`);
   
     req.setQuery(`query{${query}}`);
 
-    let nquads = `_:commit <xid> "${commit.id}" .`;
-    nquads = nquads.concat(`\n_:commit <dgraph.type> "${COMMIT_SCHEMA_NAME}" .`);
-    nquads = nquads.concat(`\n_:commit <message> "${commit.message}" .`);
-    nquads = nquads.concat(`\n_:commit <creator> uid(profile) .`);
-    nquads = nquads.concat(`\n_:commit <timestamp> "${commit.timestamp}"^^<xs:int> .`);
-    if (commit.parentsIds.length > 0) nquads = nquads.concat(`\n_:commit <parents> uid(parents) .`)
-    nquads = nquads.concat(`\n_:commit <data> uid(data) .`)
+    let nquads = `uid(commit) <xid> "${commit.id}" .`;
+    nquads = nquads.concat(`\nuid(commit) <dgraph.type> "${COMMIT_SCHEMA_NAME}" .`);
+    nquads = nquads.concat(`\nuid(commit) <message> "${commit.message}" .`);
+    nquads = nquads.concat(`\nuid(commit) <creator> uid(profile) .`);
+    nquads = nquads.concat(`\nuid(commit) <timestamp> "${commit.timestamp}"^^<xs:int> .`);
+    if (commit.parentsIds.length > 0) nquads = nquads.concat(`\nuid(commit) <parents> uid(parents) .`)
+    nquads = nquads.concat(`\nuid(commit) <data> uid(data) .`)
     
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
