@@ -36,7 +36,7 @@ export interface DataDto {
 
 export const PropertyOrder = {
   Context: ['creatorId', 'timestamp', 'nonce'],
-  Perspective: ['origin', 'creatorId', 'timestamp', 'contextId', 'name'],
+  Perspective: ['origin', 'creatorId', 'timestamp', 'context', 'name'],
   Commit: ['creatorId', 'timestamp', 'message', 'parentsIds', 'dataId']
 };
 

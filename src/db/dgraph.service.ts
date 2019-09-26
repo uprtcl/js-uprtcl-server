@@ -18,6 +18,12 @@ let ready = false;
 
 const LOCAL_PROVIDER = 'https://www.collectiveone.org/uprtcl/1';
 
+export interface DataC1If {
+  id: string;
+  type: string;
+  jsonData: string;
+}
+
 interface DgRef {
   [x: string]: string;
   uid: string
@@ -431,14 +437,16 @@ export class DGraphService {
     return dataDto.id;
   }
 
-  async getData(dataId: string): Promise<any> {
+  async getData(dataId: string): Promise<DataC1If> {
     await this.ready();
 
     const query = `query {
-      data(func: eq(xid, ${dataId})) @recurse {
+      data(func: eq(xid, ${dataId})) {
         xid
         text
-        links
+        links {
+          xid
+        }
         doc_node_type
         <dgraph.type>
       }
@@ -450,8 +458,7 @@ export class DGraphService {
     let ddata = result.getJson().data[0];
 
     let data: any = {};
-
-    data['id'] = ddata.xid;
+    let c1Type = '';
 
     let dgraphTypes = ddata['dgraph.type'];
 
@@ -460,18 +467,25 @@ export class DGraphService {
     }
 
     if (dgraphTypes.includes(TEXT_NODE_SCHEMA_NAME)) {
-      data['links'] = ddata['links'];
+      data['links'] = ddata.links ? ddata['links'].map((link: { xid: any; }) => link.xid) : [];
     }
 
     if (dgraphTypes.includes(DOCUMENT_NODE_SCHEMA_NAME)) {
       data['doc_node_type'] = ddata['doc_node_type'];
+      c1Type = 'DOCUMENT_NODE';
     }
 
-    return data;
+    return {
+      id: data.id,
+      jsonData: JSON.stringify(data),
+      type: c1Type
+    }
   }
 
   async addKnownSources(elementId: string, sources: Array<string>):Promise<void> {
     await this.ready();
+
+    console.log('[DGRAPH] addKnownSources', {elementId}, {sources});
 
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
