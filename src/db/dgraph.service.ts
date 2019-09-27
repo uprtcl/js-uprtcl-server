@@ -338,8 +338,8 @@ export class DGraphService {
     }`;
 
     let result = await this.client.newTxn().query(query);
-    console.log('[DGRAPH] getPerspectiveHead', {query}, result.getJson());
     let perspectivehead = result.getJson().perspective[0];
+    console.log('[DGRAPH] getPerspectiveHead', {query}, result.getJson(), perspectivehead);
     return perspectivehead.head[0].xid;
   }
 
