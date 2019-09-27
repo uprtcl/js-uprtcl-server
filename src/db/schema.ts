@@ -17,20 +17,20 @@ type ${PROFILE_SCHEMA_NAME} {
 type ${PERSPECTIVE_SCHEMA_NAME} {
   xid: string
   name: string
-  creator: [${PROFILE_SCHEMA_NAME}]
+  creator: uid
   context: string
   origin: string
   timestamp: datetime
-  head: [${COMMIT_SCHEMA_NAME}]
+  head: uid
 }
 
 type ${COMMIT_SCHEMA_NAME} {
   xid: string
-  creator: [${PROFILE_SCHEMA_NAME}]
+  creator: uid
   timestamp: datetime
   message: string
-  parents: [${COMMIT_SCHEMA_NAME}]
-  data: [${DATA_SCHEMA_NAME}]
+  parents: [uid]
+  data: uid
 }
 
 type ${DATA_SCHEMA_NAME} {

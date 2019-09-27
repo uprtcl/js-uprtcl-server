@@ -180,7 +180,10 @@ const createDocNode = async (text: string, doc_node_type: DocNodeType, links: st
 const getData = async (dataId: string):Promise<any> => {
   const get = await request(router).get(`/uprtcl/1/data/${dataId}`);
   expect(get.status).toEqual(200);
-  return JSON.parse(get.text).data;
+  let dataWrapper = JSON.parse(get.text).data;
+  let data = JSON.parse(dataWrapper.jsonData);
+  data.id = dataWrapper.id
+  return data;
 }
 
 describe("routes", () => {
@@ -238,6 +241,8 @@ describe("routes", () => {
 
     let dataId = await createText(text);
     let dataRead = await getData(dataId)
+
+    console.log(dataRead)
     
     expect(dataRead.id).toEqual(dataId);
     expect(dataRead.text).toEqual(text);
@@ -265,19 +270,9 @@ describe("routes", () => {
     expect(dataRead.text).toEqual(text3);
     expect(dataRead.links.length).toEqual(3);
     
-    expect(dataRead.links[0].xid).toEqual(par1Id);
-    expect(dataRead.links[0].text).toEqual(text1);
-
-    expect(dataRead.links[1].xid).toEqual(par2Id);
-    expect(dataRead.links[1].text).toEqual(text2);
-
-    expect(dataRead.links[2].xid).toEqual(sub1Id);
-    expect(dataRead.links[2].text).toEqual(subtitle1);
-    
-    expect(dataRead.links[2].links.length).toEqual(1);
-    
-    expect(dataRead.links[2].links[0].xid).toEqual(par12Id);
-    expect(dataRead.links[2].links[0].text).toEqual(text12);
+    expect(dataRead.links[0]).toEqual(par1Id);
+    expect(dataRead.links[1]).toEqual(par2Id);
+    expect(dataRead.links[2]).toEqual(sub1Id);
   });
 
   test("CRUD doc node data", async () => {
@@ -299,13 +294,8 @@ describe("routes", () => {
 
     expect(dataRead.links.length).toEqual(2);
     
-    expect(dataRead.links[0].xid).toEqual(par1Id);
-    expect(dataRead.links[0].text).toEqual(par1);
-    expect(dataRead.links[0].doc_node_type).toEqual(DocNodeType.paragraph);
-
-    expect(dataRead.links[1].xid).toEqual(par2Id);
-    expect(dataRead.links[1].text).toEqual(par2);
-    expect(dataRead.links[1].doc_node_type).toEqual(DocNodeType.paragraph);
+    expect(dataRead.links[0]).toEqual(par1Id);
+    expect(dataRead.links[1]).toEqual(par2Id);
   });
 
   test("CRUD commits", async () => {

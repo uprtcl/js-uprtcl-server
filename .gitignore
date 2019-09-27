@@ -3,3 +3,4 @@ dist/
 coverage/
 .env
 dgraph/1million.rdf.gz
+dgraph

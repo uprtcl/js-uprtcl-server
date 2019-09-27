@@ -203,7 +203,7 @@ export class DGraphService {
     let nquads = `uid(perspective) <xid> "${perspectiveId}" .`;
     nquads = nquads.concat(`\nuid(perspective) <head> uid(head) .`);
     /** set the head xid in case its was not created */
-    nquads = nquads.concat(`\nuid(head) <xid> "${headId}" .`);
+    nquads = nquads.concat(`\nuid(head) <xid> "${headId}" .`);+
     
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
@@ -476,7 +476,7 @@ export class DGraphService {
     }
 
     return {
-      id: data.id,
+      id: ddata.xid,
       jsonData: JSON.stringify(data),
       type: c1Type
     }
