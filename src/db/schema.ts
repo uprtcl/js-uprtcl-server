@@ -21,7 +21,7 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   context: string
   origin: string
   timestamp: datetime
-  head: uid
+  head: ${COMMIT_SCHEMA_NAME}
 }
 
 type ${COMMIT_SCHEMA_NAME} {

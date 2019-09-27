@@ -189,8 +189,29 @@ export class DGraphService {
     return perspective.id;
   }
 
+  async deleteHead(perspectiveId: string):Promise<void> {
+    const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
+
+    /** make sure creatorId exist */
+    let query = `perspective as var(func: eq(xid, "${perspectiveId}"))`;
+    req.setQuery(`query{${query}}`);
+
+    let delnquads = `uid(perspective) <head> * .`;
+    
+    mu.setDelNquads(delnquads);
+    req.setMutationsList([mu]);
+    req.setCommitNow(true);
+
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] deleteHead', {query}, {delnquads}, result.getUidsMap().toArray());
+  }
+
   async updatePerspective(perspectiveId: string, headId: string):Promise<void> {
     await this.ready();
+
+    /** delete previous head */
+    await this.deleteHead(perspectiveId);
 
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
