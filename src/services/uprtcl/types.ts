@@ -43,7 +43,7 @@ export const PropertyOrder = {
 export const DataPropertyOrder = {
   Text: ['text'],
   TextNode: ['text', 'links'],
-  DocumentNode: ['text', 'type', 'links']
+  DocumentNode: ['text', 'links', 'doc_node_type']
 }
 
 export const dataTypeOrder = (type: DataType): string[] => {
