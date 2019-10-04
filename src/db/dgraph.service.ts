@@ -285,7 +285,7 @@ export class DGraphService {
     return commit.id;
   }
 
-  async getPerspective(perspectiveId: string): Promise<Perspective> {
+  async getPerspective(perspectiveId: string): Promise<Perspective | null> {
     await this.ready();
     const query = `query {
       perspective(func: eq(xid, ${perspectiveId})) {
@@ -304,6 +304,8 @@ export class DGraphService {
     let result = await this.client.newTxn().query(query);
     console.log('[DGRAPH] getPerspective', {query}, result.getJson());
     let dperspective: DgPerspective = result.getJson().perspective[0];
+    if (!dperspective) return null;
+
     let perspective: Perspective = {
       id: dperspective.xid,
       name: dperspective.name,

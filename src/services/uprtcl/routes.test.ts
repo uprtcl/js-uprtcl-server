@@ -241,7 +241,7 @@ describe("routes", () => {
     await updatePerspective(perspectiveId, commit2Id);
     let perspectiveHeadRead2 = await getPerspectiveHead(perspectiveId);
 
-    expect(perspectiveHeadRead2).toEqual(commit1Id);
+    expect(perspectiveHeadRead2).toEqual(commit2Id);
   });
 
   test.skip("CRUD text data", async () => {

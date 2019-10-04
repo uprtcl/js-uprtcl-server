@@ -18,7 +18,7 @@ export class UprtclService {
     return uid;
   };
 
-  async getPerspective(perspectiveId: string, loggedUserId: string): Promise<Perspective> {
+  async getPerspective(perspectiveId: string, loggedUserId: string): Promise<Perspective | null> {
     console.log('[UPRTCL-SERVICE] getPerspective', {perspectiveId});
     let perspective = await this.db.getPerspective(perspectiveId);
     return perspective;
