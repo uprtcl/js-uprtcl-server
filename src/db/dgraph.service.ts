@@ -282,6 +282,8 @@ export class DGraphService {
     for (let ix = 0; ix < commit.parentsIds.length; ix++) {
       query = query.concat(`\nparents${ix} as var(func: eq(xid, ${commit.parentsIds[ix]}))`);
       nquads = nquads.concat(`\nuid(commit) <parents> uid(parents${ix}) .`);
+      /** set the parent xid in case it was not created */
+      nquads = nquads.concat(`\nuid(parents${ix}) <xid> "${commit.parentsIds[ix]}" .`);
     }
     
     req.setQuery(`query{${query}}`);
@@ -456,6 +458,8 @@ export class DGraphService {
         for (let ix = 0; ix < data.links.length; ix++) {
           query = query.concat(`\nlinks${ix} as var(func: eq(xid, ${data.links[ix]}))`);
           nquads = nquads.concat(`\nuid(data) <links> uid(links${ix}) .`);
+          /** set the link xid in case it was not created */
+          nquads = nquads.concat(`\nuid(links${ix}) <xid> "${data.links[ix]}" .`);
         }
         
         nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_NODE_SCHEMA_NAME}" .`);
