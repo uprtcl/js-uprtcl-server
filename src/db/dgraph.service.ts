@@ -43,7 +43,8 @@ interface DgPerspective {
   origin: string,
   creator: Array<DgRef>,
   timestamp: number,
-  'dgraph.type'?: string
+  'dgraph.type'?: string,
+  stored: boolean
 }
 
 interface DgCommit {
@@ -54,13 +55,15 @@ interface DgCommit {
   message: string,
   parents: Array<DgRef>,
   data: Array<DgRef>,
-  'dgraph.type'?: string
+  'dgraph.type'?: string,
+  stored: boolean
 }
 
 interface DgData {
   uid?: string,
   xid: string,
-  'dgraph.type'?: string
+  'dgraph.type'?: string,
+  stored: boolean
 }
 
 export class DGraphService {
@@ -173,6 +176,7 @@ export class DGraphService {
     req.setQuery(`query{${query}}`);
 
     let nquads = `_:perspective <xid> "${perspective.id}" .`;
+    nquads = nquads.concat(`\n_:perspective <stored> "true" .`);
     nquads = nquads.concat(`\n_:perspective <name> "${perspective.name}" .`);
     nquads = nquads.concat(`\n_:perspective <context> "${perspective.context}" .`);
     nquads = nquads.concat(`\n_:perspective <creator> uid(profile) .`);
@@ -262,20 +266,25 @@ export class DGraphService {
     
     /** commit object might exist because of parallel update head call */
     let query = `\ncommit as var(func: eq(xid, ${commit.id}))`;
-    if (commit.parentsIds.length > 0) query = query.concat(`\nparents as var(func: eq(xid, [${commit.parentsIds.join(' ')}]))`);
+    
     query = query.concat(`\ndata as var(func: eq(xid, "${commit.dataId}"))`);
     query = query.concat(`\nprofile as var(func: eq(did, "${commit.creatorId}"))`);
   
-    req.setQuery(`query{${query}}`);
-
     let nquads = `uid(commit) <xid> "${commit.id}" .`;
+    nquads = nquads.concat(`\nuid(commit) <stored> "true" .`);
     nquads = nquads.concat(`\nuid(commit) <dgraph.type> "${COMMIT_SCHEMA_NAME}" .`);
     nquads = nquads.concat(`\nuid(commit) <message> "${commit.message}" .`);
     nquads = nquads.concat(`\nuid(commit) <creator> uid(profile) .`);
     nquads = nquads.concat(`\nuid(commit) <timestamp> "${commit.timestamp}"^^<xs:int> .`);
-    if (commit.parentsIds.length > 0) nquads = nquads.concat(`\nuid(commit) <parents> uid(parents) .`)
     nquads = nquads.concat(`\nuid(commit) <data> uid(data) .`)
+
+    /** get and set the uids of the links */
+    for (let ix = 0; ix < commit.parentsIds.length; ix++) {
+      query = query.concat(`\nparents${ix} as var(func: eq(xid, ${commit.parentsIds[ix]}))`);
+      nquads = nquads.concat(`\nuid(commit) <parents> uid(parents${ix}) .`);
+    }
     
+    req.setQuery(`query{${query}}`);
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
     req.setCommitNow(true);
@@ -298,6 +307,7 @@ export class DGraphService {
         }
         timestamp
         nonce
+        stored
       }
     }`;
 
@@ -305,6 +315,7 @@ export class DGraphService {
     console.log('[DGRAPH] getPerspective', {query}, result.getJson());
     let dperspective: DgPerspective = result.getJson().perspective[0];
     if (!dperspective) return null;
+    if (!dperspective.stored) return null;
 
     let perspective: Perspective = {
       id: dperspective.xid,
@@ -366,7 +377,7 @@ export class DGraphService {
     return perspectivehead.head[0].xid;
   }
 
-  async getCommit(commitId: string): Promise<Commit> {
+  async getCommit(commitId: string): Promise<Commit | null> {
     await this.ready();
     const query = `query {
       commit(func: eq(xid, ${commitId})) {
@@ -382,11 +393,16 @@ export class DGraphService {
           xid
         }
         timestamp
+        stored
       }
     }`;
 
     let result = await this.client.newTxn().query(query);
     let dcommit: DgCommit = result.getJson().commit[0];
+    console.log('[DGRAPH] getCommit', {query}, result.getJson());
+    if (!dcommit) return null;
+    if (!dcommit.stored) return null;
+
     let commit: Commit = {
       id: dcommit.xid,
       creatorId: dcommit.creator[0].did,
@@ -426,6 +442,7 @@ export class DGraphService {
     let query = `data as var(func: eq(xid, ${dataDto.id}))`;
 
     let nquads = `uid(data) <xid> "${dataDto.id}" .`;
+    nquads = nquads.concat(`\nuid(data) <stored> "true" .`);
     nquads = nquads.concat(`\nuid(data) <dgraph.type> "${DATA_SCHEMA_NAME}" .`);
 
     switch (dataDto.type) {
@@ -435,21 +452,21 @@ export class DGraphService {
         /** NO BREAK */
 
       case DataType.TEXT_NODE:
-        /** get the uids of the links (they must exist!) */
-        if (data.links.length > 0) query = query.concat(`\nlinks as var(func: eq(xid, [${data.links.join(' ')}]))`);
-
+        /** get and set the uids of the links */
+        for (let ix = 0; ix < data.links.length; ix++) {
+          query = query.concat(`\nlinks${ix} as var(func: eq(xid, ${data.links[ix]}))`);
+          nquads = nquads.concat(`\nuid(data) <links> uid(links${ix}) .`);
+        }
+        
         nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_NODE_SCHEMA_NAME}" .`);
-        /** set links to uids of the links */
-        if (data.links.length > 0) nquads = nquads.concat(`\nuid(data) <links> uid(links) .`)
         /** NO BREAK */
   
-
       case DataType.TEXT:
         nquads = nquads.concat(`\nuid(data) <dgraph.type> "${TEXT_SCHEMA_NAME}" .`);
         nquads = nquads.concat(`\nuid(data) <text> "${data.text}" .`);
         break;
-      
     }
+
     req.setQuery(`query {${query}}`);
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
@@ -460,7 +477,7 @@ export class DGraphService {
     return dataDto.id;
   }
 
-  async getData(dataId: string): Promise<DataC1If> {
+  async getData(dataId: string): Promise<DataC1If | null> {
     await this.ready();
 
     const query = `query {
@@ -471,6 +488,7 @@ export class DGraphService {
           xid
         }
         doc_node_type
+        stored
         <dgraph.type>
       }
     }`;
@@ -479,6 +497,9 @@ export class DGraphService {
     console.log('[DGRAPH] getData', {query}, result.getJson());
 
     let ddata = result.getJson().data[0];
+
+    if (!ddata) return null;
+    if (!ddata.stored) return null;
 
     let data: any = {};
     let c1Type = '';
@@ -549,7 +570,7 @@ export class DGraphService {
 
     const queryLocal = `
     query {
-      element(func: eq(xid, ${elementId})) {
+      element(func: eq(xid, ${elementId})) @filter(eq(stored, true)) {
         xid
       }
     }`;

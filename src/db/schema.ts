@@ -22,6 +22,7 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   origin: string
   timestamp: datetime
   head: ${COMMIT_SCHEMA_NAME}
+  stored: bool
 }
 
 type ${COMMIT_SCHEMA_NAME} {
@@ -31,25 +32,30 @@ type ${COMMIT_SCHEMA_NAME} {
   message: string
   parents: [uid]
   data: uid
+  stored: bool
 }
 
 type ${DATA_SCHEMA_NAME} {
   xid: string
+  stored: bool
 }
 
 type ${TEXT_SCHEMA_NAME} {
   xid: string
+  stored: bool
   text: string
 }
 
 type ${TEXT_NODE_SCHEMA_NAME} {
   xid: string
+  stored: bool
   text: string
   links: [uid]
 }
 
 type ${DOCUMENT_NODE_SCHEMA_NAME} {
   xid: string
+  stored: bool
   text: string
   node_type: string
   links: [uid]
@@ -61,6 +67,7 @@ type ${KNOWN_SOURCES_SCHEMA_NAME} {
   sources: [string]
 }
 
+stored: bool @index(bool) . 
 xid: string @index(exact) @upsert .
 did: string @index(exact) @upsert .
 links: [uid] @reverse .

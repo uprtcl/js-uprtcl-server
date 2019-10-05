@@ -47,7 +47,7 @@ export class UprtclService {
     return uid;
   };
 
-  async getCommit(commitId: string, loggedUserId: string): Promise<Commit> {
+  async getCommit(commitId: string, loggedUserId: string): Promise<Commit | null> {
     console.log('[UPRTCL-SERVICE] getCommit', {commitId});
     let commit = await this.db.getCommit(commitId);
     return commit;
