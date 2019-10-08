@@ -146,6 +146,29 @@ export class DGraphService {
     console.log('[DGRAPH] upsertProfile', {query}, {nquads}, result.getUidsMap().toArray());
   }
 
+  /** set nonce on user. it craetes the user Did if it does not exist */
+  async setUserNonce(did: string, nonce: string):Promise<void> {
+    await this.ready();
+
+    const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
+
+    let query = `profile as var(func: eq(did, "${did}"))`;
+    req.setQuery(`query{${query}}`);
+
+    let nquads = `uid(profile) <did> "${did}" .`;
+    nquads = nquads.concat(`\nuid(profile) <nonce> "${nonce}" .`);
+    nquads = nquads.concat(`\nuid(profile) <dgraph.type> "${PROFILE_SCHEMA_NAME}" .`);
+
+    mu.setSetNquads(nquads);
+    req.setMutationsList([mu]);
+    req.setCommitNow(true);
+
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] setUserNonce', {query}, {nquads}, result.getUidsMap().toArray());
+
+  }
+
   async createPerspective(perspective: Perspective) {
     await this.ready();
 

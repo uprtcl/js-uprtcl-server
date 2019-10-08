@@ -12,6 +12,7 @@ export const SCHEMA = `
 
 type ${PROFILE_SCHEMA_NAME} {
   did: string
+  nonce: string
 }
 
 type ${PERSPECTIVE_SCHEMA_NAME} {

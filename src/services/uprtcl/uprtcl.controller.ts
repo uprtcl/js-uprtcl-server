@@ -18,10 +18,7 @@ const SUCCESS = 'success';
 
 export class UprtclController {
 
-  uprtclService: UprtclService;
-
-  constructor() {
-    this.uprtclService = new UprtclService('localhost:9080')
+  constructor(protected uprtclService: UprtclService) {
   }
 
   routes() {
@@ -229,9 +226,7 @@ export class UprtclController {
             res.status(200).send(result);
           }
         ]
-      },
+      }
     ]
   }
 };
-
-export const controller = new UprtclController();

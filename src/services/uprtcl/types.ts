@@ -59,3 +59,15 @@ export const dataTypeOrder = (type: DataType): string[] => {
   }
   return []
 }  
+
+export interface PostResult {
+  result: string;
+  message: string;
+  elementIds: string[];
+}
+
+export interface GetResult {
+  result: string;
+  message: string;
+  data: any;
+}

@@ -1,15 +1,9 @@
-import dotenv from "dotenv";
 import { Perspective, Commit, DataDto } from "./types";
 import { DGraphService } from "../../db/dgraph.service";
 
-dotenv.config();
-
 export class UprtclService {
 
-  private db: DGraphService;
-
-  constructor(_host: string) {
-    this.db = new DGraphService(_host);
+  constructor(protected db: DGraphService) {
   }
 
   async createPerspective(perspective: Perspective, loggedUserId: string): Promise<string> {
