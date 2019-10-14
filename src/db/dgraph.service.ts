@@ -32,6 +32,7 @@ interface DgRef {
 interface DgProfile {
   uid?: string,
   did: string,
+  nonce: string,
   'dgraph.type'?: string
 }
 
@@ -167,6 +168,24 @@ export class DGraphService {
     let result = await this.callRequest(req);
     console.log('[DGRAPH] setUserNonce', {query}, {nquads}, result.getUidsMap().toArray());
 
+  }
+
+  /**  */
+  async getNonce(did: string):Promise<string | null> {
+    await this.ready();
+    const query = `query {
+      profile(func: eq(did, "${did}")) {
+        nonce
+      }
+    }`;
+
+    let result = await this.client.newTxn().query(query);
+    console.log('[DGRAPH] getNonce', {query}, result.getJson());
+    let dprofile: DgProfile = result.getJson().profile[0];
+    if (!dprofile) return null;
+    if (!dprofile.nonce) return null;
+
+    return dprofile.nonce;
   }
 
   async createPerspective(perspective: Perspective) {
