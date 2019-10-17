@@ -1,3 +1,4 @@
+import { PermissionType } from "./dgraph.service";
 
 export const PERSPECTIVE_SCHEMA_NAME = 'Perspective';
 export const PROFILE_SCHEMA_NAME = 'Profile';
@@ -7,6 +8,7 @@ export const TEXT_SCHEMA_NAME = 'Text';
 export const TEXT_NODE_SCHEMA_NAME = 'TextNode';
 export const DOCUMENT_NODE_SCHEMA_NAME = 'DocumentNode';
 export const KNOWN_SOURCES_SCHEMA_NAME = 'KnownSources';
+export const PERMISSIONS_CONFIG_SCHEMA_NAME = 'PermissionConfig';
 
 export const SCHEMA = `
 
@@ -24,6 +26,14 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   timestamp: datetime
   head: ${COMMIT_SCHEMA_NAME}
   stored: bool
+  customAccess: bool
+  inheritFrom: ${PERSPECTIVE_SCHEMA_NAME}
+  finalInheritFrom: ${PERSPECTIVE_SCHEMA_NAME}
+  publicRead: bool
+  publicWrite: bool
+  can${PermissionType.Read}: [${PROFILE_SCHEMA_NAME}]
+  can${PermissionType.Write}: [${PROFILE_SCHEMA_NAME}]
+  can${PermissionType.Admin}: [${PROFILE_SCHEMA_NAME}]
 }
 
 type ${COMMIT_SCHEMA_NAME} {
@@ -76,4 +86,7 @@ elementId: string @index(exact) @upsert .
 sources: [string] .
 text: string @index(fulltext) .
 context: string @index(exact) .
+inheritFrom: [uid] @reverse .
+finalInheritFrom: [uid] @reverse .
+
 `

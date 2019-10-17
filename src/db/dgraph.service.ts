@@ -18,6 +18,23 @@ let ready = false;
 
 const LOCAL_PROVIDER = 'https://www.collectiveone.org/uprtcl/1';
 
+export enum PermissionType {
+  Read = 'Read',
+  Write = 'Write',
+  Admin = 'Admin'
+}
+
+export interface PermissionConfig {
+  customAccess: boolean,
+  inheritFrom: string,
+  finalInheritFrom: string,
+  publicRead: boolean,
+  publicWrite: boolean,
+  canRead?: string[],
+  canWrite?: string[],
+  canAdmin?: string[],
+}
+
 export interface DataC1If {
   id: string;
   type: string;
@@ -188,7 +205,7 @@ export class DGraphService {
     return dprofile.nonce;
   }
 
-  async createPerspective(perspective: Perspective) {
+  async createPerspective(perspective: Perspective, userId: string) {
     await this.ready();
 
     if (perspective.id !== '') {
@@ -225,6 +242,13 @@ export class DGraphService {
     nquads = nquads.concat(`\n_:perspective <timestamp> "${perspective.timestamp}"^^<xs:int> .`);
     nquads = nquads.concat(`\n_:perspective <origin> "${LOCAL_PROVIDER}" .`);
     nquads = nquads.concat(`\n_:perspective <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`);
+
+    /** default permissions are too restricitve. 
+     * You usually should call setPerpectivePermissions function immediately after creating it */
+    nquads = nquads.concat(`\n_:perspective <customAccess> "false" .`);
+    nquads = nquads.concat(`\n_:perspective <publicRead> "false" .`);
+    nquads = nquads.concat(`\n_:perspective <publicWrite> "false" .`);
+    nquads = nquads.concat(`\n_:perspective <can${PermissionType.Admin}> ${userId} .`);
     
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
@@ -233,6 +257,78 @@ export class DGraphService {
     let result = await this.callRequest(req);
     console.log('[DGRAPH] createPerspective', {query}, {nquads}, result.getUidsMap().toArray());
     return perspective.id;
+  }
+
+  async isAdmin(perspectiveId: string, userId: string) : Promise<boolean> {
+    let query = `perspective(
+      func: eq(xid, "${perspectiveId}") 
+      @filter(eq(can${PermissionType.Admin}, "${userId}")) {
+        count()
+      }
+    )`;
+
+    let result = await this.client.newTxn().query(`query{${query}}`);
+    console.log('[DGRAPH] isAdmin', {perspectiveId, userId}, result.getJson());
+    return result.getJson().perspective[0] > 0;
+  }
+
+  /** only accessible to an admin */
+  async getPermissionsConfig(perspectiveId: string, userId: string) : Promise<PermissionConfig> {
+    let query = `permissionsConfig(
+      func: eq(xid, "${perspectiveId}") 
+      @filter(eq(can${PermissionType.Admin}, "${userId}")) {
+        customAccess
+        inheritFrom
+        finalInheritFrom
+        publicRead
+        publicWrite
+      }
+    )`
+    
+    let result = await this.client.newTxn().query(`query{${query}}`);
+    console.log('[DGRAPH] isAdmin', {perspectiveId, userId}, result.getJson());;
+
+    let dpermissionsConfig = result.getJson().permissionsConfig[0]
+
+    return {
+      customAccess: dpermissionsConfig.customAccess,
+      inheritFrom: dpermissionsConfig.inheritFrom,
+      finalInheritFrom: dpermissionsConfig.finalInheritFrom,
+      publicRead: dpermissionsConfig.publicRead,
+      publicWrite: dpermissionsConfig.publicWrite
+    };
+  }
+
+  /** Remove all existing permissions except for being the admin  */
+  async clearPermissions(
+    perspectiveId: string, 
+    userId: string) : Promise<void> {
+
+    /** get list of current admins to remove them all except for the user */
+
+    /** make sure the user is and admin of the perspective */
+    const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
+
+    /** make sure the user is an admin of the perspective */
+    let query = `perspective as var(
+                  func: eq(xid, "${perspectiveId}") 
+                  @filter(eq(can${PermissionType.Admin}, "${userId}")) 
+                )`;
+
+    req.setQuery(`query{${query}}`);
+    mu.setCond(`@if(eq(len(perspective), 1))`);
+
+    let delnquads = `uid(perspective) <can${PermissionType.Write}> * .`;
+    delnquads = delnquads.concat(`\nuid(perspective) <can${PermissionType.Read}> * .`);
+    
+    mu.setDelNquads(delnquads);
+
+    req.setMutationsList([mu]);
+    req.setCommitNow(true);
+
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] clearPermissions', {query}, {delnquads}, result.getUidsMap().toArray());
   }
 
   async deleteHead(perspectiveId: string):Promise<void> {
@@ -627,6 +723,21 @@ export class DGraphService {
     if (elements.length > 0) sources.push(LOCAL_PROVIDER);
 
     return sources;
+  }
+
+  async can(perspectiveId: string, userDid: string, action: PermissionType) {
+    await this.ready();
+
+    const query = `
+    query {
+      (func: eq(xid, "${perspectiveId}")) @filter(eq(can${action} = "${userDid}")) {
+        count()
+      }
+    }`;
+
+    let result = await this.client.newTxn().query(query);
+    console.log(`[DGRAPH] can ${action}`, {query}, result.getJson());
+    return result.getJson()[0] > 0;
   }
 
   async getOrigin():Promise<string> {
