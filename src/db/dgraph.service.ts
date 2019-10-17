@@ -286,7 +286,7 @@ export class DGraphService {
     )`
     
     let result = await this.client.newTxn().query(`query{${query}}`);
-    console.log('[DGRAPH] isAdmin', {perspectiveId, userId}, result.getJson());;
+    console.log('[DGRAPH] isAdmin', {perspectiveId, userId}, result.getJson());
 
     let dpermissionsConfig = result.getJson().permissionsConfig[0]
 
@@ -297,6 +297,18 @@ export class DGraphService {
       publicRead: dpermissionsConfig.publicRead,
       publicWrite: dpermissionsConfig.publicWrite
     };
+  }
+
+  async getFinallyInheritingFrom(perspectiveId: string) {
+    let query = `perspectives(
+      func: eq(~finalInheritFrom, "${perspectiveId}") {
+        xid
+      }
+    )`
+
+    let result = await this.client.newTxn().query(`query{${query}}`);
+    console.log('[DGRAPH] getFinallyInheritingFrom', {perspectiveId}, result.getJson());
+    return [perspectiveId].concat(result.getJson().perspectives.map((dpersp: any) => dpersp.xid));
   }
 
   /** Remove all existing permissions except for being the admin  */
