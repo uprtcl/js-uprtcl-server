@@ -4,6 +4,8 @@ var jwt = require('jsonwebtoken');
 var ethUtil = require('ethereumjs-util');
 require('dotenv').config();
 
+export const C1_ETH_AUTH = 'C1_ETH_AUTH';
+
 export class UserService {
 
   constructor(protected db: DGraphService) {
@@ -40,7 +42,7 @@ export class UserService {
     var addr = ethUtil.bufferToHex(sender);
   
     if (addr.toLowerCase() == owner.toLowerCase()) { 
-      var token = jwt.sign({user: addr}, process.env.JWT_SECRET,  { expiresIn: '8d' });
+      var token = jwt.sign({user: addr}, process.env.JWT_SECRET,  { expiresIn: '8d', algorithm: 'HS256', issuer: C1_ETH_AUTH });
       console.log('[USER-CONTROLLER] getJwt() - user authenticated');
       return token;
     } else {

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { checksPlaceholder } from "../../middleware/checks";
 import { UprtclService } from "./uprtcl.service";
+import { checkJwt } from "../../middleware/jwtCheck";
 
 interface PostResult {
   result: string;
@@ -28,7 +29,7 @@ export class UprtclController {
         path: "/uprtcl/1/persp",
         method: "post",
         handler: [
-          checksPlaceholder,
+          checkJwt,
           async ({ body }: Request, res: Response) => {
             const elementId = await this.uprtclService.createPerspective(body, '');
             let result: PostResult = {
@@ -45,7 +46,7 @@ export class UprtclController {
         path: "/uprtcl/1/persp/:perspectiveId",
         method: "get",
         handler: [
-          checksPlaceholder,
+          checkJwt,
           async ({ params }: Request, res: Response) => {
             const data = await this.uprtclService.getPerspective(params.perspectiveId, '');
             let result: GetResult = {
@@ -62,7 +63,7 @@ export class UprtclController {
         path: "/uprtcl/1/persp/:perspectiveId/head",
         method: "get",
         handler: [
-          checksPlaceholder,
+          checkJwt,
           async ({ params }: Request, res: Response) => {
             const data = await this.uprtclService.getPerspectiveHead(params.perspectiveId);
             let result: GetResult = {
@@ -79,7 +80,7 @@ export class UprtclController {
         path: "/uprtcl/1/persp/:perspectiveId",
         method: "put",
         handler: [
-          checksPlaceholder,
+          checkJwt,
           async ({ params, query }: Request, res: Response) => {
             await this.uprtclService.updatePerspective(params.perspectiveId, query.headId);
             let result: PostResult = {
@@ -96,7 +97,7 @@ export class UprtclController {
         path: "/uprtcl/1/persp",
         method: "get",
         handler: [
-          checksPlaceholder,
+          checkJwt,
           async ({ query }: Request, res: Response) => {
             let perspectives = await this.uprtclService.getContextPerspectives(query.context);
             let result: GetResult = {
@@ -113,7 +114,7 @@ export class UprtclController {
         path: "/uprtcl/1/data",
         method: "post",
         handler: [
-          checksPlaceholder,
+          checkJwt,
           async ({ body }: Request, res: Response) => {
             const elementId = await this.uprtclService.createData(body, '');
             let result: PostResult = {
@@ -130,7 +131,7 @@ export class UprtclController {
         path: "/uprtcl/1/data/:dataId",
         method: "get",
         handler: [
-          checksPlaceholder,
+          checkJwt,
           async ({ params }: Request, res: Response) => {
             const data = await this.uprtclService.getData(params.dataId);
             let result: GetResult = {
@@ -147,7 +148,7 @@ export class UprtclController {
         path: "/uprtcl/1/commit",
         method: "post",
         handler: [
-          checksPlaceholder,
+          checkJwt,
           async ({ body }: Request, res: Response) => {
             const elementId = await this.uprtclService.createCommit(body, '');
             let result: PostResult = {
@@ -164,7 +165,7 @@ export class UprtclController {
         path: "/uprtcl/1/commit/:commitId",
         method: "get",
         handler: [
-          checksPlaceholder,
+          checkJwt,
           async ({ params }: Request, res: Response) => {
             const data = await this.uprtclService.getCommit(params.commitId, '');
             let result: GetResult = {
@@ -181,7 +182,7 @@ export class UprtclController {
         path: "/uprtcl/1/discovery/:elementId",
         method: "put",
         handler: [
-          checksPlaceholder,
+          checkJwt,
           async ({ params, body }: Request, res: Response) => {
             await this.uprtclService.addKnownSources(params.elementId, body);
             let result: PostResult = {
@@ -198,7 +199,7 @@ export class UprtclController {
         path: "/uprtcl/1/discovery/:elementId",
         method: "get",
         handler: [
-          checksPlaceholder,
+          checkJwt,
           async ({ params, }: Request, res: Response) => {
             const data = await this.uprtclService.getKnownSources(params.elementId);
             let result: GetResult = {
@@ -215,7 +216,7 @@ export class UprtclController {
         path: "/uprtcl/1/discovery/you",
         method: "get",
         handler: [
-          checksPlaceholder,
+          checkJwt,
           async ({ params }: Request, res: Response) => {
             const data = await this.uprtclService.getOrigin();
             let result: GetResult = {
