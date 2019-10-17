@@ -10,27 +10,40 @@ if (!process.env.AUTH0_DOMAIN || !process.env.AUTH0_AUDIENCE) {
   throw 'Make sure you have AUTH0_DOMAIN, and AUTH0_AUDIENCE in your .env file';
 }
 
-export function verifyAuth0Token(token: string) {
-  return new Promise((resolve, reject) =>
-  {
-    jwt.verify(
-      token, 
-      jwksRsa.expressJwtSecret({
-        cache: true,
-        rateLimit: true,
-        jwksRequestsPerMinute: 5,
-        jwksUri: `https://${process.env.AUTH0_DOMAIN}/.well-known/jwks.json`
-      }), 
-      { 
-        algorithms: ['RS256'] 
-      }, 
-      (err: any, decodedToken: any) => {
-          if (err || !decodedToken) {
-            return reject(err)
-          }
-          resolve(decodedToken)
-      }
-    );
+export function getAuth0Secret(kid: string) {
+  return new Promise((resolve, reject) => {
+
+    const client = jwksRsa({
+      strictSsl: true, // Default value
+      jwksUri: `https://${process.env.AUTH0_DOMAIN}/.well-known/jwks.json`,
+      cache: true,
+      rateLimit: true
+    });
+    
+    client.getSigningKey(kid, (_err: any, key: any) => {
+      const signingKey = key.publicKey || key.rsaPublicKey;
+      resolve(signingKey);
+    });
+  });
+}
+
+export function verifyAuth0Token(token: string, kid: string) {
+  return new Promise((resolve, reject) => {
+    getAuth0Secret(kid).then((secret: any) => {
+      jwt.verify(
+        token, 
+        secret, 
+        { 
+          algorithms: ['RS256'] 
+        }, 
+        (err: any, decodedToken: any) => {
+            if (err || !decodedToken) {
+              return reject(err)
+            }
+            resolve(decodedToken)
+        }
+      );
+    });
   })
 }
 
@@ -58,7 +71,6 @@ export const checkJwt = (
   res: any,
   next: NextFunction
 ) => {
-  debugger
   let token;
   let credentialsRequired = false;
 
@@ -113,7 +125,7 @@ export const checkJwt = (
     case C1_ETH_AUTH:
       try {
         verifyC1Token(token).then((decodedToken: any) => {
-          req.user = decodedToken.user
+          req.user = decodedToken.user;
           next()
         });
       } catch (err) {
@@ -123,8 +135,8 @@ export const checkJwt = (
 
     case `https://${process.env.AUTH0_DOMAIN}/`:
       try {
-        verifyAuth0Token(token).then((decodedToken: any) => {
-          req.user = decodedToken.payload.user
+        verifyAuth0Token(token, dtoken.header.kid).then((decodedToken: any) => {
+          req.user = decodedToken.sub;
           next()
         });
       } catch (err) {
