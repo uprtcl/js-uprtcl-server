@@ -126,6 +126,7 @@ export const checkJwt = (
       try {
         verifyC1Token(token).then((decodedToken: any) => {
           req.user = decodedToken.user;
+          console.log(`[JWT CHECK] Authenticated req.user: ${req.user}`);
           next()
         });
       } catch (err) {
@@ -137,6 +138,7 @@ export const checkJwt = (
       try {
         verifyAuth0Token(token, dtoken.header.kid).then((decodedToken: any) => {
           req.user = decodedToken.sub;
+          console.log(`[JWT CHECK] Authenticated req.user: ${req.user}`);
           next()
         });
       } catch (err) {
