@@ -8,13 +8,28 @@ export const TEXT_SCHEMA_NAME = 'Text';
 export const TEXT_NODE_SCHEMA_NAME = 'TextNode';
 export const DOCUMENT_NODE_SCHEMA_NAME = 'DocumentNode';
 export const KNOWN_SOURCES_SCHEMA_NAME = 'KnownSources';
-export const PERMISSIONS_CONFIG_SCHEMA_NAME = 'PermissionConfig';
+export const PERMISSIONS_SCHEMA_NAME = 'Permissions';
+export const ACCESS_CONFIG_SCHEMA_NAME = 'AccessConfig';
 
 export const SCHEMA = `
 
 type ${PROFILE_SCHEMA_NAME} {
   did: string
   nonce: string
+}
+
+type ${PERMISSIONS_SCHEMA_NAME} {
+  publicRead: bool
+  publicWrite: bool
+  can${PermissionType.Read}: [${PROFILE_SCHEMA_NAME}]
+  can${PermissionType.Write}: [${PROFILE_SCHEMA_NAME}]
+  can${PermissionType.Admin}: [${PROFILE_SCHEMA_NAME}]
+}
+
+type ${ACCESS_CONFIG_SCHEMA_NAME} {
+  delegate: bool
+  delegateTo: uid
+  permissions: ${PERMISSIONS_SCHEMA_NAME}
 }
 
 type ${PERSPECTIVE_SCHEMA_NAME} {
@@ -26,14 +41,7 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   timestamp: datetime
   head: ${COMMIT_SCHEMA_NAME}
   stored: bool
-  customAccess: bool
-  inheritFrom: ${PERSPECTIVE_SCHEMA_NAME}
-  finalInheritFrom: ${PERSPECTIVE_SCHEMA_NAME}
-  publicRead: bool
-  publicWrite: bool
-  can${PermissionType.Read}: [${PROFILE_SCHEMA_NAME}]
-  can${PermissionType.Write}: [${PROFILE_SCHEMA_NAME}]
-  can${PermissionType.Admin}: [${PROFILE_SCHEMA_NAME}]
+  accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
 }
 
 type ${COMMIT_SCHEMA_NAME} {
@@ -44,17 +52,20 @@ type ${COMMIT_SCHEMA_NAME} {
   parents: [uid]
   data: uid
   stored: bool
+  accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
 }
 
 type ${DATA_SCHEMA_NAME} {
   xid: string
   stored: bool
+  accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
 }
 
 type ${TEXT_SCHEMA_NAME} {
   xid: string
   stored: bool
   text: string
+  accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
 }
 
 type ${TEXT_NODE_SCHEMA_NAME} {
@@ -62,6 +73,7 @@ type ${TEXT_NODE_SCHEMA_NAME} {
   stored: bool
   text: string
   links: [uid]
+  accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
 }
 
 type ${DOCUMENT_NODE_SCHEMA_NAME} {
@@ -70,6 +82,7 @@ type ${DOCUMENT_NODE_SCHEMA_NAME} {
   text: string
   node_type: string
   links: [uid]
+  accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
 }
 
 # elementId is like xid but for elements *not* stored locally
@@ -86,7 +99,5 @@ elementId: string @index(exact) @upsert .
 sources: [string] .
 text: string @index(fulltext) .
 context: string @index(exact) .
-inheritFrom: [uid] @reverse .
-finalInheritFrom: [uid] @reverse .
 
 `

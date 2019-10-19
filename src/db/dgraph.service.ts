@@ -25,14 +25,18 @@ export enum PermissionType {
 }
 
 export interface PermissionConfig {
-  customAccess: boolean,
-  inheritFrom: string,
-  finalInheritFrom: string,
   publicRead: boolean,
   publicWrite: boolean,
   canRead?: string[],
   canWrite?: string[],
   canAdmin?: string[],
+}
+
+export interface AccessConfig {
+  delegate: boolean,
+  delegateTo?: string,
+  finDelegatedTo?: string,
+  permissionsUid: string
 }
 
 export interface DataC1If {
@@ -205,7 +209,7 @@ export class DGraphService {
     return dprofile.nonce;
   }
 
-  async createPerspective(perspective: Perspective, userId: string) {
+  async createPerspective(perspective: Perspective) {
     await this.ready();
 
     if (perspective.id !== '') {
@@ -243,13 +247,6 @@ export class DGraphService {
     nquads = nquads.concat(`\n_:perspective <origin> "${LOCAL_PROVIDER}" .`);
     nquads = nquads.concat(`\n_:perspective <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`);
 
-    /** default permissions are too restricitve. 
-     * You usually should call setPerpectivePermissions function immediately after creating it */
-    nquads = nquads.concat(`\n_:perspective <customAccess> "false" .`);
-    nquads = nquads.concat(`\n_:perspective <publicRead> "false" .`);
-    nquads = nquads.concat(`\n_:perspective <publicWrite> "false" .`);
-    nquads = nquads.concat(`\n_:perspective <can${PermissionType.Admin}> ${userId} .`);
-    
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
     req.setCommitNow(true);
@@ -259,61 +256,176 @@ export class DGraphService {
     return perspective.id;
   }
 
-  async isAdmin(perspectiveId: string, userId: string) : Promise<boolean> {
-    let query = `perspective(
-      func: eq(xid, "${perspectiveId}") 
-      @filter(eq(can${PermissionType.Admin}, "${userId}")) {
+  async createPermissionsConfig(persmissions: PermissionConfig) {
+    await this.ready();
+    
+    const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
+
+    /** commit object might exist because of parallel update head call */
+    let query = ``;
+    
+    let nquads = `_:persmissions <publicRead> "${persmissions.publicRead}" .`;
+    nquads = nquads.concat(`\n_:persmissions <publicWrite> "${persmissions.publicRead}" .`);
+    
+    if (persmissions.canRead) {
+      for (let ix = 0; ix < persmissions.canRead.length; ix++) {
+        query = query.concat(`\ncanRead${ix} as var(func: eq(did, ${persmissions.canRead[ix]}))`);
+        nquads = nquads.concat(`\n_:persmissions <canRead> uid(canRead${ix}) .`);  
+      }
+    }
+
+    if (persmissions.canWrite) {
+      for (let ix = 0; ix < persmissions.canWrite.length; ix++) {
+        query = query.concat(`\ncanWrite${ix} as var(func: eq(did, ${persmissions.canWrite[ix]}))`);
+        nquads = nquads.concat(`\n_:persmissions <canWrite> uid(canWrite${ix}) .`);  
+      }
+    }
+
+    if (persmissions.canAdmin) {
+      for (let ix = 0; ix < persmissions.canAdmin.length; ix++) {
+        query = query.concat(`\ncanAdmin${ix} as var(func: eq(did, ${persmissions.canAdmin[ix]}))`);
+        nquads = nquads.concat(`\n_:persmissions <canAdmin> uid(canAdmin${ix}) .`);  
+      }
+    }
+
+    req.setQuery(`query{${query}}`);
+    mu.setSetNquads(nquads);
+    req.setMutationsList([mu]);
+    req.setCommitNow(true);
+
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] createPermissionsSet', {query}, {nquads}, result.getUidsMap().toArray());
+    return result.getUidsMap().toArray()[0];
+  }
+
+  /** updates the pointer of the accessControl node of an elementId to point 
+   * to a new persmissionsConfig node. */
+  async setPermissionsConfigOf(elementId: string, permUid: string) {
+    await this.ready();
+    
+    const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
+
+    /** commit object might exist because of parallel update head call */
+    let query = `\naccessConfig as var(func: eq(xid, ${elementId}))`;
+    let nquads = `uid(accessConfig) <permissions> "${permUid}" .`;
+
+    req.setQuery(`query{${query}}`);
+    mu.setSetNquads(nquads);
+    req.setMutationsList([mu]);
+    req.setCommitNow(true);
+
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] createPermissionsSet', {query}, {nquads}, result.getUidsMap().toArray());
+    return result.getUidsMap().toArray()[0];
+  }
+
+  async isRole(elementId: string, userId: string, type: PermissionType) : Promise<boolean> {
+    let query = `element(
+      func: eq(xid, "${elementId}") 
+      @filter(eq(can${type}, "${userId}")) {
         count()
       }
     )`;
 
     let result = await this.client.newTxn().query(`query{${query}}`);
-    console.log('[DGRAPH] isAdmin', {perspectiveId, userId}, result.getJson());
-    return result.getJson().perspective[0] > 0;
+    console.log(`[DGRAPH] isRole ${type}`, {elementId, userId}, result.getJson());
+    return result.getJson().element[0] > 0;
   }
 
   /** only accessible to an admin */
-  async getPermissionsConfig(perspectiveId: string, userId: string) : Promise<PermissionConfig> {
-    let query = `permissionsConfig(
-      func: eq(xid, "${perspectiveId}") 
-      @filter(eq(can${PermissionType.Admin}, "${userId}")) {
-        customAccess
-        inheritFrom
-        finalInheritFrom
-        publicRead
-        publicWrite
-      }
-    )`
+  async getPermissionsConfig(persmissionsUid: string) : Promise<PermissionConfig> {
+    let query = `
+    permissions(func: uid(${persmissionsUid})) {
+      expand(_all_)
+    }
+    `
     
     let result = await this.client.newTxn().query(`query{${query}}`);
-    console.log('[DGRAPH] isAdmin', {perspectiveId, userId}, result.getJson());
+    console.log('[DGRAPH] getPermissionsConfig', {persmissionsUid}, result.getJson());
 
-    let dpermissionsConfig = result.getJson().permissionsConfig[0]
+    let dpermissionsConfig = result.getJson().permissions[0]
 
     return {
-      customAccess: dpermissionsConfig.customAccess,
-      inheritFrom: dpermissionsConfig.inheritFrom,
-      finalInheritFrom: dpermissionsConfig.finalInheritFrom,
       publicRead: dpermissionsConfig.publicRead,
-      publicWrite: dpermissionsConfig.publicWrite
+      publicWrite: dpermissionsConfig.publicWrite,
+      canRead: dpermissionsConfig.canRead.map((el:any) => el.did),
+      canWrite: dpermissionsConfig.canWrite.map((el:any) => el.did),
+      canAdmin: dpermissionsConfig.canAdmin.map((el:any) => el.did),
     };
   }
 
-  async getFinallyInheritingFrom(perspectiveId: string) {
-    let query = `perspectives(
-      func: eq(~finalInheritFrom, "${perspectiveId}") {
+  async getAccessConfigOfElement(elementId: string, userId: string) : Promise<AccessConfig> {
+    let query = `
+    permissions(func: eq(xid, ${elementId})) {
+      accessConfig {
+        delegate
+        delegateTo
+        finDelegatedTo
+        permissions {
+          uid
+        }
+      }
+    }
+    `
+    
+    let result = await this.client.newTxn().query(`query{${query}}`);
+    console.log('[DGRAPH] getAccessConfigOfElement', {elementId, userId}, result.getJson());
+
+    let daccessConfig = result.getJson().permissions[0]
+    return {
+      delegate: daccessConfig.delegate,
+      delegateTo: daccessConfig.delegateTo,
+      finDelegatedTo: daccessConfig.finDelegatedTo,
+      permissionsUid: daccessConfig.permissions[0].uid,
+    };
+  }
+
+  async setAccessConfigOf(elementId: string, accessConfig: AccessConfig): Promise<void> {
+    await this.ready();
+    
+    const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
+
+    /** commit object might exist because of parallel update head call */
+    let query = `accessConfig as var(func: eq(xid, ${elementId}))`;
+    let nquads = `uid(accessConfig) <permissions> "${accessConfig.permissionsUid}" .`;
+    nquads = nquads.concat(`\nuid(accessConfig) <delegate> "${accessConfig.delegate}" .`);
+    nquads = nquads.concat(`\nuid(accessConfig) <delegateTo> "${accessConfig.delegateTo}" .`);
+    nquads = nquads.concat(`\nuid(accessConfig) <finDelegatedTo> "${accessConfig.finDelegatedTo}" .`);
+
+    req.setQuery(`query{${query}}`);
+    mu.setSetNquads(nquads);
+    req.setMutationsList([mu]);
+    req.setCommitNow(true);
+
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] createPermissionsSet', {query}, {nquads}, result.getUidsMap().toArray());
+    return result.getUidsMap().toArray()[0];
+  }
+
+  async getFinallyDelegatedFrom(elementId: string) {
+    let query = `elements(
+      func: eq(~finalDeletegate, "${elementId}") {
         xid
       }
     )`
 
     let result = await this.client.newTxn().query(`query{${query}}`);
-    console.log('[DGRAPH] getFinallyInheritingFrom', {perspectiveId}, result.getJson());
-    return [perspectiveId].concat(result.getJson().perspectives.map((dpersp: any) => dpersp.xid));
+    console.log('[DGRAPH] getFinallyDelegatedFrom', {elementId}, result.getJson());
+    return [elementId].concat(result.getJson().elements.map((dpersp: any) => dpersp.xid));
   }
 
-  /** Remove all existing permissions except for being the admin  */
+  async addPermission(perspectiveId: string) {
+
+  }
+
+  /** Removes all existing permissions associated to an element
+   *  
+   */
   async clearPermissions(
-    perspectiveId: string, 
+    elementId: string, 
     userId: string) : Promise<void> {
 
     /** get list of current admins to remove them all except for the user */
@@ -323,16 +435,17 @@ export class DGraphService {
     const req = new dgraph.Request();
 
     /** make sure the user is an admin of the perspective */
-    let query = `perspective as var(
-                  func: eq(xid, "${perspectiveId}") 
+    let query = `element as var(
+                  func: eq(xid, "${elementId}") 
                   @filter(eq(can${PermissionType.Admin}, "${userId}")) 
                 )`;
 
     req.setQuery(`query{${query}}`);
-    mu.setCond(`@if(eq(len(perspective), 1))`);
+    mu.setCond(`@if(eq(len(element), 1))`);
 
-    let delnquads = `uid(perspective) <can${PermissionType.Write}> * .`;
-    delnquads = delnquads.concat(`\nuid(perspective) <can${PermissionType.Read}> * .`);
+    let delnquads = `uid(element) <can${PermissionType.Write}> * .`;
+    delnquads = delnquads.concat(`\nuid(element) <can${PermissionType.Read}> * .`);
+    delnquads = delnquads.concat(`\nuid(element) <can${PermissionType.Admin}> * .`);
     
     mu.setDelNquads(delnquads);
 
@@ -340,7 +453,23 @@ export class DGraphService {
     req.setCommitNow(true);
 
     let result = await this.callRequest(req);
+
     console.log('[DGRAPH] clearPermissions', {query}, {delnquads}, result.getUidsMap().toArray());
+
+    /** immediately add the user as admin */
+    const mu2 = new dgraph.Mutation();
+    const req2 = new dgraph.Request();
+
+    let query2 = `element as var(func: eq(xid, "${elementId}"))`;
+    req2.setQuery(`query{${query2}}`);
+    let nquads = `uid(perspective) <can${PermissionType.Admin}> "${userId}" .`;
+    
+    mu2.setSetNquads(nquads);
+    req2.setMutationsList([mu]);
+    req2.setCommitNow(true);
+
+    let result2 = await this.callRequest(req2);
+    console.log('[DGRAPH] clearPermissions', {query2}, {nquads}, result2.getUidsMap().toArray());
   }
 
   async deleteHead(perspectiveId: string):Promise<void> {

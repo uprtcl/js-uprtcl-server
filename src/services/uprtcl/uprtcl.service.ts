@@ -1,18 +1,22 @@
 import { Perspective, Commit, DataDto } from "./types";
 import { DGraphService } from "../../db/dgraph.service";
+import { AccessService } from "../access/access.service";
 
 export class UprtclService {
 
-  constructor(protected db: DGraphService) {
+  constructor(protected db: DGraphService, protected access: AccessService) {
   }
 
-  async createPerspective(perspective: Perspective, loggedUserId: string): Promise<string> {
+  async createPerspective(perspective: Perspective, fromElementId: string, loggedUserId: string): Promise<string> {
     console.log('[UPRTCL-SERVICE] createPerspective', perspective);
-    let uid = await this.db.createPerspective(perspective);
-    return uid;
+    let perspId = await this.db.createPerspective(perspective);
+    await this.access.initPermissionsOn(perspId, fromElementId, loggedUserId);
+    return perspId;
   };
 
   async getPerspective(perspectiveId: string, loggedUserId: string): Promise<Perspective | null> {
+    if (!(await this.access.canRead(perspId, loggedUserId))) return null;
+
     let perspective = await this.db.getPerspective(perspectiveId);
     console.log('[UPRTCL-SERVICE] getPerspective', {perspectiveId}, perspective);
     return perspective;
