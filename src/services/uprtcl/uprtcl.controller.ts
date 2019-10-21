@@ -15,6 +15,14 @@ interface GetResult {
   data: any;
 }
 
+declare global {
+  namespace Express {
+    interface Request {
+      user: string
+    }
+  }
+}
+
 const SUCCESS = 'success';
 
 export class UprtclController {
@@ -30,8 +38,9 @@ export class UprtclController {
         method: "post",
         handler: [
           checkJwt,
-          async ({ body }: Request, res: Response) => {
-            const elementId = await this.uprtclService.createPerspective(body, '');
+          async (req: Request, res: Response) => {
+            let delegateTo = req.query.delegateTo ? (req.query.delegateTo !== '' ? req.query.delegateTo : null) : null;
+            const elementId = await this.uprtclService.createPerspective(req.body, delegateTo, req.user);
             let result: PostResult = {
               result: SUCCESS,
               message: '',

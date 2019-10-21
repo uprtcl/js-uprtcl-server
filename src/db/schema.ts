@@ -1,4 +1,4 @@
-import { PermissionType } from "./dgraph.service";
+var PermissionType = require("./dgraph.service");
 
 export const PERSPECTIVE_SCHEMA_NAME = 'Perspective';
 export const PROFILE_SCHEMA_NAME = 'Profile';
@@ -29,6 +29,7 @@ type ${PERMISSIONS_SCHEMA_NAME} {
 type ${ACCESS_CONFIG_SCHEMA_NAME} {
   delegate: bool
   delegateTo: uid
+  finDelegatedTo: uid
   permissions: ${PERMISSIONS_SCHEMA_NAME}
 }
 
@@ -99,5 +100,6 @@ elementId: string @index(exact) @upsert .
 sources: [string] .
 text: string @index(fulltext) .
 context: string @index(exact) .
-
+delegatedTo: [uid] @reverse .
+finDelegatedTo: [uid] @reverse .
 `

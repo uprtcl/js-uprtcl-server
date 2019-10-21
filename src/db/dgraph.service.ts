@@ -417,61 +417,6 @@ export class DGraphService {
     return [elementId].concat(result.getJson().elements.map((dpersp: any) => dpersp.xid));
   }
 
-  async addPermission(perspectiveId: string) {
-
-  }
-
-  /** Removes all existing permissions associated to an element
-   *  
-   */
-  async clearPermissions(
-    elementId: string, 
-    userId: string) : Promise<void> {
-
-    /** get list of current admins to remove them all except for the user */
-
-    /** make sure the user is and admin of the perspective */
-    const mu = new dgraph.Mutation();
-    const req = new dgraph.Request();
-
-    /** make sure the user is an admin of the perspective */
-    let query = `element as var(
-                  func: eq(xid, "${elementId}") 
-                  @filter(eq(can${PermissionType.Admin}, "${userId}")) 
-                )`;
-
-    req.setQuery(`query{${query}}`);
-    mu.setCond(`@if(eq(len(element), 1))`);
-
-    let delnquads = `uid(element) <can${PermissionType.Write}> * .`;
-    delnquads = delnquads.concat(`\nuid(element) <can${PermissionType.Read}> * .`);
-    delnquads = delnquads.concat(`\nuid(element) <can${PermissionType.Admin}> * .`);
-    
-    mu.setDelNquads(delnquads);
-
-    req.setMutationsList([mu]);
-    req.setCommitNow(true);
-
-    let result = await this.callRequest(req);
-
-    console.log('[DGRAPH] clearPermissions', {query}, {delnquads}, result.getUidsMap().toArray());
-
-    /** immediately add the user as admin */
-    const mu2 = new dgraph.Mutation();
-    const req2 = new dgraph.Request();
-
-    let query2 = `element as var(func: eq(xid, "${elementId}"))`;
-    req2.setQuery(`query{${query2}}`);
-    let nquads = `uid(perspective) <can${PermissionType.Admin}> "${userId}" .`;
-    
-    mu2.setSetNquads(nquads);
-    req2.setMutationsList([mu]);
-    req2.setCommitNow(true);
-
-    let result2 = await this.callRequest(req2);
-    console.log('[DGRAPH] clearPermissions', {query2}, {nquads}, result2.getUidsMap().toArray());
-  }
-
   async deleteHead(perspectiveId: string):Promise<void> {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
