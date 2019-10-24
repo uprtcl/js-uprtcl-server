@@ -244,7 +244,7 @@ describe("routes", () => {
     expect(perspectiveHeadRead2).toEqual(commit2Id);
   });
 
-  test("CRUD text data", async () => {
+  test.skip("CRUD text data", async () => {
     let text = 'an example text';
 
     let dataId = await createText(text);
@@ -256,7 +256,7 @@ describe("routes", () => {
     expect(dataRead.text).toEqual(text);
   });
 
-  test("CRUD text node data", async () => {
+  test.skip("CRUD text node data", async () => {
     let text1 = 'a paragraph 1';
     let par1Id = await createText(text1);
 
@@ -283,7 +283,7 @@ describe("routes", () => {
     expect(dataRead.links[2]).toEqual(sub1Id);
   });
 
-  test("CRUD doc node data", async () => {
+  test.skip("CRUD doc node data", async () => {
 
     let par1 = 'a doc parragraph 1';
     let par1Id = await createDocNode(par1, DocNodeType.paragraph, []);
@@ -306,7 +306,7 @@ describe("routes", () => {
     expect(dataRead.links[1]).toEqual(par2Id);
   });
 
-  test("CRUD commits", async () => {
+  test.skip("CRUD commits", async () => {
     const creatorId = 'did:method:12345';
     const message = 'commit message';
     const timestamp = 1568027451547;
@@ -341,7 +341,7 @@ describe("routes", () => {
 
   });
 
-  test("Discovery", async () => {
+  test.skip("Discovery", async () => {
     let par1Id = await createText('a paragraph 1');
 
     const origin = 'https://www.collectiveone.org/uprtcl/1';

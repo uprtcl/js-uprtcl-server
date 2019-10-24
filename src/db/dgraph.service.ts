@@ -33,6 +33,7 @@ export interface PermissionConfig {
 }
 
 export interface AccessConfig {
+  uid?: string,
   delegate: boolean,
   delegateTo?: string,
   finDelegatedTo?: string,
@@ -88,6 +89,18 @@ interface DgData {
   stored: boolean
 }
 
+export const requestToObj = (req: any) => {
+  return {
+    query: req.getQuery(),
+    mutations: req.getMutationsList().map((mutation: any) => {
+      return JSON.stringify({
+        setNquads: mutation.getSetNquads(),
+        delNquads: mutation.getDelNquads()
+      })
+    })
+  }
+}
+
 export class DGraphService {
   private host: string;
   private client: any;
@@ -130,10 +143,12 @@ export class DGraphService {
   private async callRequest(req: any, retry: number = 0): Promise<any> {
     return new Promise(async (resolve, reject) => {
       try {
-        let result = await this.client.newTxn().doRequest(req);
+        let tx = await this.client.newTxn();
+        let result = await tx.doRequest(req);
+        await tx.commit();
         resolve(result)
       } catch (e) {
-        console.log('[DGRAPH] error during request', e.message)
+        console.log('[DGRAPH] error during request', {req: requestToObj(req), message: e.message})
         let regexp = new RegExp('please retry', 'i');
         if(regexp.test(e.message) && retry < 10) {
           console.log('[DGRAPH] retrying upsert', req.getQuery())
@@ -162,8 +177,7 @@ export class DGraphService {
 
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
-    req.setCommitNow(true);
-
+    
     let result = await this.callRequest(req);
     console.log('[DGRAPH] upsertProfile', {query}, {nquads}, result.getUidsMap().toArray());
   }
@@ -184,8 +198,7 @@ export class DGraphService {
 
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
-    req.setCommitNow(true);
-
+    
     let result = await this.callRequest(req);
     console.log('[DGRAPH] setUserNonce', {query}, {nquads}, result.getUidsMap().toArray());
 
@@ -249,14 +262,13 @@ export class DGraphService {
 
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
-    req.setCommitNow(true);
-
+    
     let result = await this.callRequest(req);
     console.log('[DGRAPH] createPerspective', {query}, {nquads}, result.getUidsMap().toArray());
     return perspective.id;
   }
 
-  async createPermissionsConfig(persmissions: PermissionConfig) {
+  async createPermissionsConfig(permissions: PermissionConfig) {
     await this.ready();
     
     const mu = new dgraph.Mutation();
@@ -265,42 +277,41 @@ export class DGraphService {
     /** commit object might exist because of parallel update head call */
     let query = ``;
     
-    let nquads = `_:persmissions <publicRead> "${persmissions.publicRead}" .`;
-    nquads = nquads.concat(`\n_:persmissions <publicWrite> "${persmissions.publicRead}" .`);
+    let nquads = `_:permissions <publicRead> "${permissions.publicRead}" .`;
+    nquads = nquads.concat(`\n_:permissions <publicWrite> "${permissions.publicRead}" .`);
     
-    if (persmissions.canRead) {
-      for (let ix = 0; ix < persmissions.canRead.length; ix++) {
-        query = query.concat(`\ncanRead${ix} as var(func: eq(did, ${persmissions.canRead[ix]}))`);
-        nquads = nquads.concat(`\n_:persmissions <canRead> uid(canRead${ix}) .`);  
+    if (permissions.canRead) {
+      for (let ix = 0; ix < permissions.canRead.length; ix++) {
+        query = query.concat(`\ncanRead${ix} as var(func: eq(did, ${permissions.canRead[ix]}))`);
+        nquads = nquads.concat(`\n_:permissions <canRead> uid(canRead${ix}) .`);  
       }
     }
 
-    if (persmissions.canWrite) {
-      for (let ix = 0; ix < persmissions.canWrite.length; ix++) {
-        query = query.concat(`\ncanWrite${ix} as var(func: eq(did, ${persmissions.canWrite[ix]}))`);
-        nquads = nquads.concat(`\n_:persmissions <canWrite> uid(canWrite${ix}) .`);  
+    if (permissions.canWrite) {
+      for (let ix = 0; ix < permissions.canWrite.length; ix++) {
+        query = query.concat(`\ncanWrite${ix} as var(func: eq(did, ${permissions.canWrite[ix]}))`);
+        nquads = nquads.concat(`\n_:permissions <canWrite> uid(canWrite${ix}) .`);  
       }
     }
 
-    if (persmissions.canAdmin) {
-      for (let ix = 0; ix < persmissions.canAdmin.length; ix++) {
-        query = query.concat(`\ncanAdmin${ix} as var(func: eq(did, ${persmissions.canAdmin[ix]}))`);
-        nquads = nquads.concat(`\n_:persmissions <canAdmin> uid(canAdmin${ix}) .`);  
+    if (permissions.canAdmin) {
+      for (let ix = 0; ix < permissions.canAdmin.length; ix++) {
+        query = query.concat(`\ncanAdmin${ix} as var(func: eq(did, ${permissions.canAdmin[ix]}))`);
+        nquads = nquads.concat(`\n_:permissions <canAdmin> uid(canAdmin${ix}) .`);  
       }
     }
 
-    req.setQuery(`query{${query}}`);
+    if (query !== '') req.setQuery(`query{${query}}`);
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
-    req.setCommitNow(true);
-
+    
     let result = await this.callRequest(req);
     console.log('[DGRAPH] createPermissionsSet', {query}, {nquads}, result.getUidsMap().toArray());
-    return result.getUidsMap().toArray()[0];
+    return result.getUidsMap().toArray()[0][1];
   }
 
   /** updates the pointer of the accessControl node of an elementId to point 
-   * to a new persmissionsConfig node. */
+   * to a new permissionsConfig node. */
   async setPermissionsConfigOf(elementId: string, permUid: string) {
     await this.ready();
     
@@ -314,7 +325,6 @@ export class DGraphService {
     req.setQuery(`query{${query}}`);
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
-    req.setCommitNow(true);
 
     let result = await this.callRequest(req);
     console.log('[DGRAPH] createPermissionsSet', {query}, {nquads}, result.getUidsMap().toArray());
@@ -335,15 +345,15 @@ export class DGraphService {
   }
 
   /** only accessible to an admin */
-  async getPermissionsConfig(persmissionsUid: string) : Promise<PermissionConfig> {
+  async getPermissionsConfig(permissionsUid: string) : Promise<PermissionConfig> {
     let query = `
-    permissions(func: uid(${persmissionsUid})) {
+    permissions(func: uid(${permissionsUid})) {
       expand(_all_)
     }
     `
     
     let result = await this.client.newTxn().query(`query{${query}}`);
-    console.log('[DGRAPH] getPermissionsConfig', {persmissionsUid}, result.getJson());
+    console.log('[DGRAPH] getPermissionsConfig', {permissionsUid}, result.getJson());
 
     let dpermissionsConfig = result.getJson().permissions[0]
 
@@ -356,10 +366,12 @@ export class DGraphService {
     };
   }
 
-  async getAccessConfigOfElement(elementId: string, userId: string) : Promise<AccessConfig> {
+  /** TODO: protect getAccessConnfig to admins of the element */
+  async getAccessConfigOfElement(elementId: string, userId: string | null) : Promise<AccessConfig> {
     let query = `
     permissions(func: eq(xid, ${elementId})) {
       accessConfig {
+        uid
         delegate
         delegateTo
         finDelegatedTo
@@ -372,9 +384,10 @@ export class DGraphService {
     
     let result = await this.client.newTxn().query(`query{${query}}`);
     console.log('[DGRAPH] getAccessConfigOfElement', {elementId, userId}, result.getJson());
+    let daccessConfig = result.getJson().permissions[0].accessConfig;
 
-    let daccessConfig = result.getJson().permissions[0]
     return {
+      uid: daccessConfig.uid,
       delegate: daccessConfig.delegate,
       delegateTo: daccessConfig.delegateTo,
       finDelegatedTo: daccessConfig.finDelegatedTo,
@@ -382,27 +395,60 @@ export class DGraphService {
     };
   }
 
-  async setAccessConfigOf(elementId: string, accessConfig: AccessConfig): Promise<void> {
+  async isPublic(elementId: string, type: PermissionType) : Promise<boolean> {
+    if (type === PermissionType.Admin) return false;
+
+    let query = `
+    element(func: eq(xid, ${elementId})) {
+      accessConfig {
+        permissions {
+          public${type}
+        }
+      }
+    }
+    `
+    
+    let result = await this.client.newTxn().query(`query{${query}}`);
+    console.log(`[DGRAPH] isPublic ${type}`, {elementId}, result.getJson());
+    return result.getJson().element[0].accessConfig[0].permissions[0][`public${type}`];
+  }
+
+  async createAccessConfig(accessConfig: AccessConfig): Promise<string> {
     await this.ready();
     
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
     /** commit object might exist because of parallel update head call */
-    let query = `accessConfig as var(func: eq(xid, ${elementId}))`;
-    let nquads = `uid(accessConfig) <permissions> "${accessConfig.permissionsUid}" .`;
-    nquads = nquads.concat(`\nuid(accessConfig) <delegate> "${accessConfig.delegate}" .`);
-    nquads = nquads.concat(`\nuid(accessConfig) <delegateTo> "${accessConfig.delegateTo}" .`);
-    nquads = nquads.concat(`\nuid(accessConfig) <finDelegatedTo> "${accessConfig.finDelegatedTo}" .`);
+    let nquads = `_:accessConfig <permissions> <${accessConfig.permissionsUid}> .`;
+    nquads = nquads.concat(`\n_:accessConfig <delegate> "${accessConfig.delegate}" .`);
+    if (accessConfig.delegateTo) nquads = nquads.concat(`\n_:accessConfig <delegateTo> <${accessConfig.delegateTo}> .`);
+    if (accessConfig.finDelegatedTo) nquads = nquads.concat(`\n_:accessConfig <finDelegatedTo> <${accessConfig.finDelegatedTo}> .`);
+    
+    mu.setSetNquads(nquads);
+    req.setMutationsList([mu]);
+    
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] createAccessConfig', {nquads}, result.getUidsMap().toArray());
+    return result.getUidsMap().toArray()[0][1];
+  }
+
+  async setAccessConfigOf(elementId: string, accessConfigUid: string): Promise<void> {
+    await this.ready();
+    
+    const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
+
+    /** make sure creatorId exist */
+    let query = `element as var(func: eq(xid, "${elementId}"))`;
+    let nquads = `uid(element) <accessConfig> <${accessConfigUid}> .`;
 
     req.setQuery(`query{${query}}`);
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
-    req.setCommitNow(true);
 
     let result = await this.callRequest(req);
-    console.log('[DGRAPH] createPermissionsSet', {query}, {nquads}, result.getUidsMap().toArray());
-    return result.getUidsMap().toArray()[0];
+    console.log('[DGRAPH] setAccessConfigOf', {query}, {nquads}, result.getUidsMap().toArray());
   }
 
   async getFinallyDelegatedFrom(elementId: string) {
@@ -429,7 +475,6 @@ export class DGraphService {
     
     mu.setDelNquads(delnquads);
     req.setMutationsList([mu]);
-    req.setCommitNow(true);
 
     let result = await this.callRequest(req);
     console.log('[DGRAPH] deleteHead', {query}, {delnquads}, result.getUidsMap().toArray());
@@ -456,7 +501,6 @@ export class DGraphService {
     
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
-    req.setCommitNow(true);
 
     let result = await this.callRequest(req);
     console.log('[DGRAPH] updatePerspective', {query}, {nquads}, result.getUidsMap().toArray());
@@ -513,7 +557,6 @@ export class DGraphService {
     req.setQuery(`query{${query}}`);
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
-    req.setCommitNow(true);
 
     let result = await this.callRequest(req);
     console.log('[DGRAPH] createCommit', {query}, {nquads}, result.getUidsMap().toArray());
@@ -698,7 +741,6 @@ export class DGraphService {
     req.setQuery(`query {${query}}`);
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
-    req.setCommitNow(true);
 
     let result = await this.callRequest(req);
     console.log('[DGRAPH] createData', {query}, {nquads}, result.getUidsMap().toArray());
@@ -775,7 +817,6 @@ export class DGraphService {
     
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
-    req.setCommitNow(true);
 
     let result = await this.callRequest(req);
     console.log('[DGRAPH] addKnownSources', {query}, {nquads}, result.getUidsMap().toArray());
@@ -817,7 +858,7 @@ export class DGraphService {
     const query = `
     query {
       (func: eq(xid, "${perspectiveId}")) @filter(eq(can${action} = "${userDid}")) {
-        count()
+        count(uid)
       }
     }`;
 

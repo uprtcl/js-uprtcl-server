@@ -100,6 +100,8 @@ elementId: string @index(exact) @upsert .
 sources: [string] .
 text: string @index(fulltext) .
 context: string @index(exact) .
+publicRead: bool @index(bool) .
+publicWrite: bool @index(bool) .
 delegatedTo: [uid] @reverse .
 finDelegatedTo: [uid] @reverse .
 `

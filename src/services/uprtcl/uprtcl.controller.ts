@@ -23,6 +23,14 @@ declare global {
   }
 }
 
+export const getUserFromReq = (req: Request) => {
+  return req.user ? (req.user !== '' ? req.user : null) : null
+}
+
+export const getDelegateToFromReq = (req: Request) => {
+  return req.query.delegateTo ? (req.query.delegateTo !== '' ? req.query.delegateTo : null) : null
+}
+
 const SUCCESS = 'success';
 
 export class UprtclController {
@@ -39,8 +47,11 @@ export class UprtclController {
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            let delegateTo = req.query.delegateTo ? (req.query.delegateTo !== '' ? req.query.delegateTo : null) : null;
-            const elementId = await this.uprtclService.createPerspective(req.body, delegateTo, req.user);
+            const elementId = await this.uprtclService.createPerspective(
+              req.body, 
+              getDelegateToFromReq(req), 
+              getUserFromReq(req));
+
             let result: PostResult = {
               result: SUCCESS,
               message: '',
@@ -56,8 +67,8 @@ export class UprtclController {
         method: "get",
         handler: [
           checkJwt,
-          async ({ params }: Request, res: Response) => {
-            const data = await this.uprtclService.getPerspective(params.perspectiveId, '');
+          async (req: Request, res: Response) => {
+            const data = await this.uprtclService.getPerspective(req.params.perspectiveId, getUserFromReq(req));
             let result: GetResult = {
               result: SUCCESS,
               message: '',

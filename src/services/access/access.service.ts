@@ -6,41 +6,74 @@ export class AccessService {
   constructor(protected db: DGraphService) {
   }
 
-  async createDefaultPermissions(userId: string): Promise<string> {
-    let persmissions: PermissionConfig = {
-      publicRead: false,
-      publicWrite: false,
-      canRead: [],
-      canWrite: [],
-      canAdmin: [userId]
+  async createDefaultPermissions(userId: string | null): Promise<string> {
+    let persmissions: PermissionConfig;
+    if (userId != null) {
+      persmissions = {
+        publicRead: false,
+        publicWrite: false,
+        canRead: [],
+        canWrite: [],
+        canAdmin: []
+      }
+    } else {
+      /** public elements can be read and writed by anyone and have no admin */
+      persmissions = {
+        publicRead: true,
+        publicWrite: true,
+        canRead: [],
+        canWrite: [],
+        canAdmin: []
+      }
     }
     return this.db.createPermissionsConfig(persmissions);     
   }
 
   /** if delegateTo is available, set its persmissions as the persissions of elementId
    *  if not, set its permissions as default. */
-  async setAccessConfig(
+  async createAccessConfig(
     elementId: string, 
     delegateTo: string | null, 
-    userId: string): Promise<void> {
+    userId: string | null): Promise<void> {
 
     let accessConfig: AccessConfig;
-    
+
     if (delegateTo != null) {
-      accessConfig = await this.db.getAccessConfigOfElement(delegateTo, userId);
+      let refAccessConfig = await this.db.getAccessConfigOfElement(delegateTo, userId);
+      accessConfig = {
+        delegate: true,
+        delegateTo: delegateTo,
+        finDelegatedTo: refAccessConfig.finDelegatedTo,
+        permissionsUid: refAccessConfig.permissionsUid
+      }
     } else {
-      let permUid = await this.createDefaultPermissions(userId);
+      let dftPermUid = await this.createDefaultPermissions(userId);
       accessConfig = {
         delegate: false,
-        permissionsUid: permUid
-      };
+        permissionsUid: dftPermUid
+      }
     }
 
-    return this.db.setAccessConfigOf(elementId, accessConfig);
+    let accessConfigUid = await this.db.createAccessConfig(accessConfig);
+
+    return this.db.setAccessConfigOf(elementId, accessConfigUid);
   }
 
-  async isRole(elementId: string, userId: string, type: PermissionType) : Promise<boolean>  {
-    return this.db.isRole(elementId, userId, type);
+  async isRole(
+    elementId: string, 
+    userId: string | null, 
+    type: PermissionType) : Promise<boolean>  {
+
+    if (await this.db.isPublic(elementId, type)) {
+      return true;
+    }
+    
+    if (userId != null) {
+      return this.db.isRole(elementId, userId, type);
+    }
+
+    console.log('[ACCESS-SERVICE] isRole - FALSE', {elementId, userId, type});    
+    return false
   }
 
   async getPermissionsConfig(permissionsUid: string) : Promise<PermissionConfig> {
