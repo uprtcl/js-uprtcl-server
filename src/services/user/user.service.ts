@@ -28,7 +28,7 @@ export class UserService {
     
     console.log('[USER-CONTROLLER] getJwt', {userDid});
 
-    let owner =  '0x' + userDid.split(':')[2];
+    let owner =  userDid.split(':')[2];
 
     let nonce = await this.db.getNonce(userDid);
     var data = `Login to CollectiveOne \nnonce:${nonce}`;  
@@ -42,7 +42,7 @@ export class UserService {
     var addr = ethUtil.bufferToHex(sender);
   
     if (addr.toLowerCase() == owner.toLowerCase()) { 
-      var token = jwt.sign({user: addr}, process.env.JWT_SECRET,  { expiresIn: '8d', algorithm: 'HS256', issuer: C1_ETH_AUTH });
+      var token = jwt.sign({user: `did:ethr:${addr}`}, process.env.JWT_SECRET,  { expiresIn: '8d', algorithm: 'HS256', issuer: C1_ETH_AUTH });
       console.log('[USER-CONTROLLER] getJwt() - user authenticated');
       return token;
     } else {

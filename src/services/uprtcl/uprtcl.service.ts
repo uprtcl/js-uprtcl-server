@@ -11,15 +11,15 @@ export class UprtclService {
     perspective: Perspective, 
     delegateTo: string | null, 
     loggedUserId: string | null): Promise<string> {
-    console.log('[UPRTCL-SERVICE] createPerspective', perspective);
+    console.log('[UPRTCL-SERVICE] createPerspective', {perspective, delegateTo, loggedUserId});
     let perspId = await this.db.createPerspective(perspective);
     await this.access.createAccessConfig(perspId, delegateTo, loggedUserId);
     return perspId;
   };
 
   async getPerspective(perspectiveId: string, loggedUserId: string | null): Promise<Perspective | null> {
-    console.log('[UPRTCL-SERVICE] getPerspective', {perspectiveId});
-    if (!(await this.access.isRole(perspectiveId, loggedUserId, PermissionType.Read))) return null;
+    console.log('[UPRTCL-SERVICE] getPerspective', {perspectiveId, loggedUserId});
+    if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Read))) return null;
     let perspective = await this.db.getPerspective(perspectiveId);
     return perspective;
   };

@@ -14,7 +14,7 @@ export class AccessService {
         publicWrite: false,
         canRead: [],
         canWrite: [],
-        canAdmin: []
+        canAdmin: [userId]
       }
     } else {
       /** public elements can be read and writed by anyone and have no admin */
@@ -59,7 +59,7 @@ export class AccessService {
     return this.db.setAccessConfigOf(elementId, accessConfigUid);
   }
 
-  async isRole(
+  async can(
     elementId: string, 
     userId: string | null, 
     type: PermissionType) : Promise<boolean>  {
@@ -69,7 +69,7 @@ export class AccessService {
     }
     
     if (userId != null) {
-      return this.db.isRole(elementId, userId, type);
+      return this.db.can(elementId, userId, type);
     }
 
     console.log('[ACCESS-SERVICE] isRole - FALSE', {elementId, userId, type});    

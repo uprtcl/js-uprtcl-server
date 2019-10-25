@@ -1,7 +1,9 @@
 import request from "supertest";
 import promiseRequest from "request-promise";
 import { router } from '../../server';
-import CID from 'cids';
+var CID  = require('cids');
+var ethUtil = require('ethereumjs-util');
+var Web3 = require('web3');
 import { Perspective, DataDto, DataType, Commit, DocNodeType } from "./types";
 
 jest.mock("request-promise");
@@ -11,7 +13,32 @@ interface ExtendedMatchers extends jest.Matchers<void> {
   toBeValidCid: () => object;
 }
 
-const createPerspective = async (creatorId: string, name: string, context: string, timestamp: number):Promise<string> => {
+const getJwtToken = async (userDid: string, privateKey: string) => {
+  const get = await request(router).get(`/uprtcl/1/user/${userDid}/nonce`);
+  expect(get.status).toEqual(200);
+
+  let nonce: string = JSON.parse(get.text).data;
+
+  var data = `Login to CollectiveOne \nnonce:${nonce}`;  
+  var message = ethUtil.toBuffer(data);
+  var msgHash = ethUtil.hashPersonalMessage(message);
+
+  let ECDSAsignature = ethUtil.ecsign(msgHash, ethUtil.toBuffer(privateKey));
+  let signature = ethUtil.bufferToHex(Buffer.concat([ECDSAsignature.r, ECDSAsignature.s,  Uint8Array.from([ECDSAsignature.v])]));
+
+  const put = await request(router).put(`/uprtcl/1/user/${userDid}/authorize`)
+  .send({signature});
+  expect(put.status).toEqual(200);
+
+  return JSON.parse(put.text).data.jwt;
+}
+
+const createPerspective = async (
+  creatorId: string, 
+  name: string, 
+  context: string, 
+  timestamp: number, 
+  jwt: string):Promise<string> => {
   
   const perspective: Perspective = {
     id: '',
@@ -23,7 +50,9 @@ const createPerspective = async (creatorId: string, name: string, context: strin
   }
 
   const post = await request(router).post('/uprtcl/1/persp')
-  .send(perspective);
+  .send(perspective)
+  .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+  
   expect(post.status).toEqual(200);
 
   let result: any = JSON.parse(post.text).elementIds[0];
@@ -90,8 +119,10 @@ const getOrigin = async (
   return JSON.parse(get.text).data;
 }
 
-const getPerspective = async (perspectiveId: string):Promise<Perspective> => {
-  const get = await request(router).get(`/uprtcl/1/persp/${perspectiveId}`);
+const getPerspective = async (perspectiveId: string, jwt: string):Promise<Perspective> => {
+  const get = await request(router).get(`/uprtcl/1/persp/${perspectiveId}`)
+  .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
   expect(get.status).toEqual(200);
   
   return JSON.parse(get.text).data;
@@ -204,14 +235,14 @@ describe("routes", () => {
     }
   })
 
-  test("CRUD perspectives", async () => {
+  test.skip("CRUD public owner-less perspectives", async () => {
     const creatorId = 'did:method:12345';
     const name = 'test';
     const context = 'wikipedia.barack_obama';
     const timestamp = 1568027451547;
 
-    let perspectiveId = await createPerspective(creatorId, name, context, timestamp);
-    let perspectiveRead = await getPerspective(perspectiveId);
+    let perspectiveId = await createPerspective(creatorId, name, context, timestamp, '');
+    let perspectiveRead = await getPerspective(perspectiveId, '');
     
     const origin = 'https://www.collectiveone.org/uprtcl/1';
 
@@ -243,6 +274,54 @@ describe("routes", () => {
 
     expect(perspectiveHeadRead2).toEqual(commit2Id);
   });
+
+  test("CRUD private perspectives", async () => {
+    const creatorId = 'did:method:12345';
+    const name = 'test';
+    const context = 'wikipedia.barack_obama';
+    const timestamp = 1568027451548;
+
+    let web3 = new Web3();
+    let account = web3.eth.accounts.create('2435@#@#@±±±±!!!!678543213456764321§34567543213456785432134567');
+    let userDid = `did:ethr:${account.address}`
+    let jwt = await getJwtToken(userDid, account.privateKey);
+
+    console.log('[TEST private perspectives] jwt', {userDid, jwt});
+
+    let perspectiveId = await createPerspective(creatorId, name, context, timestamp, jwt);
+    let perspectiveRead = await getPerspective(perspectiveId, jwt);
+    
+    const origin = 'https://www.collectiveone.org/uprtcl/1';
+
+    expect(perspectiveRead.id).toEqual(perspectiveId);
+    expect(perspectiveRead.creatorId).toEqual(creatorId);
+    expect(perspectiveRead.timestamp).toEqual(timestamp);
+    expect(perspectiveRead.name).toEqual(name);
+    expect(perspectiveRead.context).toEqual(context);
+    expect(perspectiveRead.origin).toEqual(origin);
+
+    /** update head */
+    const message = 'commit message';
+    
+    let text1 = 'new content';
+    let par1Id = await createText(text1); 
+    let commit1Id = await createCommit(creatorId, timestamp, message, [], par1Id);
+
+    await updatePerspective(perspectiveId, commit1Id);
+    let perspectiveHeadRead = await getPerspectiveHead(perspectiveId);
+
+    expect(perspectiveHeadRead).toEqual(commit1Id);
+
+    let text2 = 'new content 2';
+    let par2Id = await createText(text2); 
+    let commit2Id = await createCommit(creatorId, timestamp, message, [], par2Id);
+
+    await updatePerspective(perspectiveId, commit2Id);
+    let perspectiveHeadRead2 = await getPerspectiveHead(perspectiveId);
+
+    expect(perspectiveHeadRead2).toEqual(commit2Id);
+  });
+
 
   test.skip("CRUD text data", async () => {
     let text = 'an example text';

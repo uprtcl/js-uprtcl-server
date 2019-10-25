@@ -57,12 +57,12 @@ export class UserController {
           checkJwt,
           async ( req: any, res: Response) => {
             const jwt = await this.userService.getJwt(req.params.userId, req.body.signature);
-              let result: GetResult = {
-                result: SUCCESS,
-                message: '',
-                data: {jwt}
-              }
-              res.status(200).send(result);
+            let result: GetResult = {
+              result: SUCCESS,
+              message: '',
+              data: {jwt}
+            }
+            res.status(200).send(result);
           }
         ]
       }

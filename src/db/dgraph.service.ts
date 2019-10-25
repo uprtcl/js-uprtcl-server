@@ -10,7 +10,9 @@ import {
   TEXT_NODE_SCHEMA_NAME, 
   DOCUMENT_NODE_SCHEMA_NAME, 
   DATA_SCHEMA_NAME,
-  KNOWN_SOURCES_SCHEMA_NAME} from "./schema";
+  KNOWN_SOURCES_SCHEMA_NAME,
+  ACCESS_CONFIG_SCHEMA_NAME,
+  PERMISSIONS_SCHEMA_NAME} from "./schema";
 
 const dgraph = require("dgraph-js");
 const grpc = require("grpc");
@@ -278,25 +280,29 @@ export class DGraphService {
     let query = ``;
     
     let nquads = `_:permissions <publicRead> "${permissions.publicRead}" .`;
+    nquads = nquads.concat(`\n_:permissions <dgraph.type> "${PERMISSIONS_SCHEMA_NAME}" .`);
     nquads = nquads.concat(`\n_:permissions <publicWrite> "${permissions.publicRead}" .`);
     
     if (permissions.canRead) {
       for (let ix = 0; ix < permissions.canRead.length; ix++) {
-        query = query.concat(`\ncanRead${ix} as var(func: eq(did, ${permissions.canRead[ix]}))`);
+        await this.upsertProfile(permissions.canRead[ix]);
+        query = query.concat(`\ncanRead${ix} as var(func: eq(did, "${permissions.canRead[ix]}"))`);
         nquads = nquads.concat(`\n_:permissions <canRead> uid(canRead${ix}) .`);  
       }
     }
 
     if (permissions.canWrite) {
       for (let ix = 0; ix < permissions.canWrite.length; ix++) {
-        query = query.concat(`\ncanWrite${ix} as var(func: eq(did, ${permissions.canWrite[ix]}))`);
+        await this.upsertProfile(permissions.canWrite[ix]);
+        query = query.concat(`\ncanWrite${ix} as var(func: eq(did, "${permissions.canWrite[ix]}"))`);
         nquads = nquads.concat(`\n_:permissions <canWrite> uid(canWrite${ix}) .`);  
       }
     }
 
     if (permissions.canAdmin) {
       for (let ix = 0; ix < permissions.canAdmin.length; ix++) {
-        query = query.concat(`\ncanAdmin${ix} as var(func: eq(did, ${permissions.canAdmin[ix]}))`);
+        await this.upsertProfile(permissions.canAdmin[ix]);
+        query = query.concat(`\ncanAdmin${ix} as var(func: eq(did, "${permissions.canAdmin[ix]}"))`);
         nquads = nquads.concat(`\n_:permissions <canAdmin> uid(canAdmin${ix}) .`);  
       }
     }
@@ -331,17 +337,50 @@ export class DGraphService {
     return result.getUidsMap().toArray()[0];
   }
 
-  async isRole(elementId: string, userId: string, type: PermissionType) : Promise<boolean> {
-    let query = `element(
-      func: eq(xid, "${elementId}") 
-      @filter(eq(can${type}, "${userId}")) {
-        count()
+  async can(elementId: string, userId: string, type: PermissionType) : Promise<boolean> {
+    let query = `
+    element(func: eq(xid, "${elementId}")) {
+      accessConfig {
+        permissions {
+          canRead @filter(eq(did, "${userId}")) {
+            count(uid)
+          }
+          canWrite @filter(eq(did, "${userId}")) {
+            count(uid)
+          }
+          canAdmin @filter(eq(did, "${userId}")) {
+            count(uid)
+          }
+        }
       }
-    )`;
+    }`;
 
     let result = await this.client.newTxn().query(`query{${query}}`);
-    console.log(`[DGRAPH] isRole ${type}`, {elementId, userId}, result.getJson());
-    return result.getJson().element[0] > 0;
+    let json = result.getJson();
+    let can: boolean;
+    /** canAdmin > canWrite > canRead */
+    switch (type) {
+      case PermissionType.Read:
+        can = (json.element[0].accessConfig[0].permissions[0].canRead ? json.element[0].accessConfig[0].permissions[0].canRead[0].count > 0 : false) ||
+          (json.element[0].accessConfig[0].permissions[0].canWrite? json.element[0].accessConfig[0].permissions[0].canWrite[0].count > 0 : false) ||
+          (json.element[0].accessConfig[0].permissions[0].canAdmin? json.element[0].accessConfig[0].permissions[0].canAdmin[0].count > 0 : false);
+        break;
+
+      case PermissionType.Write:
+        can = (json.element[0].accessConfig[0].permissions[0].canWrite? json.element[0].accessConfig[0].permissions[0].canWrite[0].count > 0 : false) ||
+          (json.element[0].accessConfig[0].permissions[0].canAdmin? json.element[0].accessConfig[0].permissions[0].canAdmin[0].count > 0 : false);
+        break;
+
+      case PermissionType.Admin:
+        can = (json.element[0].accessConfig[0].permissions[0].canAdmin? json.element[0].accessConfig[0].permissions[0].canAdmin[0].count > 0 : false);
+        break;
+
+      default: 
+        can = false;
+    }
+
+    console.log(`[DGRAPH] isRole ${type}`, {elementId, userId}, JSON.stringify(json), {can});
+    return can;
   }
 
   /** only accessible to an admin */
@@ -421,6 +460,7 @@ export class DGraphService {
 
     /** commit object might exist because of parallel update head call */
     let nquads = `_:accessConfig <permissions> <${accessConfig.permissionsUid}> .`;
+    nquads = nquads.concat(`\n_:accessConfig <dgraph.type> "${ACCESS_CONFIG_SCHEMA_NAME}" .`);
     nquads = nquads.concat(`\n_:accessConfig <delegate> "${accessConfig.delegate}" .`);
     if (accessConfig.delegateTo) nquads = nquads.concat(`\n_:accessConfig <delegateTo> <${accessConfig.delegateTo}> .`);
     if (accessConfig.finDelegatedTo) nquads = nquads.concat(`\n_:accessConfig <finDelegatedTo> <${accessConfig.finDelegatedTo}> .`);
@@ -850,21 +890,6 @@ export class DGraphService {
     if (elements.length > 0) sources.push(LOCAL_PROVIDER);
 
     return sources;
-  }
-
-  async can(perspectiveId: string, userDid: string, action: PermissionType) {
-    await this.ready();
-
-    const query = `
-    query {
-      (func: eq(xid, "${perspectiveId}")) @filter(eq(can${action} = "${userDid}")) {
-        count(uid)
-      }
-    }`;
-
-    let result = await this.client.newTxn().query(query);
-    console.log(`[DGRAPH] can ${action}`, {query}, result.getJson());
-    return result.getJson()[0] > 0;
   }
 
   async getOrigin():Promise<string> {
