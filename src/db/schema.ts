@@ -92,16 +92,30 @@ type ${KNOWN_SOURCES_SCHEMA_NAME} {
   sources: [string]
 }
 
+# 1-to-1 associations
+head: uid .
+creator: uid .
+data: uid .
+accessConfig: uid .
+permissions: uid .
+
+# uprtcl Objects
 stored: bool @index(bool) . 
 xid: string @index(exact) @upsert .
 did: string @index(exact) @upsert .
 links: [uid] @reverse .
+context: string @index(exact) .
+
+# data objects
+text: string @index(fulltext) .
+
+# Sources
 elementId: string @index(exact) @upsert .
 sources: [string] .
-text: string @index(fulltext) .
-context: string @index(exact) .
+
+# access control
 publicRead: bool @index(bool) .
 publicWrite: bool @index(bool) .
-delegatedTo: [uid] @reverse .
+delegateTo: [uid] @reverse .
 finDelegatedTo: [uid] @reverse .
 `

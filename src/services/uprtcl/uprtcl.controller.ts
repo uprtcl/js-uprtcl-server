@@ -3,13 +3,13 @@ import { checksPlaceholder } from "../../middleware/checks";
 import { UprtclService } from "./uprtcl.service";
 import { checkJwt } from "../../middleware/jwtCheck";
 
-interface PostResult {
+export interface PostResult {
   result: string;
   message: string;
   elementIds: string[];
 }
 
-interface GetResult {
+export interface GetResult {
   result: string;
   message: string;
   data: any;
@@ -27,11 +27,9 @@ export const getUserFromReq = (req: Request) => {
   return req.user ? (req.user !== '' ? req.user : null) : null
 }
 
-export const getDelegateToFromReq = (req: Request) => {
-  return req.query.delegateTo ? (req.query.delegateTo !== '' ? req.query.delegateTo : null) : null
-}
-
-const SUCCESS = 'success';
+export const SUCCESS = 'success';
+export const ERROR = 'error';
+export const NOT_AUTHORIZED_MSG = 'not authorized';
 
 export class UprtclController {
 
@@ -49,7 +47,6 @@ export class UprtclController {
           async (req: Request, res: Response) => {
             const elementId = await this.uprtclService.createPerspective(
               req.body, 
-              getDelegateToFromReq(req), 
               getUserFromReq(req));
 
             let result: PostResult = {
@@ -84,8 +81,10 @@ export class UprtclController {
         method: "get",
         handler: [
           checkJwt,
-          async ({ params }: Request, res: Response) => {
-            const data = await this.uprtclService.getPerspectiveHead(params.perspectiveId);
+          async (req: Request, res: Response) => {
+            const data = await this.uprtclService.getPerspectiveHead(
+              req.params.perspectiveId,
+              getUserFromReq(req));
             let result: GetResult = {
               result: SUCCESS,
               message: '',
@@ -101,11 +100,15 @@ export class UprtclController {
         method: "put",
         handler: [
           checkJwt,
-          async ({ params, query }: Request, res: Response) => {
-            await this.uprtclService.updatePerspective(params.perspectiveId, query.headId);
+          async (req: Request, res: Response) => {
+            let message = await this.uprtclService.updatePerspective(
+              req.params.perspectiveId, 
+              req.query.headId, 
+              getUserFromReq(req));
+
             let result: PostResult = {
-              result: SUCCESS,
-              message: '',
+              result:  message === SUCCESS ? SUCCESS : ERROR,
+              message: message,
               elementIds: []
             }
             res.status(200).send(result);
@@ -152,8 +155,10 @@ export class UprtclController {
         method: "get",
         handler: [
           checkJwt,
-          async ({ params }: Request, res: Response) => {
-            const data = await this.uprtclService.getData(params.dataId);
+          async (req: Request, res: Response) => {
+            const data = await this.uprtclService.getData(
+              req.params.dataId,
+              getUserFromReq(req));
             let result: GetResult = {
               result: SUCCESS,
               message: '',
@@ -169,8 +174,10 @@ export class UprtclController {
         method: "post",
         handler: [
           checkJwt,
-          async ({ body }: Request, res: Response) => {
-            const elementId = await this.uprtclService.createCommit(body, '');
+          async (req: Request, res: Response) => {
+            const elementId = await this.uprtclService.createCommit(
+              req.body,
+              getUserFromReq(req));
             let result: PostResult = {
               result: SUCCESS,
               message: '',

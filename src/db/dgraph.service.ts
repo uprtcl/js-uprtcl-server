@@ -37,9 +37,9 @@ export interface PermissionConfig {
 export interface AccessConfig {
   uid?: string,
   delegate: boolean,
-  delegateTo?: string,
-  finDelegatedTo?: string,
-  permissionsUid: string
+  delegateTo?: string | null,
+  finDelegatedTo?: string | null,
+  permissionsUid?: string
 }
 
 export interface DataC1If {
@@ -66,7 +66,7 @@ interface DgPerspective {
   name: string,
   context: string,
   origin: string,
-  creator: Array<DgRef>,
+  creator: DgRef,
   timestamp: number,
   'dgraph.type'?: string,
   stored: boolean
@@ -75,11 +75,11 @@ interface DgPerspective {
 interface DgCommit {
   uid?: string,
   xid: string,
-  creator: Array<DgRef>,
+  creator: DgRef,
   timestamp: number,
   message: string,
   parents: Array<DgRef>,
-  data: Array<DgRef>,
+  data: DgRef,
   'dgraph.type'?: string,
   stored: boolean
 }
@@ -358,27 +358,33 @@ export class DGraphService {
     let result = await this.client.newTxn().query(`query{${query}}`);
     let json = result.getJson();
     let can: boolean;
-    /** canAdmin > canWrite > canRead */
-    switch (type) {
-      case PermissionType.Read:
-        can = (json.element[0].accessConfig[0].permissions[0].canRead ? json.element[0].accessConfig[0].permissions[0].canRead[0].count > 0 : false) ||
-          (json.element[0].accessConfig[0].permissions[0].canWrite? json.element[0].accessConfig[0].permissions[0].canWrite[0].count > 0 : false) ||
-          (json.element[0].accessConfig[0].permissions[0].canAdmin? json.element[0].accessConfig[0].permissions[0].canAdmin[0].count > 0 : false);
-        break;
 
-      case PermissionType.Write:
-        can = (json.element[0].accessConfig[0].permissions[0].canWrite? json.element[0].accessConfig[0].permissions[0].canWrite[0].count > 0 : false) ||
-          (json.element[0].accessConfig[0].permissions[0].canAdmin? json.element[0].accessConfig[0].permissions[0].canAdmin[0].count > 0 : false);
-        break;
-
-      case PermissionType.Admin:
-        can = (json.element[0].accessConfig[0].permissions[0].canAdmin? json.element[0].accessConfig[0].permissions[0].canAdmin[0].count > 0 : false);
-        break;
-
-      default: 
-        can = false;
+    if (json.element.length > 0) {
+      /** apply the logic canAdmin > canWrite > canRead */
+      switch (type) {
+        case PermissionType.Read:
+          can = (json.element[0].accessConfig.permissions.canRead ? json.element[0].accessConfig.permissions.canRead[0].count > 0 : false) ||
+            (json.element[0].accessConfig.permissions.canWrite? json.element[0].accessConfig.permissions.canWrite[0].count > 0 : false) ||
+            (json.element[0].accessConfig.permissions.canAdmin? json.element[0].accessConfig.permissions.canAdmin[0].count > 0 : false);
+          break;
+  
+        case PermissionType.Write:
+          can = (json.element[0].accessConfig.permissions.canWrite? json.element[0].accessConfig.permissions.canWrite[0].count > 0 : false) ||
+            (json.element[0].accessConfig.permissions.canAdmin? json.element[0].accessConfig.permissions.canAdmin[0].count > 0 : false);
+          break;
+  
+        case PermissionType.Admin:
+          can = (json.element[0].accessConfig.permissions.canAdmin? json.element[0].accessConfig.permissions.canAdmin[0].count > 0 : false);
+          break;
+  
+        default: 
+          can = false;
+      }
+    } else {
+      /** if not found, the user does not have permissions */
+      can = false;
     }
-
+   
     console.log(`[DGRAPH] isRole ${type}`, {elementId, userId}, JSON.stringify(json), {can});
     return can;
   }
@@ -394,7 +400,7 @@ export class DGraphService {
     let result = await this.client.newTxn().query(`query{${query}}`);
     console.log('[DGRAPH] getPermissionsConfig', {permissionsUid}, result.getJson());
 
-    let dpermissionsConfig = result.getJson().permissions[0]
+    let dpermissionsConfig = result.getJson().permissions
 
     return {
       publicRead: dpermissionsConfig.publicRead,
@@ -408,7 +414,7 @@ export class DGraphService {
   /** TODO: protect getAccessConnfig to admins of the element */
   async getAccessConfigOfElement(elementId: string, userId: string | null) : Promise<AccessConfig> {
     let query = `
-    permissions(func: eq(xid, ${elementId})) {
+    elements(func: eq(xid, ${elementId})) {
       accessConfig {
         uid
         delegate
@@ -422,15 +428,15 @@ export class DGraphService {
     `
     
     let result = await this.client.newTxn().query(`query{${query}}`);
-    console.log('[DGRAPH] getAccessConfigOfElement', {elementId, userId}, result.getJson());
-    let daccessConfig = result.getJson().permissions[0].accessConfig;
+    console.log('[DGRAPH] getAccessConfigOfElement', {elementId, userId}, JSON.stringify(result.getJson()));
+    let daccessConfig = result.getJson().elements[0].accessConfig;
 
     return {
       uid: daccessConfig.uid,
-      delegate: daccessConfig.delegate,
+      delegate: daccessConfig.delegate == 'true',
       delegateTo: daccessConfig.delegateTo,
       finDelegatedTo: daccessConfig.finDelegatedTo,
-      permissionsUid: daccessConfig.permissions[0].uid,
+      permissionsUid: daccessConfig.permissions.uid,
     };
   }
 
@@ -448,8 +454,8 @@ export class DGraphService {
     `
     
     let result = await this.client.newTxn().query(`query{${query}}`);
-    console.log(`[DGRAPH] isPublic ${type}`, {elementId}, result.getJson());
-    return result.getJson().element[0].accessConfig[0].permissions[0][`public${type}`];
+    console.log(`[DGRAPH] isPublic ${type}`, {elementId}, JSON.stringify(result.getJson()));
+    return result.getJson().element[0].accessConfig.permissions[`public${type}`];
   }
 
   async createAccessConfig(accessConfig: AccessConfig): Promise<string> {
@@ -458,7 +464,6 @@ export class DGraphService {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    /** commit object might exist because of parallel update head call */
     let nquads = `_:accessConfig <permissions> <${accessConfig.permissionsUid}> .`;
     nquads = nquads.concat(`\n_:accessConfig <dgraph.type> "${ACCESS_CONFIG_SCHEMA_NAME}" .`);
     nquads = nquads.concat(`\n_:accessConfig <delegate> "${accessConfig.delegate}" .`);
@@ -466,6 +471,71 @@ export class DGraphService {
     if (accessConfig.finDelegatedTo) nquads = nquads.concat(`\n_:accessConfig <finDelegatedTo> <${accessConfig.finDelegatedTo}> .`);
     
     mu.setSetNquads(nquads);
+    req.setMutationsList([mu]);
+    
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] createAccessConfig', {nquads}, result.getUidsMap().toArray());
+    return result.getUidsMap().toArray()[0][1];
+  }
+
+  async updateAccessConfig(elementId: string, accessConfig: AccessConfig): Promise<void> {
+    await this.ready();
+
+    /** get the accessConfig Uid */
+    const query0 = `
+      element(func: eq(xid, ${elementId})) {
+        accessConfig {
+          uid
+        }
+      }`;
+
+    const res = await this.client.newTxn().query(`query{${query0}}`);
+    let json = res.getJson();
+    const accessConfigUid = json.element[0].accessConfig.uid;
+
+    /** delete the permissions (dont know why it complains) */
+    // TBD
+    
+    const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
+
+    let query: string = '';
+
+    let nquads = `<${accessConfigUid}> <delegate> "${accessConfig.delegate}" .`;
+  
+    if (accessConfig.permissionsUid) {
+      nquads = nquads.concat(`\n<${accessConfigUid}> <permissions> <${accessConfig.permissionsUid}> .`);
+    }
+    
+    if (accessConfig.delegateTo) {
+      query = query.concat(`\ndelegateTo as var(func: eq(xid, "${accessConfig.delegateTo}"))`);
+      nquads = nquads.concat(`\n<${accessConfigUid}> <delegateTo> uid(delegateTo) .`);
+    }
+
+    if (accessConfig.finDelegatedTo) {
+      query = query.concat(`\nfinDelegatedTo as var(func: eq(xid, "${accessConfig.finDelegatedTo}"))`);
+      nquads = nquads.concat(`\n<${accessConfigUid}> <finDelegatedTo> uid(finDelegatedTo) .`);
+    }
+    
+    req.setQuery(`query{${query}}`);
+    mu.setSetNquads(nquads);
+    req.setMutationsList([mu]);
+    
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] updateAccessConfig', {nquads}, result.getUidsMap().toArray());
+  }
+
+  async setFinDelegatedTo(elementId: string, newFinDelegatedTo: string): Promise<void> {
+    await this.ready();
+    
+    const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
+    
+    let query = `accessConfig as var(func: eq(xid, "${elementId}")) { accessConfig { uid } }`;
+    let nquads = `uid(accessConfig) <finDelegatedTo> <${newFinDelegatedTo}> .`;
+    
+    mu.setSetNquads(nquads);
+    req.setQuery(`query{${query}}`);
     req.setMutationsList([mu]);
     
     let result = await this.callRequest(req);
@@ -493,7 +563,7 @@ export class DGraphService {
 
   async getFinallyDelegatedFrom(elementId: string) {
     let query = `elements(
-      func: eq(~finalDeletegate, "${elementId}") {
+      func: eq(~finDelegatedTo, "${elementId}") {
         xid
       }
     )`
@@ -501,6 +571,20 @@ export class DGraphService {
     let result = await this.client.newTxn().query(`query{${query}}`);
     console.log('[DGRAPH] getFinallyDelegatedFrom', {elementId}, result.getJson());
     return [elementId].concat(result.getJson().elements.map((dpersp: any) => dpersp.xid));
+  }
+
+  async getDelegatedFrom(elementId: string) {
+    debugger
+    let query = `
+    elements(
+      func: eq(~delegateTo, "${elementId}") {
+        xid
+      }
+    )`
+
+    let result = await this.client.newTxn().query(`query{${query}}`);
+    console.log('[DGRAPH] getFinallyDelegatedFrom', {elementId}, result.getJson());
+    return [elementId].concat(result.getJson().elements.map((dElement: any) => dElement.xid));
   }
 
   async deleteHead(perspectiveId: string):Promise<void> {
@@ -522,9 +606,6 @@ export class DGraphService {
 
   async updatePerspective(perspectiveId: string, headId: string):Promise<void> {
     await this.ready();
-
-    /** delete previous head */
-    await this.deleteHead(perspectiveId);
 
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
@@ -631,7 +712,7 @@ export class DGraphService {
       name: dperspective.name,
       context: dperspective.context,
       origin: dperspective.origin,
-      creatorId: dperspective.creator[0].did,
+      creatorId: dperspective.creator.did,
       timestamp: dperspective.timestamp,
     }
     return perspective;
@@ -661,7 +742,7 @@ export class DGraphService {
         name: dperspective.name,
         context: dperspective.context,
         origin: dperspective.origin,
-        creatorId: dperspective.creator[0].did,
+        creatorId: dperspective.creator.did,
         timestamp: dperspective.timestamp,
       }
     })
@@ -683,7 +764,7 @@ export class DGraphService {
     let result = await this.client.newTxn().query(query);
     let perspectivehead = result.getJson().perspective[0];
     console.log('[DGRAPH] getPerspectiveHead', {query}, result.getJson(), perspectivehead);
-    return perspectivehead.head[0].xid;
+    return perspectivehead.head.xid;
   }
 
   async getCommit(commitId: string): Promise<Commit | null> {
@@ -714,8 +795,8 @@ export class DGraphService {
 
     let commit: Commit = {
       id: dcommit.xid,
-      creatorId: dcommit.creator[0].did,
-      dataId: dcommit.data[0].xid,
+      creatorId: dcommit.creator.did,
+      dataId: dcommit.data.xid,
       timestamp: dcommit.timestamp,
       message: dcommit.message,
       parentsIds: dcommit.parents ? dcommit.parents.map(parent => parent.xid) : []

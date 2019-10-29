@@ -4,7 +4,9 @@ import { router } from '../../server';
 var CID  = require('cids');
 var ethUtil = require('ethereumjs-util');
 var Web3 = require('web3');
-import { Perspective, DataDto, DataType, Commit, DocNodeType } from "./types";
+import { Perspective, DataDto, DataType, Commit, DocNodeType, PostResult } from "./types";
+import { AccessConfig } from "../../db/dgraph.service";
+import { ERROR, SUCCESS, NOT_AUTHORIZED_MSG } from "./uprtcl.controller";
 
 jest.mock("request-promise");
 (promiseRequest as any).mockImplementation(() => '{"features": []}');
@@ -31,6 +33,17 @@ const getJwtToken = async (userDid: string, privateKey: string) => {
   expect(put.status).toEqual(200);
 
   return JSON.parse(put.text).data.jwt;
+}
+
+const createUser = async (seed: string) => {
+  let web3 = new Web3();
+  let account = web3.eth.accounts.create(seed);
+  let userDid = `did:ethr:${account.address}`
+
+  let jwt = await getJwtToken(userDid, account.privateKey);
+  console.log('[TEST] createUser', {userDid, jwt});
+
+  return jwt;
 }
 
 const createPerspective = async (
@@ -61,10 +74,18 @@ const createPerspective = async (
   return result;
 }
 
-const updatePerspective = async (perspectiveId: string, headId: string):Promise<void> => {
+const updatePerspective = async (
+  perspectiveId: string, 
+  headId: string, 
+  jwt: string) : Promise<PostResult> => {
+
   const put = await request(router).put(`/uprtcl/1/persp/${perspectiveId}?headId=${headId}`)
-  .send();
+  .send()
+  .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
   expect(put.status).toEqual(200);
+
+  return JSON.parse(put.text);
 }
 
 const createCommit = async (
@@ -72,7 +93,8 @@ const createCommit = async (
   timestamp: number, 
   message: string, 
   parentsIds: Array<string>, 
-  dataId: string) : Promise<string> => {
+  dataId: string,
+  jwt: string) : Promise<string> => {
   
   const commit: Commit = {
     id: '',
@@ -83,8 +105,10 @@ const createCommit = async (
     dataId: dataId
   }
 
-  const post = await request(router).post('/uprtcl/1/commit')
-  .send(commit);
+  const post = await request(router).post(`/uprtcl/1/commit`)
+  .send(commit)
+  .set('Authorization', jwt ? `Bearer ${jwt}` : '');;
+
   expect(post.status).toEqual(200);
   let result: any = JSON.parse(post.text).elementIds[0];
   (expect(result) as unknown as ExtendedMatchers).toBeValidCid();
@@ -120,29 +144,36 @@ const getOrigin = async (
 }
 
 const getPerspective = async (perspectiveId: string, jwt: string):Promise<Perspective> => {
-  const get = await request(router).get(`/uprtcl/1/persp/${perspectiveId}`)
-  .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+  const get = await request(router)
+    .get(`/uprtcl/1/persp/${perspectiveId}`)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   expect(get.status).toEqual(200);
   
   return JSON.parse(get.text).data;
 }
 
-const getPerspectiveHead = async (perspectiveId: string):Promise<string> => {
-  const get = await request(router).get(`/uprtcl/1/persp/${perspectiveId}/head`);
+const getPerspectiveHead = async (perspectiveId: string, jwt: string):Promise<string> => {
+  const get = await request(router)
+    .get(`/uprtcl/1/persp/${perspectiveId}/head`)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
   expect(get.status).toEqual(200);
   
   return JSON.parse(get.text).data;
 }
 
-const getCommit = async (commitId: string):Promise<Commit> => {
-  const get = await request(router).get(`/uprtcl/1/commit/${commitId}`);
+const getCommit = async (commitId: string, jwt: string):Promise<Commit> => {
+  const get = await request(router)
+    .get(`/uprtcl/1/commit/${commitId}`)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
   expect(get.status).toEqual(200);
   
   return JSON.parse(get.text).data;
 }
 
-const createText = async (text: string):Promise<string> => {
+const createText = async (text: string, jwt: string):Promise<string> => {
   const data = {
     id: '',
     text: text
@@ -155,7 +186,9 @@ const createText = async (text: string):Promise<string> => {
   }
 
   const post = await request(router).post('/uprtcl/1/data')
-  .send(dataDto);
+    .send(dataDto)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
   expect(post.status).toEqual(200);
   let result: any = JSON.parse(post.text).elementIds[0];
   (expect(result) as unknown as ExtendedMatchers).toBeValidCid();
@@ -163,7 +196,7 @@ const createText = async (text: string):Promise<string> => {
   return result;
 }
 
-const createTextNode = async (text: string, links: string[]):Promise<string> => {
+const createTextNode = async (text: string, links: string[], jwt: string):Promise<string> => {
   const data = {
     id: '',
     text: text,
@@ -177,7 +210,9 @@ const createTextNode = async (text: string, links: string[]):Promise<string> => 
   }
 
   const post = await request(router).post('/uprtcl/1/data')
-  .send(dataDto);
+    .send(dataDto)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
   expect(post.status).toEqual(200);
   let result: any = JSON.parse(post.text).elementIds[0];
   (expect(result) as unknown as ExtendedMatchers).toBeValidCid();
@@ -185,7 +220,7 @@ const createTextNode = async (text: string, links: string[]):Promise<string> => 
   return result;
 }
 
-const createDocNode = async (text: string, doc_node_type: DocNodeType, links: string[]):Promise<string> => {
+const createDocNode = async (text: string, doc_node_type: DocNodeType, links: string[], jwt: string):Promise<string> => {
   const data = {
     id: '',
     text: text,
@@ -200,7 +235,9 @@ const createDocNode = async (text: string, doc_node_type: DocNodeType, links: st
   }
 
   const post = await request(router).post('/uprtcl/1/data')
-  .send(dataDto);
+    .send(dataDto)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
   expect(post.status).toEqual(200);
   let result: any = JSON.parse(post.text).elementIds[0];
   (expect(result) as unknown as ExtendedMatchers).toBeValidCid();
@@ -208,13 +245,37 @@ const createDocNode = async (text: string, doc_node_type: DocNodeType, links: st
   return result;
 }
 
-const getData = async (dataId: string):Promise<any> => {
-  const get = await request(router).get(`/uprtcl/1/data/${dataId}`);
+const getData = async (dataId: string, jwt: string):Promise<any> => {
+  const get = await request(router)
+    .get(`/uprtcl/1/data/${dataId}`)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
   expect(get.status).toEqual(200);
+
   let dataWrapper = JSON.parse(get.text).data;
   let data = JSON.parse(dataWrapper.jsonData);
   data.id = dataWrapper.id
+
   return data;
+}
+
+const delegatePermissionsTo = async (
+  elementId: string, 
+  delegateTo: string, 
+  jwt: string) : Promise<PostResult> => {
+
+  const accessConfig: AccessConfig = {
+    delegate: true,
+    delegateTo: delegateTo
+  }
+
+  const put = await request(router).put(`/uprtcl/1/accessConfig/${elementId}`)
+    .send(accessConfig)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
+  expect(put.status).toEqual(200);
+
+  return JSON.parse(put.text);
 }
 
 describe("routes", () => {
@@ -257,20 +318,20 @@ describe("routes", () => {
     const message = 'commit message';
     
     let text1 = 'new content';
-    let par1Id = await createText(text1); 
-    let commit1Id = await createCommit(creatorId, timestamp, message, [], par1Id);
+    let par1Id = await createText(text1, ''); 
+    let commit1Id = await createCommit(creatorId, timestamp, message, [], par1Id, '');
 
-    await updatePerspective(perspectiveId, commit1Id);
-    let perspectiveHeadRead = await getPerspectiveHead(perspectiveId);
+    await updatePerspective(perspectiveId, commit1Id, '');
+    let perspectiveHeadRead = await getPerspectiveHead(perspectiveId, '');
 
     expect(perspectiveHeadRead).toEqual(commit1Id);
 
     let text2 = 'new content 2';
-    let par2Id = await createText(text2); 
-    let commit2Id = await createCommit(creatorId, timestamp, message, [], par2Id);
+    let par2Id = await createText(text2, ''); 
+    let commit2Id = await createCommit(creatorId, timestamp, message, [], par2Id, '');
 
-    await updatePerspective(perspectiveId, commit2Id);
-    let perspectiveHeadRead2 = await getPerspectiveHead(perspectiveId);
+    await updatePerspective(perspectiveId, commit2Id, '');
+    let perspectiveHeadRead2 = await getPerspectiveHead(perspectiveId, '');
 
     expect(perspectiveHeadRead2).toEqual(commit2Id);
   });
@@ -281,15 +342,15 @@ describe("routes", () => {
     const context = 'wikipedia.barack_obama';
     const timestamp = 1568027451548;
 
-    let web3 = new Web3();
-    let account = web3.eth.accounts.create('2435@#@#@±±±±!!!!678543213456764321§34567543213456785432134567');
-    let userDid = `did:ethr:${account.address}`
-    let jwt = await getJwtToken(userDid, account.privateKey);
+    let jwtUser1 = await createUser('seed1');
+    let jwtUser2 = await createUser('seed2');
+   
+    let perspectiveId = await createPerspective(creatorId, name, context, timestamp, jwtUser1);
+    let perspectiveRead1 = await getPerspective(perspectiveId, jwtUser2);
+    
+    expect(perspectiveRead1).toBeNull();
 
-    console.log('[TEST private perspectives] jwt', {userDid, jwt});
-
-    let perspectiveId = await createPerspective(creatorId, name, context, timestamp, jwt);
-    let perspectiveRead = await getPerspective(perspectiveId, jwt);
+    let perspectiveRead = await getPerspective(perspectiveId, jwtUser1);
     
     const origin = 'https://www.collectiveone.org/uprtcl/1';
 
@@ -304,20 +365,35 @@ describe("routes", () => {
     const message = 'commit message';
     
     let text1 = 'new content';
-    let par1Id = await createText(text1); 
-    let commit1Id = await createCommit(creatorId, timestamp, message, [], par1Id);
+    let par1Id = await createText(text1, jwtUser1); 
+    let commit1Id = await createCommit(creatorId, timestamp, message, [], par1Id, jwtUser1);
+    
+    let result1 = await delegatePermissionsTo(commit1Id, perspectiveId, jwtUser2);
+    expect(result1.result).toEqual(ERROR);
+    expect(result1.message).toEqual(NOT_AUTHORIZED_MSG);
 
-    await updatePerspective(perspectiveId, commit1Id);
-    let perspectiveHeadRead = await getPerspectiveHead(perspectiveId);
+    let result2 = await delegatePermissionsTo(commit1Id, perspectiveId, jwtUser1);
+    expect(result2.result).toEqual(SUCCESS);
 
+    let result3 = await updatePerspective(perspectiveId, commit1Id, jwtUser2);
+    expect(result3.result).toEqual(ERROR);
+    expect(result3.message).toEqual(NOT_AUTHORIZED_MSG);
+
+    let result4 = await updatePerspective(perspectiveId, commit1Id, jwtUser1);
+    expect(result4.result).toEqual(SUCCESS);
+
+    let perspectiveHeadRead1 = await getPerspectiveHead(perspectiveId, jwtUser2);
+    expect(perspectiveHeadRead1).toBeNull();
+
+    let perspectiveHeadRead = await getPerspectiveHead(perspectiveId, jwtUser1);
     expect(perspectiveHeadRead).toEqual(commit1Id);
 
     let text2 = 'new content 2';
-    let par2Id = await createText(text2); 
-    let commit2Id = await createCommit(creatorId, timestamp, message, [], par2Id);
+    let par2Id = await createText(text2, jwtUser1); 
+    let commit2Id = await createCommit(creatorId, timestamp, message, [], par2Id, jwtUser1);
 
-    await updatePerspective(perspectiveId, commit2Id);
-    let perspectiveHeadRead2 = await getPerspectiveHead(perspectiveId);
+    await updatePerspective(perspectiveId, commit2Id, jwtUser1);
+    let perspectiveHeadRead2 = await getPerspectiveHead(perspectiveId, jwtUser1);
 
     expect(perspectiveHeadRead2).toEqual(commit2Id);
   });
@@ -326,8 +402,8 @@ describe("routes", () => {
   test.skip("CRUD text data", async () => {
     let text = 'an example text';
 
-    let dataId = await createText(text);
-    let dataRead = await getData(dataId)
+    let dataId = await createText(text, '');
+    let dataRead = await getData(dataId, '')
 
     console.log(dataRead)
     
@@ -337,21 +413,21 @@ describe("routes", () => {
 
   test.skip("CRUD text node data", async () => {
     let text1 = 'a paragraph 1';
-    let par1Id = await createText(text1);
+    let par1Id = await createText(text1, '');
 
     let text2 = 'a paragraph 2';
-    let par2Id = await createText(text2);
+    let par2Id = await createText(text2, '');
 
     let text12 = 'a paragraph 1.2';
-    let par12Id = await createText(text12);
+    let par12Id = await createText(text12, '');
 
     let subtitle1 = 'a subtitle 2';
-    let sub1Id = await createTextNode(subtitle1, [par12Id]);
+    let sub1Id = await createTextNode(subtitle1, [par12Id], '');
 
     let text3 = 'a title';
-    let dataId = await createTextNode(text3, [par1Id, par2Id, sub1Id]);
+    let dataId = await createTextNode(text3, [par1Id, par2Id, sub1Id], '');
 
-    let dataRead = await getData(dataId)
+    let dataRead = await getData(dataId, '')
     
     expect(dataRead.id).toEqual(dataId);
     expect(dataRead.text).toEqual(text3);
@@ -365,15 +441,15 @@ describe("routes", () => {
   test.skip("CRUD doc node data", async () => {
 
     let par1 = 'a doc parragraph 1';
-    let par1Id = await createDocNode(par1, DocNodeType.paragraph, []);
+    let par1Id = await createDocNode(par1, DocNodeType.paragraph, [], '');
 
     let par2 = 'a doc parragraph 2';
-    let par2Id = await createDocNode(par2, DocNodeType.paragraph, []);
+    let par2Id = await createDocNode(par2, DocNodeType.paragraph, [], '');
 
     let title1 = 'a doc title';
-    let title1Id = await createDocNode(title1, DocNodeType.title, [par1Id, par2Id]);
+    let title1Id = await createDocNode(title1, DocNodeType.title, [par1Id, par2Id], '');
 
-    let dataRead = await getData(title1Id)
+    let dataRead = await getData(title1Id, '')
     
     expect(dataRead.id).toEqual(title1Id);
     expect(dataRead.text).toEqual(title1);
@@ -391,10 +467,10 @@ describe("routes", () => {
     const timestamp = 1568027451547;
 
     let text1 = 'a paragraph 1';
-    let par1Id = await createText(text1); 
+    let par1Id = await createText(text1, ''); 
 
-    let commit1Id = await createCommit(creatorId, timestamp, message, [], par1Id);
-    let commitRead = await getCommit(commit1Id);
+    let commit1Id = await createCommit(creatorId, timestamp, message, [], par1Id, '');
+    let commitRead = await getCommit(commit1Id, '');
     
     expect(commitRead.id).toEqual(commit1Id);
     expect(commitRead.creatorId).toEqual(creatorId);
@@ -403,12 +479,12 @@ describe("routes", () => {
     expect(commitRead.dataId).toEqual(par1Id);
     expect(commitRead.parentsIds.length).toEqual(0);
 
-    let par11Id = await createText('a paragraph 1 updated');
+    let par11Id = await createText('a paragraph 1 updated', '');
     
     let message2 = 'udpated text';
 
-    let commit11Id = await createCommit(creatorId, timestamp, message2, [commit1Id], par11Id);
-    let commit11Read = await getCommit(commit11Id);
+    let commit11Id = await createCommit(creatorId, timestamp, message2, [commit1Id], par11Id, '');
+    let commit11Read = await getCommit(commit11Id, '');
 
     expect(commit11Read.id).toEqual(commit11Id);
     expect(commit11Read.creatorId).toEqual(creatorId);
@@ -421,7 +497,7 @@ describe("routes", () => {
   });
 
   test.skip("Discovery", async () => {
-    let par1Id = await createText('a paragraph 1');
+    let par1Id = await createText('a paragraph 1', '');
 
     const origin = 'https://www.collectiveone.org/uprtcl/1';
 
@@ -438,7 +514,7 @@ describe("routes", () => {
     expect(sourcesRead[1]).toEqual(source2);
     expect(sourcesRead[2]).toEqual(source3);
 
-    let par2Id = await createText('a paragraph 2');
+    let par2Id = await createText('a paragraph 2', '');
     
     let sourcesRead2 = await getKnownSources(par2Id);
     expect(sourcesRead2.length).toEqual(1);

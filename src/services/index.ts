@@ -4,14 +4,23 @@ import { UprtclService } from "./uprtcl/uprtcl.service";
 import { UserController } from "./user/user.controller";
 import { UserService } from "./user/user.service";
 import { AccessService } from "./access/access.service";
+import { AccessController } from "./access/access.controller";
 
 /** poors man dependency injection */
 const dbService = new DGraphService('localhost:9080');
+
 const accessService = new AccessService(dbService);
+const accessController = new AccessController(accessService);
+
 const uprtclService = new UprtclService(dbService, accessService);
 const uprtclController = new UprtclController(uprtclService);
 
 const userService = new UserService(dbService);
 const userController = new UserController(userService);
 
-export const routes = [...uprtclController.routes(), ...userController.routes()];
+
+export const routes = [
+  ...uprtclController.routes(), 
+  ...userController.routes(), 
+  ...accessController.routes()
+];

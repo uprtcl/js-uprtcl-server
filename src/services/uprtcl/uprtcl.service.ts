@@ -1,6 +1,7 @@
 import { Perspective, Commit, DataDto } from "./types";
 import { DGraphService, PermissionType } from "../../db/dgraph.service";
 import { AccessService } from "../access/access.service";
+import { NOT_AUTHORIZED_MSG, SUCCESS } from "./uprtcl.controller";
 
 export class UprtclService {
 
@@ -9,11 +10,11 @@ export class UprtclService {
 
   async createPerspective(
     perspective: Perspective, 
-    delegateTo: string | null, 
     loggedUserId: string | null): Promise<string> {
-    console.log('[UPRTCL-SERVICE] createPerspective', {perspective, delegateTo, loggedUserId});
+
+    console.log('[UPRTCL-SERVICE] createPerspective', {perspective, loggedUserId});
     let perspId = await this.db.createPerspective(perspective);
-    await this.access.createAccessConfig(perspId, delegateTo, loggedUserId);
+    await this.access.createAccessConfig(perspId, loggedUserId);
     return perspId;
   };
 
@@ -26,41 +27,56 @@ export class UprtclService {
 
   async getContextPerspectives(context: string): Promise<Perspective[]> {
     console.log('[UPRTCL-SERVICE] getContextPerspectives', {context});
+    // TODO filter by canRead (obvisouly...)
     let perspectives = await this.db.getContextPerspectives(context);
     return perspectives;
   };
 
-  async updatePerspective(perspectiveId: string, headId: string): Promise<void> {
+  async updatePerspective(perspectiveId: string, headId: string, loggedUserId: string | null): Promise<string> {
     console.log('[UPRTCL-SERVICE] updatePerspective', {perspectiveId}, {headId});
+    if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Write))) return NOT_AUTHORIZED_MSG;
     await this.db.updatePerspective(perspectiveId, headId);
+    return SUCCESS;
   };
 
-  async getPerspectiveHead(perspectiveId: string): Promise<string> {
+  async getPerspectiveHead(perspectiveId: string, loggedUserId: string | null): Promise<string> {
     console.log('[UPRTCL-SERVICE] getPerspectiveHead', {perspectiveId});
-    let perspective = await this.db.getPerspectiveHead(perspectiveId);
-    return perspective;
+    if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Read))) return NOT_AUTHORIZED_MSG;
+    let perspectiveHead = await this.db.getPerspectiveHead(perspectiveId);
+    return perspectiveHead;
   };  
 
-  async createCommit(commit: Commit, loggedUserId: string): Promise<string> {
+  async createCommit(
+    commit: Commit, 
+    loggedUserId: string | null): Promise<string> {
+
     console.log('[UPRTCL-SERVICE] createCommit', commit);
-    let uid = await this.db.createCommit(commit);
-    return uid;
+    let commitId = await this.db.createCommit(commit);
+    await this.access.createAccessConfig(commitId, loggedUserId);
+    return commitId;
   };
 
-  async getCommit(commitId: string, loggedUserId: string): Promise<Commit | null> {
+  async getCommit(commitId: string, loggedUserId: string | null): Promise<Commit | null> {
     console.log('[UPRTCL-SERVICE] getCommit', {commitId});
+    if (!(await this.access.can(commitId, loggedUserId, PermissionType.Read))) return null;
     let commit = await this.db.getCommit(commitId);
     return commit;
   };
 
-  async createData(data: DataDto, loggedUserId: string): Promise<string> {
+  async createData(
+    data: DataDto, 
+    loggedUserId: string | null): Promise<string> {
+
     console.log('[UPRTCL-SERVICE] createData', data);
-    let uid = await this.db.createData(data);
-    return uid;
+    let dataId = await this.db.createData(data);
+    await this.access.createAccessConfig(dataId, loggedUserId);
+
+    return dataId;
   };
 
-  async getData(dataId: string): Promise<any> {
+  async getData(dataId: string, loggedUserId: string | null): Promise<any> {
     console.log('[UPRTCL-SERVICE] getData', dataId);
+    if (!(await this.access.can(dataId, loggedUserId, PermissionType.Read))) return null;
     let data = await this.db.getData(dataId);
     return data;
   };
