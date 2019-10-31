@@ -170,11 +170,11 @@ export class DGraphService {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    let query = `profile as var(func: eq(did, "${did}"))`;
+    let query = `profile as var(func: eq(did, "${did.toLowerCase()}"))`;
   
     req.setQuery(`query{${query}}`);
 
-    let nquads = `uid(profile) <did> "${did}" .`;
+    let nquads = `uid(profile) <did> "${did.toLowerCase()}" .`;
     nquads = nquads.concat(`\nuid(profile) <dgraph.type> "${PROFILE_SCHEMA_NAME}" .`);
 
     mu.setSetNquads(nquads);
@@ -191,10 +191,10 @@ export class DGraphService {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    let query = `profile as var(func: eq(did, "${did}"))`;
+    let query = `profile as var(func: eq(did, "${did.toLowerCase()}"))`;
     req.setQuery(`query{${query}}`);
 
-    let nquads = `uid(profile) <did> "${did}" .`;
+    let nquads = `uid(profile) <did> "${did.toLowerCase()}" .`;
     nquads = nquads.concat(`\nuid(profile) <nonce> "${nonce}" .`);
     nquads = nquads.concat(`\nuid(profile) <dgraph.type> "${PROFILE_SCHEMA_NAME}" .`);
 
@@ -210,7 +210,7 @@ export class DGraphService {
   async getNonce(did: string):Promise<string | null> {
     await this.ready();
     const query = `query {
-      profile(func: eq(did, "${did}")) {
+      profile(func: eq(did, "${did.toLowerCase()}")) {
         nonce
       }
     }`;
@@ -250,7 +250,7 @@ export class DGraphService {
     /** make sure creatorId exist */
     await this.upsertProfile(perspective.creatorId);
     
-    let query = `profile as var(func: eq(did, "${perspective.creatorId}"))`;
+    let query = `profile as var(func: eq(did, "${perspective.creatorId.toLowerCase()}"))`;
     req.setQuery(`query{${query}}`);
 
     let nquads = `_:perspective <xid> "${perspective.id}" .`;
@@ -286,7 +286,7 @@ export class DGraphService {
     if (permissions.canRead) {
       for (let ix = 0; ix < permissions.canRead.length; ix++) {
         await this.upsertProfile(permissions.canRead[ix]);
-        query = query.concat(`\ncanRead${ix} as var(func: eq(did, "${permissions.canRead[ix]}"))`);
+        query = query.concat(`\ncanRead${ix} as var(func: eq(did, "${permissions.canRead[ix].toLowerCase()}"))`);
         nquads = nquads.concat(`\n_:permissions <canRead> uid(canRead${ix}) .`);  
       }
     }
@@ -294,7 +294,7 @@ export class DGraphService {
     if (permissions.canWrite) {
       for (let ix = 0; ix < permissions.canWrite.length; ix++) {
         await this.upsertProfile(permissions.canWrite[ix]);
-        query = query.concat(`\ncanWrite${ix} as var(func: eq(did, "${permissions.canWrite[ix]}"))`);
+        query = query.concat(`\ncanWrite${ix} as var(func: eq(did, "${permissions.canWrite[ix].toLowerCase()}"))`);
         nquads = nquads.concat(`\n_:permissions <canWrite> uid(canWrite${ix}) .`);  
       }
     }
@@ -302,7 +302,7 @@ export class DGraphService {
     if (permissions.canAdmin) {
       for (let ix = 0; ix < permissions.canAdmin.length; ix++) {
         await this.upsertProfile(permissions.canAdmin[ix]);
-        query = query.concat(`\ncanAdmin${ix} as var(func: eq(did, "${permissions.canAdmin[ix]}"))`);
+        query = query.concat(`\ncanAdmin${ix} as var(func: eq(did, "${permissions.canAdmin[ix].toLowerCase()}"))`);
         nquads = nquads.concat(`\n_:permissions <canAdmin> uid(canAdmin${ix}) .`);  
       }
     }
@@ -342,13 +342,13 @@ export class DGraphService {
     element(func: eq(xid, "${elementId}")) {
       accessConfig {
         permissions {
-          canRead @filter(eq(did, "${userId}")) {
+          canRead @filter(eq(did, "${userId.toLowerCase()}")) {
             count(uid)
           }
-          canWrite @filter(eq(did, "${userId}")) {
+          canWrite @filter(eq(did, "${userId.toLowerCase()}")) {
             count(uid)
           }
-          canAdmin @filter(eq(did, "${userId}")) {
+          canAdmin @filter(eq(did, "${userId.toLowerCase()}")) {
             count(uid)
           }
         }
@@ -405,9 +405,9 @@ export class DGraphService {
     return {
       publicRead: dpermissionsConfig.publicRead,
       publicWrite: dpermissionsConfig.publicWrite,
-      canRead: dpermissionsConfig.canRead.map((el:any) => el.did),
-      canWrite: dpermissionsConfig.canWrite.map((el:any) => el.did),
-      canAdmin: dpermissionsConfig.canAdmin.map((el:any) => el.did),
+      canRead: dpermissionsConfig.canRead.map((el:any) => el.did.toLowerCase()),
+      canWrite: dpermissionsConfig.canWrite.map((el:any) => el.did.toLowerCase()),
+      canAdmin: dpermissionsConfig.canAdmin.map((el:any) => el.did.toLowerCase()),
     };
   }
 
@@ -604,6 +604,85 @@ export class DGraphService {
       : [];
   }
 
+  async addPermission(elementId: string, type: PermissionType, toUserId: string): Promise<void> {
+    await this.ready();
+
+    let queryUid = `
+    element(func: eq(xid, "${elementId}")) { 
+      accessConfig { 
+        permissions { 
+          uid 
+        } 
+      } 
+    }`;
+
+    let result1 = await this.client.newTxn().query(`query{${queryUid}}`);
+    let json = result1.getJson();
+    
+    let permissionsUid = json.element[0].accessConfig.permissions.uid;
+    let ndelquads: string = '';
+
+    let query = `user as var(func: eq(did, "${toUserId.toLowerCase()}"))`
+
+    /** delete lower level permissions so that each user has one role only */
+    switch (type) {
+      case PermissionType.Admin: 
+        ndelquads = ndelquads.concat(`\n<${permissionsUid}> <canRead> uid(user) .`)
+        ndelquads = ndelquads.concat(`\n<${permissionsUid}> <canWrite> uid(user) .`)
+        break;
+
+      case PermissionType.Write: 
+        ndelquads = ndelquads.concat(`\n<${permissionsUid}> <canRead> uid(user) .`)
+        break;
+    }
+
+    let nquads = `<${permissionsUid}> <can${type}> uid(user).`;
+    
+    const req = new dgraph.Request();
+    const mu = new dgraph.Mutation();
+    
+    mu.setDelNquads(ndelquads);
+    mu.setSetNquads(nquads);
+    req.setQuery(`query{${query}}`);
+    req.setMutationsList([mu]);
+    
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] addPermission', {nquads}, result.getUidsMap().toArray());
+  }
+
+  async deletePermission(elementId: string, toUserId: string): Promise<void> {
+    await this.ready();
+    
+    let queryUid = `permissions as var(func: eq(xid, "${elementId}")) { 
+      accessConfig { 
+        permissions { 
+          uid 
+        } 
+      } 
+    }`;
+
+    let result1 = await this.client.newTxn().query(`query{${queryUid}}`);
+    let json = result1.getJson();
+    
+    let permissionsUid = json.accessConfig.permissions.uid;
+    
+    let query = `user as var(func: eq(did, "${toUserId.toLowerCase()}"))`
+    let ndelquads: string = '';
+    ndelquads = ndelquads.concat(`\n<${permissionsUid}> <canRead> uid(user) .`)
+    ndelquads = ndelquads.concat(`\n<${permissionsUid}> <canWrite> uid(user) .`)
+    ndelquads = ndelquads.concat(`\n<${permissionsUid}> <canAdmin> uid(user) .`)
+
+    const req = new dgraph.Request();
+    const mu = new dgraph.Mutation();
+    
+    mu.setDelNquads(ndelquads);
+    req.setQuery(`query{${query}}`);
+    req.setMutationsList([mu]);
+    
+    let result = await this.callRequest(req);
+    console.log('[DGRAPH] deletePermission', {ndelquads}, result.getUidsMap().toArray());
+  }
+
   async updatePerspective(perspectiveId: string, headId: string):Promise<void> {
     await this.ready();
 
@@ -670,7 +749,7 @@ export class DGraphService {
     let query = `\ncommit as var(func: eq(xid, ${commit.id}))`;
     
     query = query.concat(`\ndata as var(func: eq(xid, "${commit.dataId}"))`);
-    query = query.concat(`\nprofile as var(func: eq(did, "${commit.creatorId}"))`);
+    query = query.concat(`\nprofile as var(func: eq(did, "${commit.creatorId.toLowerCase()}"))`);
   
     let nquads = `uid(commit) <xid> "${commit.id}" .`;
     nquads = nquads.concat(`\nuid(commit) <stored> "true" .`);

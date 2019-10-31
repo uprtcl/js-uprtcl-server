@@ -40,6 +40,51 @@ export class AccessController {
             res.status(200).send(result);
           }
         ]
+      },
+
+      {
+        path: "/uprtcl/1/permissions/:elementId",
+        method: "put",
+        handler: [
+          checkJwt,
+          async (req: Request, res: Response) => {
+            let inputs: any = {
+              elementId: req.params.elementId, 
+              type: req.body.type,
+              toUserId: req.body.userId,
+              userId: getUserFromReq(req)};
+
+            try {
+              await this.accessService.addPermission(
+                inputs.elementId,
+                inputs.type,
+                inputs.toUserId,
+                inputs.userId);
+
+              let result: PostResult = {
+                result: SUCCESS,
+                message: 'permission added',
+                elementIds: []
+              }
+
+              console.log('[ACCESS CONTROLLER] addPermission', 
+                JSON.stringify(inputs));
+  
+              res.status(200).send(result);
+            } catch (error) {
+              console.log('[ACCESS CONTROLLER] addPermission', 
+                JSON.stringify(inputs), {error});
+
+              let result: PostResult = {
+                result: ERROR,
+                message: error.message,
+                elementIds: []
+              }
+
+              res.status(200).send(result);
+            }
+          }
+        ]
       }
     ]}
 };

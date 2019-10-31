@@ -154,5 +154,20 @@ export class AccessService {
     return false
   }
 
+  async addPermission(
+    elementId: string, 
+    type: PermissionType,
+    toUserId: string, 
+    userId: string | null) : Promise<void> {
+
+    if (userId == null) throw new Error('logged user not found');
+
+    if(!await this.db.can(elementId, userId, PermissionType.Admin)) {
+      throw new Error(NOT_AUTHORIZED_MSG);
+    }
+
+    return this.db.addPermission(elementId, type, toUserId);
+  }
+
 }
 

@@ -5,17 +5,22 @@ var CID  = require('cids');
 var ethUtil = require('ethereumjs-util');
 var Web3 = require('web3');
 import { Perspective, DataDto, DataType, Commit, DocNodeType, PostResult } from "./types";
-import { AccessConfig } from "../../db/dgraph.service";
+import { AccessConfig, PermissionType } from "../../db/dgraph.service";
 import { ERROR, SUCCESS, NOT_AUTHORIZED_MSG } from "./uprtcl.controller";
 
 jest.mock("request-promise");
 (promiseRequest as any).mockImplementation(() => '{"features": []}');
 
+interface TestUser {
+  userId: string,
+  jwt: string
+}
+
 interface ExtendedMatchers extends jest.Matchers<void> {
   toBeValidCid: () => object;
 }
 
-const getJwtToken = async (userDid: string, privateKey: string) => {
+const getJwtToken = async (userDid: string, privateKey: string) : Promise<string> => {
   const get = await request(router).get(`/uprtcl/1/user/${userDid}/nonce`);
   expect(get.status).toEqual(200);
 
@@ -35,15 +40,18 @@ const getJwtToken = async (userDid: string, privateKey: string) => {
   return JSON.parse(put.text).data.jwt;
 }
 
-const createUser = async (seed: string) => {
+const createUser = async (seed: string) : Promise<TestUser> => {
   let web3 = new Web3();
   let account = web3.eth.accounts.create(seed);
   let userDid = `did:ethr:${account.address}`
 
-  let jwt = await getJwtToken(userDid, account.privateKey);
+  let jwt: string = await getJwtToken(userDid, account.privateKey);
   console.log('[TEST] createUser', {userDid, jwt});
 
-  return jwt;
+  return {
+    userId: userDid,
+    jwt: jwt
+  }
 }
 
 const createPerspective = async (
@@ -278,6 +286,24 @@ const delegatePermissionsTo = async (
   return JSON.parse(put.text);
 }
 
+const addPermission = async (
+  elementId: string, 
+  userToAddId: string,
+  type: PermissionType,   
+  jwt: string) : Promise<PostResult> => {
+
+  const put = await request(router).put(`/uprtcl/1/permissions/${elementId}`)
+    .send({
+      type: type,
+      userId: userToAddId
+    })
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
+  expect(put.status).toEqual(200);
+
+  return JSON.parse(put.text);
+}
+
 describe("routes", () => {
 
   expect.extend({
@@ -342,15 +368,15 @@ describe("routes", () => {
     const context = 'wikipedia.barack_obama';
     const timestamp = 1568027451548;
 
-    let jwtUser1 = await createUser('seed1');
-    let jwtUser2 = await createUser('seed2');
+    let user1 = await createUser('seed1');
+    let user2 = await createUser('seed2');
    
-    let perspectiveId = await createPerspective(creatorId, name, context, timestamp, jwtUser1);
-    let perspectiveRead1 = await getPerspective(perspectiveId, jwtUser2);
+    let perspectiveId = await createPerspective(creatorId, name, context, timestamp, user1.jwt);
+    let perspectiveRead1 = await getPerspective(perspectiveId, user2.jwt);
     
     expect(perspectiveRead1).toBeNull();
 
-    let perspectiveRead = await getPerspective(perspectiveId, jwtUser1);
+    let perspectiveRead = await getPerspective(perspectiveId, user1.jwt);
     
     const origin = 'https://www.collectiveone.org/uprtcl/1';
 
@@ -361,40 +387,54 @@ describe("routes", () => {
     expect(perspectiveRead.context).toEqual(context);
     expect(perspectiveRead.origin).toEqual(origin);
 
-    /** update head */
+    /** set head */
     const message = 'commit message';
     
     let text1 = 'new content';
-    let par1Id = await createText(text1, jwtUser1); 
-    let commit1Id = await createCommit(creatorId, timestamp, message, [], par1Id, jwtUser1);
+    let par1Id = await createText(text1, user1.jwt); 
+    let commit1Id = await createCommit(creatorId, timestamp, message, [], par1Id, user1.jwt);
     
-    let result1 = await delegatePermissionsTo(commit1Id, perspectiveId, jwtUser2);
+    let result1 = await delegatePermissionsTo(commit1Id, perspectiveId, user2.jwt);
     expect(result1.result).toEqual(ERROR);
     expect(result1.message).toEqual(NOT_AUTHORIZED_MSG);
 
-    let result2 = await delegatePermissionsTo(commit1Id, perspectiveId, jwtUser1);
+    let result2 = await delegatePermissionsTo(commit1Id, perspectiveId, user1.jwt);
     expect(result2.result).toEqual(SUCCESS);
 
-    let result3 = await updatePerspective(perspectiveId, commit1Id, jwtUser2);
+    let result3 = await updatePerspective(perspectiveId, commit1Id, user2.jwt);
     expect(result3.result).toEqual(ERROR);
     expect(result3.message).toEqual(NOT_AUTHORIZED_MSG);
 
-    let result4 = await updatePerspective(perspectiveId, commit1Id, jwtUser1);
+    let result4 = await updatePerspective(perspectiveId, commit1Id, user1.jwt);
     expect(result4.result).toEqual(SUCCESS);
 
-    let perspectiveHeadRead1 = await getPerspectiveHead(perspectiveId, jwtUser2);
-    expect(perspectiveHeadRead1).toBeNull();
+    let perspectiveHeadReadx = await getPerspectiveHead(perspectiveId, user2.jwt);
+    expect(perspectiveHeadReadx).toBeNull();
 
-    let perspectiveHeadRead = await getPerspectiveHead(perspectiveId, jwtUser1);
+    let perspectiveHeadReadxx = await getPerspectiveHead(perspectiveId, '');
+    expect(perspectiveHeadReadxx).toBeNull();
+
+    let perspectiveHeadRead = await getPerspectiveHead(perspectiveId, user1.jwt);
     expect(perspectiveHeadRead).toEqual(commit1Id);
 
+    /** change read permisssion */
+    let perspectiveHeadRead2x = await getPerspectiveHead(perspectiveId, user2.jwt);
+    expect(perspectiveHeadRead2x).toBeNull();
+
+    await addPermission(perspectiveId, user2.userId, PermissionType.Read ,user1.jwt);
+
+    let perspectiveHeadRead2o = await getPerspectiveHead(perspectiveId, user2.jwt);
+    expect(perspectiveHeadRead2o).toEqual(commit1Id);
+
+    /** update head */
+
     let text2 = 'new content 2';
-    let par2Id = await createText(text2, jwtUser1); 
-    let commit2Id = await createCommit(creatorId, timestamp, message, [], par2Id, jwtUser1);
-
-    await updatePerspective(perspectiveId, commit2Id, jwtUser1);
-    let perspectiveHeadRead2 = await getPerspectiveHead(perspectiveId, jwtUser1);
-
+    let par2Id = await createText(text2, user1.jwt); 
+    let commit2Id = await createCommit(creatorId, timestamp, message, [], par2Id, user1.jwt);
+    
+    await updatePerspective(perspectiveId, commit2Id, user1.jwt);
+    let perspectiveHeadRead2 = await getPerspectiveHead(perspectiveId, user1.jwt);
+    
     expect(perspectiveHeadRead2).toEqual(commit2Id);
   });
 
