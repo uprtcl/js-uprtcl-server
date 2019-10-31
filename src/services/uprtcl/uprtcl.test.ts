@@ -142,15 +142,6 @@ const getKnownSources = async (
   return JSON.parse(get.text).data;
 }
 
-const getOrigin = async (
-  elementId: string) : Promise<string> => {
-  
-  const get = await request(router).get(`/uprtcl/1/discovery/you`);
-  expect(get.status).toEqual(200);
-  
-  return JSON.parse(get.text).data;
-}
-
 const getPerspective = async (perspectiveId: string, jwt: string):Promise<Perspective> => {
   const get = await request(router)
     .get(`/uprtcl/1/persp/${perspectiveId}`)
@@ -304,6 +295,25 @@ const addPermission = async (
   return JSON.parse(put.text);
 }
 
+const setPublicPermission = async (
+  elementId: string,
+  type: PermissionType,
+  value: boolean,
+  jwt: string) : Promise<PostResult> => {
+
+  const put = await request(router).put(`/uprtcl/1/permissions/${elementId}/public`)
+  .send({
+    type: type,
+    value: value
+  })
+  .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
+  expect(put.status).toEqual(200);
+
+  return JSON.parse(put.text);
+}
+
+
 describe("routes", () => {
 
   expect.extend({
@@ -421,21 +431,95 @@ describe("routes", () => {
     let perspectiveHeadRead2x = await getPerspectiveHead(perspectiveId, user2.jwt);
     expect(perspectiveHeadRead2x).toBeNull();
 
-    await addPermission(perspectiveId, user2.userId, PermissionType.Read ,user1.jwt);
+    let result8 = await addPermission(perspectiveId, user2.userId, PermissionType.Read, user2.jwt);
+    expect(result8.result).toEqual(ERROR);
+    expect(result8.message).toEqual(NOT_AUTHORIZED_MSG);
 
+    let result9 = await addPermission(perspectiveId, user2.userId, PermissionType.Read, user1.jwt);
+    expect(result9.result).toEqual(SUCCESS);
+    
     let perspectiveHeadRead2o = await getPerspectiveHead(perspectiveId, user2.jwt);
     expect(perspectiveHeadRead2o).toEqual(commit1Id);
 
     /** update head */
-
     let text2 = 'new content 2';
     let par2Id = await createText(text2, user1.jwt); 
     let commit2Id = await createCommit(creatorId, timestamp, message, [], par2Id, user1.jwt);
-    
-    await updatePerspective(perspectiveId, commit2Id, user1.jwt);
+    let result13 = await delegatePermissionsTo(commit2Id, perspectiveId, user1.jwt);
+    expect(result13.result).toEqual(SUCCESS);
+
+    let result5 = await updatePerspective(perspectiveId, commit2Id, user2.jwt);
+    expect(result5.result).toEqual(ERROR);
+
+    let result10 = await addPermission(perspectiveId, user2.userId, PermissionType.Write, user1.jwt);
+    expect(result10.result).toEqual(SUCCESS)
+
+    let result6 = await updatePerspective(perspectiveId, commit2Id, user2.jwt);
+    expect(result6.result).toEqual(SUCCESS);
+
     let perspectiveHeadRead2 = await getPerspectiveHead(perspectiveId, user1.jwt);
     
     expect(perspectiveHeadRead2).toEqual(commit2Id);
+
+    /** set public read */
+    let user3 = await createUser('seed2');
+
+    let perspectiveHeadRead3 = await getPerspectiveHead(perspectiveId, user3.jwt);
+    expect(perspectiveHeadRead3).toBeNull();
+
+    let result11 = await setPublicPermission(perspectiveId, PermissionType.Read, true, user3.jwt);
+    expect(result11.result).toEqual(ERROR);
+    expect(result11.message).toEqual(NOT_AUTHORIZED_MSG);
+
+    let result12 = await setPublicPermission(perspectiveId, PermissionType.Read, true, user1.jwt);
+    expect(result12.result).toEqual(SUCCESS);
+    
+    let perspectiveHeadRead3o = await getPerspectiveHead(perspectiveId, user3.jwt);
+    expect(perspectiveHeadRead3o).toEqual(commit2Id);
+
+    /** set public write */
+
+    let text3 = 'new content 3';
+    let par3Id = await createText(text3, user1.jwt); 
+    let commit3Id = await createCommit(creatorId, timestamp, message, [], par3Id, user1.jwt);
+    let result15 = await delegatePermissionsTo(commit3Id, perspectiveId, user1.jwt);
+    expect(result15.result).toEqual(SUCCESS);
+
+    let result14 = await updatePerspective(perspectiveId, commit3Id, user3.jwt);
+    expect(result14.result).toEqual(ERROR);
+    expect(result14.message).toEqual(NOT_AUTHORIZED_MSG);
+
+    let result16 = await setPublicPermission(perspectiveId, PermissionType.Write, true, user1.jwt);
+    expect(result16.result).toEqual(SUCCESS);
+
+    let result17 = await updatePerspective(perspectiveId, commit3Id, user3.jwt);
+    expect(result17.result).toEqual(SUCCESS);
+
+    let perspectiveHeadRead3oo = await getPerspectiveHead(perspectiveId, '');
+    expect(perspectiveHeadRead3oo).toEqual(commit3Id);
+    
+    /** remove public permissions */
+    let result20 = await setPublicPermission(perspectiveId, PermissionType.Write, false, user2.jwt);
+    expect(result20.result).toEqual(ERROR);
+    expect(result20.message).toEqual(NOT_AUTHORIZED_MSG);
+
+    let result18 = await setPublicPermission(perspectiveId, PermissionType.Write, false, user1.jwt);
+    expect(result18.result).toEqual(SUCCESS);
+
+    let result19 = await updatePerspective(perspectiveId, commit3Id, user3.jwt);
+    expect(result19.result).toEqual(ERROR);
+    expect(result19.message).toEqual(NOT_AUTHORIZED_MSG);
+
+    let result22 = await setPublicPermission(perspectiveId, PermissionType.Read, false, user2.jwt);
+    expect(result22.result).toEqual(ERROR);
+    expect(result22.message).toEqual(NOT_AUTHORIZED_MSG);
+
+    let result21 = await setPublicPermission(perspectiveId, PermissionType.Read, false, user1.jwt);
+    expect(result21.result).toEqual(SUCCESS);
+
+    let perspectiveHeadRead3oox = await getPerspectiveHead(perspectiveId, '');
+    expect(perspectiveHeadRead3oox).toBeNull()
+
   });
 
 

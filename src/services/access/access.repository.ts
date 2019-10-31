@@ -1,5 +1,5 @@
 import { DGraphService } from "../../db/dgraph.service";
-import { PROFILE_SCHEMA_NAME, PERMISSIONS_SCHEMA_NAME, ACCESS_CONFIG_SCHEMA_NAME } from "../../db/schema";
+import { PERMISSIONS_SCHEMA_NAME, ACCESS_CONFIG_SCHEMA_NAME } from "../../db/schema";
 import { UserRepository } from "../user/user.repository";
 
 const dgraph = require("dgraph-js");
@@ -221,6 +221,31 @@ export class AccessRepository {
     return result.getJson().element[0].accessConfig.permissions[`public${type}`];
   }
 
+  async setPublic(elementId: string, type: PermissionType, value: boolean): Promise<void> {
+    await this.db.ready();
+
+    let query = `
+    var(func: eq(xid, ${elementId})) {
+      accessConfig {
+        per as permissions
+      }
+    }
+    `;
+
+    const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
+    
+    let nquads = `uid(per) <public${type}> "${value}" .`;
+    
+    req.setQuery(`query{${query}}`);
+    mu.setSetNquads(nquads);
+    mu.setCond(`@if(eq(len(per), 1))`);
+    req.setMutationsList([mu]);
+    
+    let result = await this.db.callRequest(req);
+    console.log('[DGRAPH] setPublic', {nquads}, result.getUidsMap().toArray());
+  }
+
   async createAccessConfig(accessConfig: AccessConfig): Promise<string> {
     await this.db.ready();
     
@@ -370,42 +395,43 @@ export class AccessRepository {
   async addPermission(elementId: string, type: PermissionType, toUserId: string): Promise<void> {
     await this.db.ready();
 
-    let queryUid = `
-    element(func: eq(xid, "${elementId}")) { 
-      accessConfig { 
-        permissions { 
-          uid 
-        } 
-      } 
-    }`;
-
-    let result1 = await this.db.client.newTxn().query(`query{${queryUid}}`);
-    let json = result1.getJson();
-    
-    let permissionsUid = json.element[0].accessConfig.permissions.uid;
+   
     let ndelquads: string = '';
+    let query = `
+    var(func: eq(xid, ${elementId})) {
+      accessConfig {
+        per as permissions
+      }
+    }
+    user as var(func: eq(did, "${toUserId.toLowerCase()}"))
+    `
 
-    let query = `user as var(func: eq(did, "${toUserId.toLowerCase()}"))`
-
-    /** delete lower level permissions so that each user has one role only */
+    /** delete other permissions so that each user has one role only */
     switch (type) {
       case PermissionType.Admin: 
-        ndelquads = ndelquads.concat(`\n<${permissionsUid}> <canRead> uid(user) .`)
-        ndelquads = ndelquads.concat(`\n<${permissionsUid}> <canWrite> uid(user) .`)
+        ndelquads = ndelquads.concat(`\nuid(per) <canRead> uid(user) .`)
+        ndelquads = ndelquads.concat(`\nuid(per) <canWrite> uid(user) .`)
         break;
 
       case PermissionType.Write: 
-        ndelquads = ndelquads.concat(`\n<${permissionsUid}> <canRead> uid(user) .`)
+        ndelquads = ndelquads.concat(`\nuid(per) <canRead> uid(user) .`)
+        ndelquads = ndelquads.concat(`\nuid(per) <canAdmin> uid(user) .`)
+        break;
+
+      case PermissionType.Read: 
+        ndelquads = ndelquads.concat(`\nuid(per) <canWrite> uid(user) .`)
+        ndelquads = ndelquads.concat(`\nuid(per) <canAdmin> uid(user) .`)
         break;
     }
 
-    let nquads = `<${permissionsUid}> <can${type}> uid(user).`;
+    let nquads = `uid(per) <can${type}> uid(user).`;
     
     const req = new dgraph.Request();
     const mu = new dgraph.Mutation();
     
     mu.setDelNquads(ndelquads);
     mu.setSetNquads(nquads);
+    mu.setCond(`@if(eq(len(per), 1))`);
     req.setQuery(`query{${query}}`);
     req.setMutationsList([mu]);
     
@@ -415,30 +441,24 @@ export class AccessRepository {
 
   async deletePermission(elementId: string, toUserId: string): Promise<void> {
     await this.db.ready();
-    
-    let queryUid = `permissions as var(func: eq(xid, "${elementId}")) { 
-      accessConfig { 
-        permissions { 
-          uid 
-        } 
-      } 
-    }`;
 
-    let result1 = await this.db.client.newTxn().query(`query{${queryUid}}`);
-    let json = result1.getJson();
-    
-    let permissionsUid = json.accessConfig.permissions.uid;
-    
-    let query = `user as var(func: eq(did, "${toUserId.toLowerCase()}"))`
+    let query = `
+    var(func: eq(xid, ${elementId})) {
+      accessConfig {
+        per as permissions
+      }
+    }
+    user as var(func: eq(did, "${toUserId.toLowerCase()}"))`
     let ndelquads: string = '';
-    ndelquads = ndelquads.concat(`\n<${permissionsUid}> <canRead> uid(user) .`)
-    ndelquads = ndelquads.concat(`\n<${permissionsUid}> <canWrite> uid(user) .`)
-    ndelquads = ndelquads.concat(`\n<${permissionsUid}> <canAdmin> uid(user) .`)
+    ndelquads = ndelquads.concat(`\nuid(per) <canRead> uid(user) .`)
+    ndelquads = ndelquads.concat(`\nuid(per) <canWrite> uid(user) .`)
+    ndelquads = ndelquads.concat(`\nuid(per) <canAdmin> uid(user) .`)
 
     const req = new dgraph.Request();
     const mu = new dgraph.Mutation();
     
     mu.setDelNquads(ndelquads);
+    mu.setCond(`@if(eq(len(per), 1))`);
     req.setQuery(`query{${query}}`);
     req.setMutationsList([mu]);
     

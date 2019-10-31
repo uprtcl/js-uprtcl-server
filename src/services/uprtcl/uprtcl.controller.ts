@@ -101,17 +101,26 @@ export class UprtclController {
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            let message = await this.uprtclService.updatePerspective(
-              req.params.perspectiveId, 
-              req.query.headId, 
-              getUserFromReq(req));
-
-            let result: PostResult = {
-              result:  message === SUCCESS ? SUCCESS : ERROR,
-              message: message,
-              elementIds: []
+            try {
+              await this.uprtclService.updatePerspective(
+                req.params.perspectiveId, 
+                req.query.headId, 
+                getUserFromReq(req));
+  
+              let result: PostResult = {
+                result:  SUCCESS,
+                message: 'perspective head updated',
+                elementIds: []
+              }
+              res.status(200).send(result);
+            } catch (error) {
+              let result: PostResult = {
+                result:  ERROR,
+                message: error.message,
+                elementIds: []
+              }
+              res.status(200).send(result);
             }
-            res.status(200).send(result);
           }
         ]
       },

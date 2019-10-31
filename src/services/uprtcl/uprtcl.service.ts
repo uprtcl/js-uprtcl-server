@@ -42,11 +42,10 @@ export class UprtclService {
     return perspectives;
   };
 
-  async updatePerspective(perspectiveId: string, headId: string, loggedUserId: string | null): Promise<string> {
+  async updatePerspective(perspectiveId: string, headId: string, loggedUserId: string | null): Promise<void> {
     console.log('[UPRTCL-SERVICE] updatePerspective', {perspectiveId}, {headId});
-    if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Write))) return NOT_AUTHORIZED_MSG;
+    if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Write))) throw new Error(NOT_AUTHORIZED_MSG);
     await this.uprtclRepo.updatePerspective(perspectiveId, headId);
-    return SUCCESS;
   };
 
   async getPerspectiveHead(perspectiveId: string, loggedUserId: string | null): Promise<string | null> {

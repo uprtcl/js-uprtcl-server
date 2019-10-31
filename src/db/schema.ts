@@ -110,6 +110,9 @@ elementId: string @index(exact) @upsert .
 sources: [string] .
 
 # access control
+canRead: [uid] .
+canWrite: [uid] .
+canAdmin: [uid] .
 accessConfig: uid @reverse .
 permissions: uid .
 publicRead: bool @index(bool) .

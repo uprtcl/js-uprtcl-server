@@ -66,12 +66,15 @@ export class AccessService {
     return this.accessRepo.createPermissionsConfig(permissions)
   }
 
-  async updateAccessConfig(elementId: string, newAccessConfig: AccessConfig, userId: string | null) : Promise<string> {
+  async updateAccessConfig(
+    elementId: string, 
+    newAccessConfig: AccessConfig, 
+    userId: string | null) : Promise<void> {
 
-    if (userId == null) return 'logged user not found';
+    if (userId == null) throw new Error('logged user not found');
 
     if(!await this.accessRepo.can(elementId, userId, PermissionType.Admin)) {
-      return NOT_AUTHORIZED_MSG;
+      throw new Error(NOT_AUTHORIZED_MSG);
     }
 
     /**  */
@@ -81,7 +84,7 @@ export class AccessService {
 
     if (newAccessConfig.delegate) {
       /** protection for undefined delegateTo and finDelegatedTo */
-      if (!newAccessConfig.delegateTo) return 'delegateTo not defined';
+      if (!newAccessConfig.delegateTo) throw new Error('delegateTo not defined');
       
       newDelegateTo = newAccessConfig.delegateTo;
 
@@ -91,8 +94,8 @@ export class AccessService {
         /** if delegateTo is, in turn, delegated, jump to the final delegated element */
 
         /** protection for undefined delegateTo and finDelegatedTo */
-        if (!delegateToAccessConfig.delegateTo) return 'delegateTo not found';
-        if (!delegateToAccessConfig.finDelegatedTo) return 'finDelegatedTo not found';
+        if (!delegateToAccessConfig.delegateTo) throw new Error('delegateTo not found');
+        if (!delegateToAccessConfig.finDelegatedTo) throw new Error('finDelegatedTo not found');
 
         newFinDelegatedTo = delegateToAccessConfig.finDelegatedTo;
         let finDelegatedToAccessConfig = 
@@ -123,8 +126,6 @@ export class AccessService {
      * directly or indirectly using this element permissions */
     let newFinDelegatedToOfChilds = newFinDelegatedTo != null ? newFinDelegatedTo : elementId;
     await this.setFinDelegatedToRec(elementId, newFinDelegatedToOfChilds);
-
-    return SUCCESS;
   }
 
   private async setFinDelegatedToRec(elementId: string, finDelegatedTo: string) : Promise<void> {
@@ -155,6 +156,21 @@ export class AccessService {
 
     console.log('[ACCESS-SERVICE] isRole - FALSE', {elementId, userId, type});    
     return false
+  }
+
+  async setPublic(
+    elementId: string, 
+    type: PermissionType,
+    value: boolean,
+    userId: string | null) : Promise<void> {
+
+    if (userId == null) throw new Error('logged user not found');
+
+    if(!await this.accessRepo.can(elementId, userId, PermissionType.Admin)) {
+      throw new Error(NOT_AUTHORIZED_MSG);
+    }
+
+    return this.accessRepo.setPublic(elementId, type, value);    
   }
 
   async addPermission(
