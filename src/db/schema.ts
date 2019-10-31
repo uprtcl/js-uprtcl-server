@@ -92,21 +92,17 @@ type ${KNOWN_SOURCES_SCHEMA_NAME} {
   sources: [string]
 }
 
-# 1-to-1 associations
-head: uid .
-creator: uid .
-data: uid .
-accessConfig: uid .
-permissions: uid .
-
 # uprtcl Objects
 stored: bool @index(bool) . 
 xid: string @index(exact) @upsert .
 did: string @index(exact) @upsert .
 links: [uid] @reverse .
 context: string @index(exact) .
+head: uid .
+creator: uid .
 
 # data objects
+data: uid .
 text: string @index(fulltext) .
 
 # Sources
@@ -114,6 +110,8 @@ elementId: string @index(exact) @upsert .
 sources: [string] .
 
 # access control
+accessConfig: uid @reverse .
+permissions: uid .
 publicRead: bool @index(bool) .
 publicWrite: bool @index(bool) .
 delegateTo: [uid] @reverse .

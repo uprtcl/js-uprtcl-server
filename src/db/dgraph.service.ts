@@ -493,9 +493,20 @@ export class DGraphService {
     let json = res.getJson();
     const accessConfigUid = json.element[0].accessConfig.uid;
 
-    /** delete the permissions (dont know why it complains) */
-    // TBD
-    
+    /** delete the permissions 
+     * TODO: dont know why it complains if I dont do this */
+    const delMu = new dgraph.Mutation();
+    let delNquads = `<${accessConfigUid}> <permissions> * .`;
+    delMu.setDelNquads(delNquads);
+
+    const delReq = new dgraph.Request();
+    delReq.setCommitNow(true);
+    delReq.setMutationsList([delMu]);
+
+    await this.client.newTxn().doRequest(delReq);
+
+
+    /** now update the the accessConfig */
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
@@ -573,44 +584,46 @@ export class DGraphService {
     return [elementId].concat(result.getJson().elements.map((dpersp: any) => dpersp.xid));
   }
 
-  async getDelegatedFrom(elementId: string) {
-    debugger
+  async getDelegatedFrom(elementId: string) : Promise<string[]> {
     let query = `
-    elements(
-      func: eq(~delegateTo, "${elementId}") {
-        xid
+    elements(func: eq(xid, "${elementId}")) {
+      ~delegateTo {
+        ~accessConfig {
+          xid
+        }
       }
-    )`
+    }
+    `
 
     let result = await this.client.newTxn().query(`query{${query}}`);
-    console.log('[DGRAPH] getFinallyDelegatedFrom', {elementId}, result.getJson());
-    return [elementId].concat(result.getJson().elements.map((dElement: any) => dElement.xid));
-  }
+    let json = result.getJson();
+    console.log('[DGRAPH] getFinallyDelegatedFrom', {elementId}, JSON.stringify(json));
 
-  async deleteHead(perspectiveId: string):Promise<void> {
-    const mu = new dgraph.Mutation();
-    const req = new dgraph.Request();
-
-    /** make sure creatorId exist */
-    let query = `perspective as var(func: eq(xid, "${perspectiveId}"))`;
-    req.setQuery(`query{${query}}`);
-
-    let delnquads = `uid(perspective) <head> * .`;
-    
-    mu.setDelNquads(delnquads);
-    req.setMutationsList([mu]);
-
-    let result = await this.callRequest(req);
-    console.log('[DGRAPH] deleteHead', {query}, {delnquads}, result.getUidsMap().toArray());
+    return json.elements.length > 0 ? 
+      json.elements['~delegateTo'].map((accessConfig: any) => accessConfig['~accessConfig'].xid) 
+      : [];
   }
 
   async updatePerspective(perspectiveId: string, headId: string):Promise<void> {
     await this.ready();
 
+    /** delete the current head */
+    const delMu = new dgraph.Mutation();
+    let queryDel = `perspective as var(func: eq(xid, "${perspectiveId}"))`;
+    let delNquads = `uid(perspective) <head> * .`;
+    delMu.setDelNquads(delNquads);
+
+    const delReq = new dgraph.Request();
+    delReq.setQuery(`query{${queryDel}}`);
+    delReq.setCommitNow(true);
+    delReq.setMutationsList([delMu]);
+
+    await this.client.newTxn().doRequest(delReq);
+
+    /**  */
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    /** make sure creatorId exist */
     let query = `perspective as var(func: eq(xid, "${perspectiveId}"))`;
     query = query.concat(`\nhead as var(func: eq(xid, "${headId}"))`)
     req.setQuery(`query{${query}}`);

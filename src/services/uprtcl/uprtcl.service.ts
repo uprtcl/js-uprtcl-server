@@ -39,9 +39,9 @@ export class UprtclService {
     return SUCCESS;
   };
 
-  async getPerspectiveHead(perspectiveId: string, loggedUserId: string | null): Promise<string> {
+  async getPerspectiveHead(perspectiveId: string, loggedUserId: string | null): Promise<string | null> {
     console.log('[UPRTCL-SERVICE] getPerspectiveHead', {perspectiveId});
-    if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Read))) return NOT_AUTHORIZED_MSG;
+    if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Read))) return null;
     let perspectiveHead = await this.db.getPerspectiveHead(perspectiveId);
     return perspectiveHead;
   };  
