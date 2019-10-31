@@ -1,11 +1,21 @@
 import { Perspective, Commit, DataDto } from "./types";
-import { DGraphService, PermissionType } from "../../db/dgraph.service";
+import { DGraphService } from "../../db/dgraph.service";
 import { AccessService } from "../access/access.service";
 import { NOT_AUTHORIZED_MSG, SUCCESS } from "./uprtcl.controller";
+import { UserService } from "../user/user.service";
+import { UprtclRepository } from "./uprtcl.repository";
+import { PermissionType } from "../access/access.repository";
+import { KnownSourcesRepository } from "../knownsources/knownsources.repository";
+import { DataRepository } from "../data/data.repository";
 
 export class UprtclService {
 
-  constructor(protected db: DGraphService, protected access: AccessService) {
+  constructor(
+    protected db: DGraphService, 
+    protected uprtclRepo: UprtclRepository, 
+    protected dataRepo: DataRepository, 
+    protected knownSourcesRepo: KnownSourcesRepository, 
+    protected access: AccessService) {
   }
 
   async createPerspective(
@@ -13,7 +23,7 @@ export class UprtclService {
     loggedUserId: string | null): Promise<string> {
 
     console.log('[UPRTCL-SERVICE] createPerspective', {perspective, loggedUserId});
-    let perspId = await this.db.createPerspective(perspective);
+    let perspId = await this.uprtclRepo.createPerspective(perspective);
     await this.access.createAccessConfig(perspId, loggedUserId);
     return perspId;
   };
@@ -21,28 +31,28 @@ export class UprtclService {
   async getPerspective(perspectiveId: string, loggedUserId: string | null): Promise<Perspective | null> {
     console.log('[UPRTCL-SERVICE] getPerspective', {perspectiveId, loggedUserId});
     if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Read))) return null;
-    let perspective = await this.db.getPerspective(perspectiveId);
+    let perspective = await this.uprtclRepo.getPerspective(perspectiveId);
     return perspective;
   };
 
   async getContextPerspectives(context: string): Promise<Perspective[]> {
     console.log('[UPRTCL-SERVICE] getContextPerspectives', {context});
     // TODO filter by canRead (obvisouly...)
-    let perspectives = await this.db.getContextPerspectives(context);
+    let perspectives = await this.uprtclRepo.getContextPerspectives(context);
     return perspectives;
   };
 
   async updatePerspective(perspectiveId: string, headId: string, loggedUserId: string | null): Promise<string> {
     console.log('[UPRTCL-SERVICE] updatePerspective', {perspectiveId}, {headId});
     if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Write))) return NOT_AUTHORIZED_MSG;
-    await this.db.updatePerspective(perspectiveId, headId);
+    await this.uprtclRepo.updatePerspective(perspectiveId, headId);
     return SUCCESS;
   };
 
   async getPerspectiveHead(perspectiveId: string, loggedUserId: string | null): Promise<string | null> {
     console.log('[UPRTCL-SERVICE] getPerspectiveHead', {perspectiveId});
     if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Read))) return null;
-    let perspectiveHead = await this.db.getPerspectiveHead(perspectiveId);
+    let perspectiveHead = await this.uprtclRepo.getPerspectiveHead(perspectiveId);
     return perspectiveHead;
   };  
 
@@ -51,7 +61,7 @@ export class UprtclService {
     loggedUserId: string | null): Promise<string> {
 
     console.log('[UPRTCL-SERVICE] createCommit', commit);
-    let commitId = await this.db.createCommit(commit);
+    let commitId = await this.uprtclRepo.createCommit(commit);
     await this.access.createAccessConfig(commitId, loggedUserId);
     return commitId;
   };
@@ -59,7 +69,7 @@ export class UprtclService {
   async getCommit(commitId: string, loggedUserId: string | null): Promise<Commit | null> {
     console.log('[UPRTCL-SERVICE] getCommit', {commitId});
     if (!(await this.access.can(commitId, loggedUserId, PermissionType.Read))) return null;
-    let commit = await this.db.getCommit(commitId);
+    let commit = await this.uprtclRepo.getCommit(commitId);
     return commit;
   };
 
@@ -68,7 +78,7 @@ export class UprtclService {
     loggedUserId: string | null): Promise<string> {
 
     console.log('[UPRTCL-SERVICE] createData', data);
-    let dataId = await this.db.createData(data);
+    let dataId = await this.dataRepo.createData(data);
     await this.access.createAccessConfig(dataId, loggedUserId);
 
     return dataId;
@@ -77,24 +87,24 @@ export class UprtclService {
   async getData(dataId: string, loggedUserId: string | null): Promise<any> {
     console.log('[UPRTCL-SERVICE] getData', dataId);
     if (!(await this.access.can(dataId, loggedUserId, PermissionType.Read))) return null;
-    let data = await this.db.getData(dataId);
+    let data = await this.dataRepo.getData(dataId);
     return data;
   };
 
   async addKnownSources(elementId: string, sources: Array<string>) {
     console.log('[UPRTCL-SERVICE] addKnownSources', {elementId}, {sources});
-    await this.db.addKnownSources(elementId, sources);
+    await this.knownSourcesRepo.addKnownSources(elementId, sources);
   }
 
   async getKnownSources(elementId: string):Promise<Array<string>> {
     console.log('[UPRTCL-SERVICE] getKnownSources', {elementId});
-    let sources = this.db.getKnownSources(elementId);
+    let sources = this.knownSourcesRepo.getKnownSources(elementId);
     return sources;
   }
 
   getOrigin():Promise<string> {
     console.log('[UPRTCL-SERVICE] getOrigin');
-    return this.db.getOrigin();
+    return this.uprtclRepo.getOrigin();
   }
 }
 

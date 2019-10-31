@@ -5,8 +5,8 @@ var CID  = require('cids');
 var ethUtil = require('ethereumjs-util');
 var Web3 = require('web3');
 import { Perspective, DataDto, DataType, Commit, DocNodeType, PostResult } from "./types";
-import { AccessConfig, PermissionType } from "../../db/dgraph.service";
 import { ERROR, SUCCESS, NOT_AUTHORIZED_MSG } from "./uprtcl.controller";
+import { AccessConfig, PermissionType } from "../access/access.repository";
 
 jest.mock("request-promise");
 (promiseRequest as any).mockImplementation(() => '{"features": []}');

@@ -1,10 +1,13 @@
-import { DGraphService, PermissionConfig, AccessConfig, PermissionType } from "../../db/dgraph.service";
+import { DGraphService } from "../../db/dgraph.service";
 import { SUCCESS, NOT_AUTHORIZED_MSG } from "../uprtcl/uprtcl.controller";
+import { PermissionConfig, AccessRepository, AccessConfig, PermissionType } from "./access.repository";
 require('dotenv').config();
 
 export class AccessService {
 
-  constructor(protected db: DGraphService) {
+  constructor(
+    protected db: DGraphService,
+    protected accessRepo: AccessRepository) {
   }
 
   async createDefaultPermissions(userId: string | null): Promise<string> {
@@ -27,7 +30,7 @@ export class AccessService {
         canAdmin: []
       }
     }
-    return this.db.createPermissionsConfig(persmissions);     
+    return this.accessRepo.createPermissionsConfig(persmissions);     
   }
 
   /** if delegateTo is available, set its persmissions as the persissions of elementId
@@ -43,31 +46,31 @@ export class AccessService {
       permissionsUid: dftPermUid
     }
 
-    let accessConfigUid = await this.db.createAccessConfig(accessConfig);
+    let accessConfigUid = await this.accessRepo.createAccessConfig(accessConfig);
 
-    return this.db.setAccessConfigOf(elementId, accessConfigUid);
+    return this.accessRepo.setAccessConfigOf(elementId, accessConfigUid);
   }
 
   async getPermissionsConfig(permissionsUid: string) : Promise<PermissionConfig> {
-    return this.db.getPermissionsConfig(permissionsUid);
+    return this.accessRepo.getPermissionsConfig(permissionsUid);
   }
 
   async getAccessConfig(elementId: string, userId: string) : Promise<AccessConfig> {
-    return this.db.getAccessConfigOfElement(elementId, userId);
+    return this.accessRepo.getAccessConfigOfElement(elementId, userId);
   }
 
   /** Create a new permissions config element and set it in the access config of the element. 
    * It does not change the delegate, delegateTo and finalDelegatedTo.
    */
   async createPermissionsConfig(elementId: string, permissions: PermissionConfig) : Promise<string> {
-    return this.db.createPermissionsConfig(permissions)
+    return this.accessRepo.createPermissionsConfig(permissions)
   }
 
   async updateAccessConfig(elementId: string, newAccessConfig: AccessConfig, userId: string | null) : Promise<string> {
 
     if (userId == null) return 'logged user not found';
 
-    if(!await this.db.can(elementId, userId, PermissionType.Admin)) {
+    if(!await this.accessRepo.can(elementId, userId, PermissionType.Admin)) {
       return NOT_AUTHORIZED_MSG;
     }
 
@@ -114,7 +117,7 @@ export class AccessService {
       permissionsUid: newPermissionsUid
     }
 
-    await this.db.updateAccessConfig(elementId, newAccessConfigProc);
+    await this.accessRepo.updateAccessConfig(elementId, newAccessConfigProc);
     
     /** now, recursively update the finDelegatedTo of all elements that are 
      * directly or indirectly using this element permissions */
@@ -126,11 +129,11 @@ export class AccessService {
 
   private async setFinDelegatedToRec(elementId: string, finDelegatedTo: string) : Promise<void> {
     /** get the list of elements that delegated to elementId */
-    let delegatingFrom = await this.db.getDelegatedFrom(elementId);
+    let delegatingFrom = await this.accessRepo.getDelegatedFrom(elementId);
     
     /** for each of them, set the finDelegateTo and call recursively this function */
     let updateFinDelegatedTo = delegatingFrom.map(async (otherElementId: string) => {
-      this.db.setFinDelegatedTo(otherElementId, finDelegatedTo)
+      this.accessRepo.setFinDelegatedTo(otherElementId, finDelegatedTo)
       await this.setFinDelegatedToRec(otherElementId, finDelegatedTo)
     })
 
@@ -142,12 +145,12 @@ export class AccessService {
     userId: string | null, 
     type: PermissionType) : Promise<boolean>  {
 
-    if (await this.db.isPublic(elementId, type)) {
+    if (await this.accessRepo.isPublic(elementId, type)) {
       return true;
     }
     
     if (userId != null) {
-      return this.db.can(elementId, userId, type);
+      return this.accessRepo.can(elementId, userId, type);
     }
 
     console.log('[ACCESS-SERVICE] isRole - FALSE', {elementId, userId, type});    
@@ -162,11 +165,11 @@ export class AccessService {
 
     if (userId == null) throw new Error('logged user not found');
 
-    if(!await this.db.can(elementId, userId, PermissionType.Admin)) {
+    if(!await this.accessRepo.can(elementId, userId, PermissionType.Admin)) {
       throw new Error(NOT_AUTHORIZED_MSG);
     }
 
-    return this.db.addPermission(elementId, type, toUserId);
+    return this.accessRepo.addPermission(elementId, type, toUserId);
   }
 
 }

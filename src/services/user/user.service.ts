@@ -1,5 +1,6 @@
-import { DGraphService, PermissionConfig, PermissionType } from "../../db/dgraph.service";
+import { DGraphService } from "../../db/dgraph.service";
 import { generateToken } from "../../utils/crypto";
+import { UserRepository } from "./user.repository";
 var jwt = require('jsonwebtoken');
 var ethUtil = require('ethereumjs-util');
 require('dotenv').config();
@@ -8,7 +9,9 @@ export const C1_ETH_AUTH = 'C1_ETH_AUTH';
 
 export class UserService {
 
-  constructor(protected db: DGraphService) {
+  constructor(
+    protected db: DGraphService,
+    protected userRepo: UserRepository) {
   }
 
   async get(userDid: string): Promise<Object> {
@@ -20,7 +23,7 @@ export class UserService {
   async getNonce(userDid: string): Promise<string> {
     console.log('[UPRTCL-SERVICE] getNonce', {userDid});
     let nonce = await generateToken();
-    await this.db.setUserNonce(userDid, nonce);
+    await this.userRepo.setUserNonce(userDid, nonce);
     return nonce;
   };
 
@@ -30,7 +33,7 @@ export class UserService {
 
     let owner =  userDid.split(':')[2];
 
-    let nonce = await this.db.getNonce(userDid);
+    let nonce = await this.userRepo.getNonce(userDid);
     var data = `Login to CollectiveOne \nnonce:${nonce}`;  
     var message = ethUtil.toBuffer(data);
     var msgHash = ethUtil.hashPersonalMessage(message);
