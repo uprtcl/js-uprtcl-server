@@ -38,6 +38,23 @@ export class UprtclController {
 
   routes() {
     return [
+
+      {
+        path: "/uprtcl/1/get/:hash",
+        method: "get",
+        handler: [
+          checkJwt,
+          async (req: Request, res: Response) => {
+            const data = await this.uprtclService.getGeneric(req.params.hash, getUserFromReq(req));
+            let result: GetResult = {
+              result: SUCCESS,
+              message: '',
+              data: data
+            }
+            res.status(200).send(result);
+          }
+        ]
+      },
       
       {
         path: "/uprtcl/1/persp",
@@ -147,8 +164,11 @@ export class UprtclController {
         method: "post",
         handler: [
           checkJwt,
-          async ({ body }: Request, res: Response) => {
-            const elementId = await this.uprtclService.createData(body, '');
+          async (req: Request, res: Response) => {
+            const elementId = await this.uprtclService.createData(
+              req.body, 
+              getUserFromReq(req));
+              
             let result: PostResult = {
               result: SUCCESS,
               message: '',
@@ -202,8 +222,8 @@ export class UprtclController {
         method: "get",
         handler: [
           checkJwt,
-          async ({ params }: Request, res: Response) => {
-            const data = await this.uprtclService.getCommit(params.commitId, '');
+          async (req: Request, res: Response) => {
+            const data = await this.uprtclService.getCommit(req.params.commitId, getUserFromReq(req));
             let result: GetResult = {
               result: SUCCESS,
               message: '',

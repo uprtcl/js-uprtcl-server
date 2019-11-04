@@ -2,9 +2,10 @@ import { DGraphService } from "../../db/dgraph.service";
 import { PropertyOrder, Perspective, Commit } from "./types";
 import { ipldService } from "../ipld/ipldService";
 import { localCidConfig } from "../ipld";
-import { PERSPECTIVE_SCHEMA_NAME, COMMIT_SCHEMA_NAME } from "../../db/schema";
+import { PERSPECTIVE_SCHEMA_NAME, COMMIT_SCHEMA_NAME, TEXT_SCHEMA_NAME, DOCUMENT_NODE_SCHEMA_NAME, TEXT_NODE_SCHEMA_NAME, DATA_SCHEMA_NAME } from "../../db/schema";
 import { UserRepository } from "../user/user.repository";
 import { LOCAL_PROVIDER } from "../knownsources/knownsources.repository";
+import { DataRepository } from "../data/data.repository";
 
 const dgraph = require("dgraph-js");
 
@@ -41,7 +42,8 @@ export class UprtclRepository {
   
   constructor(
     protected db: DGraphService,
-    protected userRepo: UserRepository) {
+    protected userRepo: UserRepository, 
+    protected dataRepo: DataRepository) {
   }
 
   async createPerspective(perspective: Perspective) {
@@ -182,6 +184,43 @@ export class UprtclRepository {
     console.log('[DGRAPH] createCommit', {query}, {nquads}, result.getUidsMap().toArray());
     return commit.id;
   }
+
+  async getGeneric(elementId: string) {
+    await this.db.ready();
+
+    const query = `query {
+      element(func: eq(xid, ${elementId})) {
+        dgraph.type
+      }
+    }`;
+
+    let result = await this.db.client.newTxn().query(query);
+    let json = result.getJson();
+    console.log('[DGRAPH] getGeneric', {query}, JSON.stringify(json));
+    
+    let types: string[] = json.element[0]['dgraph.type'];
+
+    let dataTypes = [
+      DATA_SCHEMA_NAME,
+      TEXT_SCHEMA_NAME, 
+      TEXT_NODE_SCHEMA_NAME, 
+      DOCUMENT_NODE_SCHEMA_NAME
+    ]
+
+    /** if object is data */
+    if (dataTypes.includes(types[0])) {
+      return this.dataRepo.getData(elementId);
+    } else {
+      switch (types[0]) {
+        case PERSPECTIVE_SCHEMA_NAME:
+          return this.getPerspective(elementId);
+        
+        case COMMIT_SCHEMA_NAME:
+          return this.getCommit(elementId);
+      }
+    }
+    return null;
+ }
 
   async getPerspective(perspectiveId: string): Promise<Perspective | null> {
     await this.db.ready();

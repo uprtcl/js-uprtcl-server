@@ -16,8 +16,8 @@ const dbService = new DGraphService('localhost:9080');
 
 const userRepo = new UserRepository(dbService);
 const accessRepo = new AccessRepository(dbService, userRepo);
-const uprtclRepo = new UprtclRepository(dbService, userRepo);
 const dataRepo = new DataRepository(dbService, userRepo);
+const uprtclRepo = new UprtclRepository(dbService, userRepo, dataRepo);
 const knownSourcesRepo = new KnownSourcesRepository(dbService, userRepo);
 
 const accessService = new AccessService(dbService, accessRepo);

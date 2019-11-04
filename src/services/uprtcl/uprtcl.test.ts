@@ -142,6 +142,16 @@ const getKnownSources = async (
   return JSON.parse(get.text).data;
 }
 
+const getGeneric = async <T>(elementId: string, jwt: string): Promise<T> => {
+  const get = await request(router)
+    .get(`/uprtcl/1/get/${elementId}`)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
+  expect(get.status).toEqual(200);
+  
+  return JSON.parse(get.text).data;
+}
+
 const getPerspective = async (perspectiveId: string, jwt: string):Promise<Perspective> => {
   const get = await request(router)
     .get(`/uprtcl/1/persp/${perspectiveId}`)
@@ -372,7 +382,49 @@ describe("routes", () => {
     expect(perspectiveHeadRead2).toEqual(commit2Id);
   });
 
-  test("CRUD private perspectives", async () => {
+  test("generic getters", async () => {
+    const creatorId = 'did:method:12345';
+    const name = 'test';
+    const context = 'wikipedia.barack_obama';
+    const timestamp = 1568027451548;
+
+    const user1 = await createUser('seed001');
+    
+    const perspectiveId = await createPerspective(creatorId, name, context, timestamp, user1.jwt);
+    const perspectiveRead01 = await getGeneric<Perspective>(perspectiveId, user1.jwt);
+
+    const origin = 'https://www.collectiveone.org/uprtcl/1';
+
+    expect(perspectiveRead01.id).toEqual(perspectiveId);
+    expect(perspectiveRead01.creatorId).toEqual(creatorId);
+    expect(perspectiveRead01.timestamp).toEqual(timestamp);
+    expect(perspectiveRead01.name).toEqual(name);
+    expect(perspectiveRead01.context).toEqual(context);
+    expect(perspectiveRead01.origin).toEqual(origin);
+    
+    const text1 = 'new content';
+    const par1Id = await createText(text1, user1.jwt); 
+    const dataRead = await getGeneric<any>(par1Id, user1.jwt);
+
+    expect(dataRead.id).toEqual(par1Id);
+    expect(dataRead.text).toEqual(text1);
+
+    const message = 'commit message';
+    const commit1Id = await createCommit(creatorId, timestamp, message, [], par1Id, user1.jwt);
+    const commitRead = await getGeneric<Commit>(commit1Id, user1.jwt);
+
+    expect(commitRead.id).toEqual(commit1Id);
+    expect(commitRead.creatorId).toEqual(creatorId);
+    expect(commitRead.timestamp).toEqual(timestamp);
+    expect(commitRead.message).toEqual(message);
+    expect(commitRead.dataId).toEqual(par1Id);
+    expect(commitRead.parentsIds.length).toEqual(0);
+
+    
+    
+  });
+
+  test.skip("CRUD private perspectives", async () => {
     const creatorId = 'did:method:12345';
     const name = 'test';
     const context = 'wikipedia.barack_obama';
@@ -382,14 +434,25 @@ describe("routes", () => {
     let user2 = await createUser('seed2');
    
     let perspectiveId = await createPerspective(creatorId, name, context, timestamp, user1.jwt);
+
+    /** test generic get */
+    let perspectiveRead01 = await getGeneric<Perspective>(perspectiveId, user1.jwt);
+
+    const origin = 'https://www.collectiveone.org/uprtcl/1';
+
+    expect(perspectiveRead01.id).toEqual(perspectiveId);
+    expect(perspectiveRead01.creatorId).toEqual(creatorId);
+    expect(perspectiveRead01.timestamp).toEqual(timestamp);
+    expect(perspectiveRead01.name).toEqual(name);
+    expect(perspectiveRead01.context).toEqual(context);
+    expect(perspectiveRead01.origin).toEqual(origin);
+
     let perspectiveRead1 = await getPerspective(perspectiveId, user2.jwt);
     
     expect(perspectiveRead1).toBeNull();
 
     let perspectiveRead = await getPerspective(perspectiveId, user1.jwt);
     
-    const origin = 'https://www.collectiveone.org/uprtcl/1';
-
     expect(perspectiveRead.id).toEqual(perspectiveId);
     expect(perspectiveRead.creatorId).toEqual(creatorId);
     expect(perspectiveRead.timestamp).toEqual(timestamp);
@@ -521,7 +584,6 @@ describe("routes", () => {
     expect(perspectiveHeadRead3oox).toBeNull()
 
   });
-
 
   test.skip("CRUD text data", async () => {
     let text = 'an example text';

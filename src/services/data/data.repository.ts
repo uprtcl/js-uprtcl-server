@@ -92,7 +92,7 @@ export class DataRepository {
     return dataDto.id;
   }
 
-  async getData(dataId: string): Promise<DataC1If | null> {
+  async getData(dataId: string): Promise<Object | null> {
     await this.db.ready();
 
     const query = `query {
@@ -117,8 +117,8 @@ export class DataRepository {
     if (!ddata.stored) return null;
 
     let data: any = {};
-    let c1Type = '';
-
+    data['id'] = dataId;
+    
     let dgraphTypes = ddata['dgraph.type'];
 
     if (dgraphTypes.includes(TEXT_SCHEMA_NAME)) {
@@ -131,13 +131,8 @@ export class DataRepository {
 
     if (dgraphTypes.includes(DOCUMENT_NODE_SCHEMA_NAME)) {
       data['doc_node_type'] = ddata['doc_node_type'];
-      c1Type = 'DOCUMENT_NODE';
     }
 
-    return {
-      id: ddata.xid,
-      jsonData: JSON.stringify(data),
-      type: c1Type
-    }
+    return data
   }
 }
