@@ -2,45 +2,75 @@ import CID from 'cids';
 import multihashing from 'multihashing-async';
 import Buffer from 'buffer/';
 import { CidConfig } from './cid.config';
+import { Secured } from '../uprtcl/types';
+import { localCidConfig } from '.';
+
+export function sortObject(object: any): object {
+  if (typeof object !== 'object' || object instanceof Array) {
+    // Not to sort the array
+    return object;
+  }
+  const keys = Object.keys(object).sort();
+
+  const newObject: any = {};
+  for (let i = 0; i < keys.length; i++) {
+    newObject[keys[i]] = sortObject(object[keys[i]]);
+  }
+  return newObject;
+}
 
 export class IpldService {
   async generateCidOrdered(
     object: any,
-    cidConfig: CidConfig,
-    propertyOrder: string[]
+    cidConfig: CidConfig
   ) {
-    const plain: any = {};
+    return ipldService.generateCid(sortObject(object), cidConfig);
+  }
 
-    for (const key of propertyOrder) {
-      plain[key] = object[key];
+  async validateSecured(secured: Secured) {
+    if (secured.id !== undefined && secured.id !== '') {
+      let valid = await this.validateCid(
+        secured.id,
+        secured.object
+      );
+      if (!valid) {
+        throw new Error(`Invalid cid ${secured.id}`);
+      }
+      return secured.id;
+    } else {
+      const id = await ipldService.generateCidOrdered(
+        secured.object,
+        localCidConfig
+      );
+      return id
     }
-
-    return ipldService.generateCid(plain, cidConfig);
   }
 
   async validateCid(
     cidStr: string,
-    object: object,
-    propertyOrder: string[]
+    object: object
   ): Promise<boolean> {
     let cidConfig = CidConfig.fromCid(cidStr);
     let cidCheck = await this.generateCidOrdered(
       object,
-      cidConfig,
-      propertyOrder
+      cidConfig
     );
-    return cidCheck === cidStr;
+    const valid = cidCheck === cidStr;
+    if (!valid) {
+      console.log(`[IPLD-SERVICE] validateCid invalid`, {
+        object, cidConfig, cidExpected: cidStr, cidCheck});
+    }
+    return valid;
   }
 
-  /** wrapper that takes a message and computes its [cid](https://github.com/multiformats/cid) */
   async generateCid(object: object, cidConfig: CidConfig): Promise<string> {
-    if (typeof object !== 'object')
+    if (typeof object !== 'object') {
       throw new Error('Object expected, not the stringified string!');
+    }
 
-    /** other clients should hash the stringified object directly  */
     const b = Buffer.Buffer.from(JSON.stringify(object));
     const encoded = await multihashing(b, cidConfig.type);
-    // TODO check if raw or dag-pb
+    
     const cid = new CID(
       cidConfig.version,
       cidConfig.codec,

@@ -1,6 +1,7 @@
 var PermissionType = require("./dgraph.service");
 
 export const PERSPECTIVE_SCHEMA_NAME = 'Perspective';
+export const PROOF_SCHEMA_NAME = 'Proof';
 export const PROFILE_SCHEMA_NAME = 'Profile';
 export const COMMIT_SCHEMA_NAME = 'Commit';
 export const DATA_SCHEMA_NAME = 'Data';
@@ -12,6 +13,11 @@ export const PERMISSIONS_SCHEMA_NAME = 'Permissions';
 export const ACCESS_CONFIG_SCHEMA_NAME = 'AccessConfig';
 
 export const SCHEMA = `
+
+type ${PROOF_SCHEMA_NAME} {
+  signature: string
+  proof_type: string
+}
 
 type ${PROFILE_SCHEMA_NAME} {
   did: string
@@ -35,14 +41,15 @@ type ${ACCESS_CONFIG_SCHEMA_NAME} {
 
 type ${PERSPECTIVE_SCHEMA_NAME} {
   xid: string
-  name: string
   creator: uid
-  context: string
   origin: string
   timestamp: datetime
   head: ${COMMIT_SCHEMA_NAME}
+  name: string
+  context: string
   stored: bool
   accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
+  proof: ${PROOF_SCHEMA_NAME}
 }
 
 type ${COMMIT_SCHEMA_NAME} {
@@ -97,9 +104,11 @@ stored: bool @index(bool) .
 xid: string @index(exact) @upsert .
 did: string @index(exact) @upsert .
 links: [uid] @reverse .
-context: string @index(exact) .
 head: uid .
+name: string @index(exact) .
+context: string @index(exact) .
 creator: uid .
+proof: uid .
 
 # data objects
 data: uid .

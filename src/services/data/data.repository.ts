@@ -1,6 +1,6 @@
 import { DGraphService } from "../../db/dgraph.service";
 import { UserRepository } from "../user/user.repository";
-import { DataDto, dataTypeOrder, DataType } from "../uprtcl/types";
+import { DataDto, DataType } from "../uprtcl/types";
 import { localCidConfig } from "../ipld";
 import { ipldService } from "../ipld/ipldService";
 import { DATA_SCHEMA_NAME, DOCUMENT_NODE_SCHEMA_NAME, TEXT_NODE_SCHEMA_NAME, TEXT_SCHEMA_NAME } from "../../db/schema";
@@ -31,13 +31,12 @@ export class DataRepository {
   async createData(dataDto: DataDto) {
     await this.db.ready();
 
-    const data = JSON.parse(dataDto.jsonData);
+    const data = dataDto.data;
 
-    if (dataDto.id !== '') {
+    if (dataDto.id !== undefined && dataDto.id !== '') {
       let valid = await ipldService.validateCid(
         dataDto.id,
-        data,
-        dataTypeOrder(dataDto.type)
+        data
       );
       if (!valid) {
         throw new Error(`Invalid cid ${dataDto.id}`);
@@ -45,8 +44,7 @@ export class DataRepository {
     } else {
       dataDto.id = await ipldService.generateCidOrdered(
         data,
-        localCidConfig,
-        dataTypeOrder(dataDto.type)
+        localCidConfig
       );
     }
 

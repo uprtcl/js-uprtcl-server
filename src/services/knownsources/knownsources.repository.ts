@@ -1,9 +1,6 @@
 import { DGraphService } from "../../db/dgraph.service";
 import { UserRepository } from "../user/user.repository";
-import { DataDto, dataTypeOrder, DataType } from "../uprtcl/types";
-import { localCidConfig } from "../ipld";
-import { ipldService } from "../ipld/ipldService";
-import { DATA_SCHEMA_NAME, DOCUMENT_NODE_SCHEMA_NAME, TEXT_NODE_SCHEMA_NAME, TEXT_SCHEMA_NAME, KNOWN_SOURCES_SCHEMA_NAME } from "../../db/schema";
+import { KNOWN_SOURCES_SCHEMA_NAME } from "../../db/schema";
 
 const dgraph = require("dgraph-js");
 

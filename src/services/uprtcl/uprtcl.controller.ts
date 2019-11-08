@@ -94,12 +94,12 @@ export class UprtclController {
       },
 
       {
-        path: "/uprtcl/1/persp/:perspectiveId/head",
+        path: "/uprtcl/1/persp/:perspectiveId/details",
         method: "get",
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const data = await this.uprtclService.getPerspectiveHead(
+            const data = await this.uprtclService.getPerspectiveDetails(
               req.params.perspectiveId,
               getUserFromReq(req));
             let result: GetResult = {
@@ -113,7 +113,7 @@ export class UprtclController {
       },
 
       {
-        path: "/uprtcl/1/persp/:perspectiveId",
+        path: "/uprtcl/1/persp/:perspectiveId/details",
         method: "put",
         handler: [
           checkJwt,
@@ -121,7 +121,7 @@ export class UprtclController {
             try {
               await this.uprtclService.updatePerspective(
                 req.params.perspectiveId, 
-                req.query.headId, 
+                req.body, 
                 getUserFromReq(req));
   
               let result: PostResult = {
@@ -168,7 +168,7 @@ export class UprtclController {
             const elementId = await this.uprtclService.createData(
               req.body, 
               getUserFromReq(req));
-              
+
             let result: PostResult = {
               result: SUCCESS,
               message: '',

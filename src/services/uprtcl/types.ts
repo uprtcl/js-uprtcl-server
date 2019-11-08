@@ -1,14 +1,17 @@
+
+export interface PerspectiveDetails {
+  name?: string;
+  context?: string | undefined;
+  headId?: string | undefined;
+}
+
 export interface Perspective {
-  id: string;
   origin: string;
   creatorId: string;
   timestamp: number;
-  context: string;
-  name: string;
 }
 
 export interface Commit {
-  id: string;
   creatorId: string;
   timestamp: number;
   message: string;
@@ -27,38 +30,11 @@ export enum DocNodeType {
   paragraph = 'paragraph'
 } 
 
-
 export interface DataDto {
   id: string,
   type: DataType,
-  jsonData: any,
+  data: any,
 }
-
-export const PropertyOrder = {
-  Context: ['creatorId', 'timestamp', 'nonce'],
-  Perspective: ['origin', 'creatorId', 'timestamp', 'context', 'name'],
-  Commit: ['creatorId', 'timestamp', 'message', 'parentsIds', 'dataId']
-};
-
-export const DataPropertyOrder = {
-  Text: ['text'],
-  TextNode: ['text', 'links'],
-  DocumentNode: ['text', 'links', 'doc_node_type']
-}
-
-export const dataTypeOrder = (type: DataType): string[] => {
-  switch(type) {
-    case DataType.TEXT: 
-      return DataPropertyOrder.Text;
-    
-    case DataType.TEXT_NODE:
-      return DataPropertyOrder.TextNode;
-
-    case DataType.DOCUMENT_NODE:
-      return DataPropertyOrder.DocumentNode;
-  }
-  return []
-}  
 
 export interface PostResult {
   result: string;
@@ -71,3 +47,19 @@ export interface GetResult {
   message: string;
   data: any;
 }
+
+export interface Hashed<T> {
+  id: string;
+  object: T;
+}
+
+export interface Proof {
+  signature: string;
+  type: string;
+}
+export interface Signed<T = any> {
+  payload: T;
+  proof: Proof;
+}
+
+export type Secured<T = any> = Hashed<Signed<T>>;
