@@ -136,7 +136,7 @@ export class UprtclController {
                 message: error.message,
                 elementIds: []
               }
-              res.status(200).send(result);
+              res.status(400).send(result);
             }
           }
         ]
@@ -186,8 +186,7 @@ export class UprtclController {
           checkJwt,
           async (req: Request, res: Response) => {
             const data = await this.uprtclService.getData(
-              req.params.dataId,
-              getUserFromReq(req));
+              req.params.dataId);
             let result: GetResult = {
               result: SUCCESS,
               message: '',

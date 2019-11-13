@@ -94,9 +94,8 @@ export class UprtclService {
     return dataId;
   };
 
-  async getData(dataId: string, loggedUserId: string | null): Promise<any> {
+  async getData(dataId: string): Promise<any> {
     console.log('[UPRTCL-SERVICE] getData', dataId);
-    if (!(await this.access.can(dataId, loggedUserId, PermissionType.Read))) return null;
     let data = await this.dataRepo.getData(dataId);
     return data;
   };

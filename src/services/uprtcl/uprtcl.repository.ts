@@ -34,7 +34,7 @@ interface DgProof {
 interface DgCommit {
   uid?: string,
   xid: string,
-  creator: DgRef,
+  creators: DgRef[],
   timestamp: number,
   message: string,
   parents: Array<DgRef>,
@@ -68,6 +68,10 @@ export class UprtclRepository {
     const perspective = securedPerspective.object.payload;
     const proof = securedPerspective.object.proof;
 
+    if (perspective.origin !== LOCAL_PROVIDER) {
+      throw new Error(`Should I store perspectives with origin ${perspective.origin} from other origins? I thought I am ${LOCAL_PROVIDER}`);
+    }
+
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
@@ -81,7 +85,7 @@ export class UprtclRepository {
     nquads = nquads.concat(`\n_:perspective <stored> "true" .`);
     nquads = nquads.concat(`\n_:perspective <creator> uid(profile) .`);
     nquads = nquads.concat(`\n_:perspective <timestamp> "${perspective.timestamp}"^^<xs:int> .`);
-    nquads = nquads.concat(`\n_:perspective <origin> "${LOCAL_PROVIDER}" .`);
+    nquads = nquads.concat(`\n_:perspective <origin> "${perspective.origin}" .`);
     nquads = nquads.concat(`\n_:perspective <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`);
 
     nquads = nquads.concat(`\n_:proof <dgraph.type> "${PROOF_SCHEMA_NAME}" .`);
@@ -110,19 +114,26 @@ export class UprtclRepository {
     const req = new dgraph.Request();
 
     /** make sure creatorId exist */
-    await this.userRepo.upsertProfile(commit.creatorId);
+    for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
+      await this.userRepo.upsertProfile(commit.creatorsIds[ix]);
+    }
     
     /** commit object might exist because of parallel update head call */
     let query = `\ncommit as var(func: eq(xid, ${id}))`;
     
     query = query.concat(`\ndata as var(func: eq(xid, "${commit.dataId}"))`);
-    query = query.concat(`\nprofile as var(func: eq(did, "${commit.creatorId.toLowerCase()}"))`);
-  
+    
     let nquads = `uid(commit) <xid> "${id}" .`;
     nquads = nquads.concat(`\nuid(commit) <stored> "true" .`);
     nquads = nquads.concat(`\nuid(commit) <dgraph.type> "${COMMIT_SCHEMA_NAME}" .`);
     nquads = nquads.concat(`\nuid(commit) <message> "${commit.message}" .`);
-    nquads = nquads.concat(`\nuid(commit) <creator> uid(profile) .`);
+    
+    for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
+      await this.userRepo.upsertProfile(commit.creatorsIds[ix]);
+      query = query.concat(`\ncreator${ix} as var(func: eq(did, "${commit.creatorsIds[ix].toLowerCase()}"))`);
+      nquads = nquads.concat(`\nuid(commit) <creator> uid(creator${ix}) .`);  
+    }
+
     nquads = nquads.concat(`\nuid(commit) <timestamp> "${commit.timestamp}"^^<xs:int> .`);
     nquads = nquads.concat(`\nuid(commit) <data> uid(data) .`)
 
@@ -370,7 +381,7 @@ export class UprtclRepository {
     if (!dcommit.stored) new Error(`Commit with id ${commitId} not found`);
 
     const commit: Commit = {
-      creatorId: dcommit.creator.did,
+      creatorsIds: dcommit.creators.map((creator: any) => creator.did),
       dataId: dcommit.data.xid,
       timestamp: dcommit.timestamp,
       message: dcommit.message,

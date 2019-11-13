@@ -12,7 +12,7 @@ export interface Perspective {
 }
 
 export interface Commit {
-  creatorId: string;
+  creatorsIds: string[];
   timestamp: number;
   message: string;
   parentsIds: Array<string>;

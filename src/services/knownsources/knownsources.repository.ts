@@ -4,7 +4,7 @@ import { KNOWN_SOURCES_SCHEMA_NAME } from "../../db/schema";
 
 const dgraph = require("dgraph-js");
 
-export const LOCAL_PROVIDER = 'https://www.collectiveone.org/uprtcl/1';
+export const LOCAL_PROVIDER = 'http:evees-v1:localhost';
 
 export interface DataC1If {
   id: string;
