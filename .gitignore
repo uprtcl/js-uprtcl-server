@@ -1,6 +1,5 @@
 node_modules/
 dist/
 coverage/
-.env
 dgraph/1million.rdf.gz
-dgraph
+dgraph/
