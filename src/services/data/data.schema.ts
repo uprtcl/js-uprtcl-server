@@ -1,3 +1,5 @@
+import { ACCESS_CONFIG_SCHEMA_NAME } from "../access/access.schema";
+
 export const DATA_SCHEMA_NAME = 'Data';
 export const TEXT_SCHEMA_NAME = 'Text';
 export const TEXT_NODE_SCHEMA_NAME = 'TextNode';

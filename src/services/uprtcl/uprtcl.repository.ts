@@ -1,10 +1,11 @@
 import { DGraphService } from "../../db/dgraph.service";
 import { ipldService } from "../ipld/ipldService";
-import { PERSPECTIVE_SCHEMA_NAME, COMMIT_SCHEMA_NAME, TEXT_SCHEMA_NAME, DOCUMENT_NODE_SCHEMA_NAME, TEXT_NODE_SCHEMA_NAME, DATA_SCHEMA_NAME, PROOF_SCHEMA_NAME } from "../../db/schema";
 import { UserRepository } from "../user/user.repository";
 import { LOCAL_PROVIDER } from "../knownsources/knownsources.repository";
 import { DataRepository } from "../data/data.repository";
 import { Perspective, PerspectiveDetails, Commit, Secured, Proof } from "./types";
+import { PERSPECTIVE_SCHEMA_NAME, PROOF_SCHEMA_NAME, COMMIT_SCHEMA_NAME } from "./uprtcl.schema";
+import { DATA_SCHEMA_NAME, TEXT_SCHEMA_NAME, TEXT_NODE_SCHEMA_NAME, DOCUMENT_NODE_SCHEMA_NAME } from "../data/data.schema";
 
 const dgraph = require("dgraph-js");
 

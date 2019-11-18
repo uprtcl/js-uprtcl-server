@@ -51,3 +51,7 @@ export interface GetResult {
   data: any;
 }
 
+export interface ExtendedMatchers extends jest.Matchers<void> {
+  toBeValidCid: () => object;
+}
+

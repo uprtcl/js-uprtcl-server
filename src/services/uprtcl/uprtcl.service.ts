@@ -3,9 +3,9 @@ import { DGraphService } from "../../db/dgraph.service";
 import { AccessService } from "../access/access.service";
 import { NOT_AUTHORIZED_MSG } from "./uprtcl.controller";
 import { UprtclRepository } from "./uprtcl.repository";
-import { PermissionType } from "../access/access.repository";
 import { KnownSourcesRepository } from "../knownsources/knownsources.repository";
 import { DataRepository } from "../data/data.repository";
+import { PermissionType } from "../access/access.schema";
 
 export class UprtclService {
 
