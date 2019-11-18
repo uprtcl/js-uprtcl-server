@@ -1,18 +1,11 @@
 import { DGraphService } from "../../db/dgraph.service";
 import { UserRepository } from "../user/user.repository";
-import { DataDto, DataType } from "../uprtcl/types";
+import { DataDto, DataType } from "./types";
 import { localCidConfig } from "../ipld";
 import { ipldService } from "../ipld/ipldService";
-import { DATA_SCHEMA_NAME, DOCUMENT_NODE_SCHEMA_NAME, TEXT_NODE_SCHEMA_NAME, TEXT_SCHEMA_NAME } from "../../db/schema";
+import { DATA_SCHEMA_NAME, DOCUMENT_NODE_SCHEMA_NAME, TEXT_NODE_SCHEMA_NAME, TEXT_SCHEMA_NAME } from "./data.schema";
 
 const dgraph = require("dgraph-js");
-
-interface DgData {
-  uid?: string,
-  xid: string,
-  'dgraph.type'?: string,
-  stored: boolean
-}
 
 export interface DataC1If {
   id: string;
@@ -61,6 +54,7 @@ export class DataRepository {
     nquads = nquads.concat(`\nuid(data) <dgraph.type> "${DATA_SCHEMA_NAME}" .`);
 
     switch (dataDto.type) {
+
       case DataType.DOCUMENT_NODE:
         nquads = nquads.concat(`\nuid(data) <dgraph.type> "${DOCUMENT_NODE_SCHEMA_NAME}" .`);
         nquads = nquads.concat(`\nuid(data) <doc_node_type> "${data.type}" .`);

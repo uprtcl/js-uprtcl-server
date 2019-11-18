@@ -1,14 +1,8 @@
 import { DGraphService } from "../../db/dgraph.service";
-import { PERMISSIONS_SCHEMA_NAME, ACCESS_CONFIG_SCHEMA_NAME } from "../../db/schema";
 import { UserRepository } from "../user/user.repository";
+import { PERMISSIONS_SCHEMA_NAME, PermissionType, ACCESS_CONFIG_SCHEMA_NAME } from "./access.schema";
 
 const dgraph = require("dgraph-js");
-
-export enum PermissionType {
-  Read = 'Read',
-  Write = 'Write',
-  Admin = 'Admin'
-}
 
 export interface PermissionConfig {
   publicRead: boolean,

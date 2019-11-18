@@ -1,8 +1,7 @@
-import { Perspective, Commit, DataDto, PerspectiveDetails, Secured } from "./types";
+import { Perspective, Commit, PerspectiveDetails, Secured } from "./types";
 import { DGraphService } from "../../db/dgraph.service";
 import { AccessService } from "../access/access.service";
-import { NOT_AUTHORIZED_MSG, SUCCESS } from "./uprtcl.controller";
-import { UserService } from "../user/user.service";
+import { NOT_AUTHORIZED_MSG } from "./uprtcl.controller";
 import { UprtclRepository } from "./uprtcl.repository";
 import { PermissionType } from "../access/access.repository";
 import { KnownSourcesRepository } from "../knownsources/knownsources.repository";
@@ -82,22 +81,6 @@ export class UprtclService {
     }
     let commit = await this.uprtclRepo.getCommit(commitId);
     return commit;
-  };
-
-  async createData(
-    data: DataDto, 
-    _loggedUserId: string | null): Promise<string> {
-
-    console.log('[UPRTCL-SERVICE] createData', data);
-    let dataId = await this.dataRepo.createData(data);
-    
-    return dataId;
-  };
-
-  async getData(dataId: string): Promise<any> {
-    console.log('[UPRTCL-SERVICE] getData', dataId);
-    let data = await this.dataRepo.getData(dataId);
-    return data;
   };
 
   async addKnownSources(elementId: string, sources: Array<string>) {

@@ -29,3 +29,25 @@ export const applyRoutes = (routes: Route[], router: Router) => {
     (router as any)[method](path, handler);
   }
 };
+
+export const getUserFromReq = (req: Request) => {
+  return req.user ? (req.user !== '' ? req.user : null) : null
+}
+
+export const SUCCESS = 'success';
+export const ERROR = 'error';
+export const NOT_AUTHORIZED_MSG = 'not authorized';
+
+
+export interface PostResult {
+  result: string;
+  message: string;
+  elementIds: string[];
+}
+
+export interface GetResult {
+  result: string;
+  message: string;
+  data: any;
+}
+
