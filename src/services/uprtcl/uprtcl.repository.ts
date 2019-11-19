@@ -205,43 +205,6 @@ export class UprtclRepository {
     console.log('[DGRAPH] updatePerspective', {query}, {nquads}, result.getUidsMap().toArray());
   }
 
-  async getGeneric(elementId: string) {
-    await this.db.ready();
-
-    const query = `query {
-      element(func: eq(xid, ${elementId})) {
-        dgraph.type
-      }
-    }`;
-
-    let result = await this.db.client.newTxn().query(query);
-    let json = result.getJson();
-    console.log('[DGRAPH] getGeneric', {query}, JSON.stringify(json));
-    
-    let types: string[] = json.element[0]['dgraph.type'];
-
-    let dataTypes = [
-      DATA_SCHEMA_NAME,
-      TEXT_SCHEMA_NAME, 
-      TEXT_NODE_SCHEMA_NAME, 
-      DOCUMENT_NODE_SCHEMA_NAME
-    ]
-
-    /** if object is data */
-    if (dataTypes.includes(types[0])) {
-      return this.dataRepo.getData(elementId);
-    } else {
-      switch (types[0]) {
-        case PERSPECTIVE_SCHEMA_NAME:
-          return this.getPerspective(elementId);
-        
-        case COMMIT_SCHEMA_NAME:
-          return this.getCommit(elementId);
-      }
-    }
-    return null;
- }
-
   async getPerspective(perspectiveId: string): Promise<Secured<Perspective>> {
     await this.db.ready();
     const query = `query {

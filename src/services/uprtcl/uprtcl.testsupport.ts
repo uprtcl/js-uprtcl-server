@@ -1,6 +1,6 @@
 import request from "supertest";
 import { router } from "../../server";
-import { Perspective, Commit } from "./types";
+import { Perspective, Commit, Hashed, Signed, PerspectiveDetails } from "./types";
 import { PostResult, ExtendedMatchers } from "../../utils";
 
 export const createPerspective = async (
@@ -28,11 +28,11 @@ export const createPerspective = async (
 
 export const updatePerspective = async (
   perspectiveId: string, 
-  headId: string, 
+  details: PerspectiveDetails, 
   jwt: string) : Promise<PostResult> => {
 
-  const put = await request(router).put(`/uprtcl/1/persp/${perspectiveId}?headId=${headId}`)
-  .send()
+  const put = await request(router).put(`/uprtcl/1/persp/${perspectiveId}/details`)
+  .send(details)
   .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   expect(put.status).toEqual(200);
@@ -67,7 +67,7 @@ export const createCommit = async (
   return result;
 }
 
-export const getPerspective = async (perspectiveId: string, jwt: string):Promise<Perspective> => {
+export const getPerspective = async (perspectiveId: string, jwt: string):Promise<Hashed<Signed<Perspective>>> => {
   const get = await request(router)
     .get(`/uprtcl/1/persp/${perspectiveId}`)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
@@ -77,9 +77,9 @@ export const getPerspective = async (perspectiveId: string, jwt: string):Promise
   return JSON.parse(get.text).data;
 }
 
-export const getPerspectiveHead = async (perspectiveId: string, jwt: string):Promise<string> => {
+export const getPerspectiveDetails = async (perspectiveId: string, jwt: string):Promise<PerspectiveDetails> => {
   const get = await request(router)
-    .get(`/uprtcl/1/persp/${perspectiveId}/head`)
+    .get(`/uprtcl/1/persp/${perspectiveId}/details`)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   expect(get.status).toEqual(200);

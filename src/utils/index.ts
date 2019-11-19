@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from "express";
+var CID  = require('cids');
 
 type Wrapper = ((router: Router) => void);
 
@@ -51,6 +52,19 @@ export interface GetResult {
   data: any;
 }
 
+export const toBeValidCid = (received: any) => {
+  if (CID.isCID(new CID(received))) {
+    return {
+      message: () => {return `expected ${received} not to be a valid cid`},
+      pass: true
+    };
+  } else {
+    return {
+      message: () => {return `expected ${received} to be a valid cid`},
+      pass: false
+    };
+  }
+}
 export interface ExtendedMatchers extends jest.Matchers<void> {
   toBeValidCid: () => object;
 }

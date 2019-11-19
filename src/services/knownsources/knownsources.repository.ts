@@ -1,23 +1,58 @@
 import { DGraphService } from "../../db/dgraph.service";
 import { UserRepository } from "../user/user.repository";
-import { KNOWN_SOURCES_SCHEMA_NAME } from "../../db/schema";
+import { KNOWN_SOURCES_SCHEMA_NAME } from "./knownsources.schema";
 
 const dgraph = require("dgraph-js");
 
 export const LOCAL_PROVIDER = 'http:evees-v1:localhost';
 
-export interface DataC1If {
-  id: string;
-  type: string;
-  jsonData: string;
-}
-
-
 export class KnownSourcesRepository {
 
   constructor(
     protected db: DGraphService,
-    protected userRepo: UserRepository) {
+    protected dataRepo: UserRepository,
+    protected dataRepo: UserRepository,
+    protected dataRepo: UserRepository) {
+    
+  }
+
+  async getGeneric(elementId: string) {
+    await this.db.ready();
+
+    const query = `query {
+      element(func: eq(xid, ${elementId})) {
+        dgraph.type
+      }
+    }`;
+
+    let result = await this.db.client.newTxn().query(query);
+    let json = result.getJson();
+    console.log('[DGRAPH] getGeneric', {query}, JSON.stringify(json));
+    
+    let types: string[] = json.element[0]['dgraph.type'];
+
+    let dataTypes = [
+      DATA_SCHEMA_NAME,
+      TEXT_SCHEMA_NAME, 
+      TEXT_NODE_SCHEMA_NAME, 
+      DOCUMENT_NODE_SCHEMA_NAME
+    ]
+
+    TBD
+
+    /** if object is data */
+    if (dataTypes.includes(types[0])) {
+      return this.dataService.getData(elementId);
+    } else {
+      switch (types[0]) {
+        case PERSPECTIVE_SCHEMA_NAME:
+          return this.uprtclService.getPerspective(elementId);
+        
+        case COMMIT_SCHEMA_NAME:
+          return this.uprtclService.getCommit(elementId);
+      }
+    }
+    return null;
   }
 
   async addKnownSources(elementId: string, sources: Array<string>):Promise<void> {
