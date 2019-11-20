@@ -338,6 +338,8 @@ export class AccessRepository {
 
   async setAccessConfigOf(elementId: string, accessConfigUid: string): Promise<void> {
     await this.db.ready();
+
+    if (elementId == undefined || elementId === '') throw new Error(`ElementId is empty`);
     
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();

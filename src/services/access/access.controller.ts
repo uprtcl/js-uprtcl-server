@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { checkJwt } from "../../middleware/jwtCheck";
-import { getUserFromReq, SUCCESS, ERROR } from "../uprtcl/uprtcl.controller";
 import { AccessService } from "./access.service";
 import { PostResult } from "../uprtcl/types";
+import { getUserFromReq, SUCCESS, ERROR } from "../../utils";
 
 export class AccessController {
 

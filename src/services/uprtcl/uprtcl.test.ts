@@ -5,9 +5,7 @@ import { toBeValidCid } from "../../utils";
 import { createPerspective, getPerspective, createCommit, updatePerspective, getPerspectiveDetails } from "./uprtcl.testsupport";
 import { createDocNode } from "../data/support.data";
 import { DocNodeType } from "../data/types";
-
-jest.mock("request-promise");
-(promiseRequest as any).mockImplementation(() => '{"features": []}');
+import { LOCAL_EVEES_PROVIDER } from "../knownsources/knownsources.repository";
 
 describe("routes", () => {
 
@@ -23,12 +21,10 @@ describe("routes", () => {
     let perspectiveId = await createPerspective(creatorId, timestamp, '');
     let perspectiveRead = await getPerspective(perspectiveId, '');
     
-    const origin = 'https://www.collectiveone.org/uprtcl/1';
-
     expect(perspectiveRead.id).toEqual(perspectiveId);
     expect(perspectiveRead.object.payload.creatorId).toEqual(creatorId);
     expect(perspectiveRead.object.payload.timestamp).toEqual(timestamp);
-    expect(perspectiveRead.object.payload.origin).toEqual(origin);
+    expect(perspectiveRead.object.payload.origin).toEqual(LOCAL_EVEES_PROVIDER);
 
     /** update head */
     const message = 'commit message';
@@ -51,7 +47,7 @@ describe("routes", () => {
 
     let text2 = 'new content 2';
     let par2Id = await createDocNode(text1, DocNodeType.paragraph, [], '');
-    let commit2Id = await createCommit([creatorId], timestamp, message, [], par2Id, '');
+    let commit2Id = await createCommit([creatorId], timestamp, message, [commit1Id], par2Id, '');
 
     await updatePerspective(perspectiveId, { 
       headId: commit2Id

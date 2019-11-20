@@ -11,7 +11,7 @@ declare global {
   }
 }
 
-export class UprtclController {
+export class DataController {
 
   constructor(protected dataService: DataService) {
   }

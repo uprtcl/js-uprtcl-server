@@ -1,7 +1,7 @@
 import { DGraphService } from "../../db/dgraph.service";
 import { ipldService } from "../ipld/ipldService";
 import { UserRepository } from "../user/user.repository";
-import { LOCAL_PROVIDER } from "../knownsources/knownsources.repository";
+import { LOCAL_EVEES_PROVIDER } from "../knownsources/knownsources.repository";
 import { DataRepository } from "../data/data.repository";
 import { Perspective, PerspectiveDetails, Commit, Secured, Proof } from "./types";
 import { PERSPECTIVE_SCHEMA_NAME, PROOF_SCHEMA_NAME, COMMIT_SCHEMA_NAME } from "./uprtcl.schema";
@@ -69,8 +69,8 @@ export class UprtclRepository {
     const perspective = securedPerspective.object.payload;
     const proof = securedPerspective.object.proof;
 
-    if (perspective.origin !== LOCAL_PROVIDER) {
-      throw new Error(`Should I store perspectives with origin ${perspective.origin} from other origins? I thought I am ${LOCAL_PROVIDER}`);
+    if (perspective.origin !== LOCAL_EVEES_PROVIDER) {
+      throw new Error(`Should I store perspectives with origin ${perspective.origin} from other origins? I thought I was ${LOCAL_EVEES_PROVIDER}`);
     }
 
     const mu = new dgraph.Mutation();
@@ -100,7 +100,7 @@ export class UprtclRepository {
     
     let result = await this.db.callRequest(req);
     console.log('[DGRAPH] createPerspective', {query}, {nquads}, result.getUidsMap().toArray());
-    return securedPerspective.id;
+    return id;
   }
 
   async createCommit(securedCommit: Secured<Commit>) {
@@ -365,9 +365,5 @@ export class UprtclRepository {
       }
     }
     return securedCommit;
-  }
-
-  async getOrigin():Promise<string> {
-    return LOCAL_PROVIDER;
   }
 }

@@ -1,5 +1,5 @@
 import { DGraphService } from "../../db/dgraph.service";
-import { PROFILE_SCHEMA_NAME } from "../../db/schema";
+import { PROFILE_SCHEMA_NAME } from "./user.schema";
 
 const dgraph = require("dgraph-js");
 

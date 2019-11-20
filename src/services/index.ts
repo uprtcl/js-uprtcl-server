@@ -10,6 +10,10 @@ import { UserRepository } from "./user/user.repository";
 import { UprtclRepository } from "./uprtcl/uprtcl.repository";
 import { DataRepository } from "./data/data.repository";
 import { KnownSourcesRepository } from "./knownsources/knownsources.repository";
+import { KnownSourcesController } from "./knownsources/knownsources.controller";
+import { DataService } from "./data/data.service";
+import { DataController } from "./data/data.controller";
+import { KnownSourcesService } from "./knownsources/knownsources.service";
 
 /** poors man dependency injection */
 const dbService = new DGraphService('localhost:9082');
@@ -18,20 +22,27 @@ const userRepo = new UserRepository(dbService);
 const accessRepo = new AccessRepository(dbService, userRepo);
 const dataRepo = new DataRepository(dbService, userRepo);
 const uprtclRepo = new UprtclRepository(dbService, userRepo, dataRepo);
-const knownSourcesRepo = new KnownSourcesRepository(dbService, userRepo);
+const knownSourcesRepo = new KnownSourcesRepository(dbService);
+
+const dataService = new DataService(dbService, dataRepo);
+const dataController = new DataController(dataService);
 
 const accessService = new AccessService(dbService, accessRepo);
 const accessController = new AccessController(accessService);
 
-const uprtclService = new UprtclService(dbService, uprtclRepo, dataRepo, knownSourcesRepo, accessService);
+const uprtclService = new UprtclService(dbService, uprtclRepo, accessService);
 const uprtclController = new UprtclController(uprtclService);
 
 const userService = new UserService(dbService, userRepo);
 const userController = new UserController(userService);
 
+const knownSourcesService = new KnownSourcesService(dbService, knownSourcesRepo, dataService, uprtclService);
+const knownSourcesController = new KnownSourcesController(knownSourcesService);
 
 export const routes = [
   ...uprtclController.routes(), 
+  ...dataController.routes(), 
   ...userController.routes(), 
-  ...accessController.routes()
+  ...accessController.routes(),
+  ...knownSourcesController.routes()
 ];

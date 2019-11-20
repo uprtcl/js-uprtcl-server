@@ -1,7 +1,8 @@
 import request from "supertest";
 import { router } from "../../server";
-import { Perspective, Commit, Hashed, Signed, PerspectiveDetails } from "./types";
+import { Perspective, Commit, PerspectiveDetails, Secured } from "./types";
 import { PostResult, ExtendedMatchers } from "../../utils";
+import { LOCAL_EVEES_PROVIDER } from "../knownsources/knownsources.repository";
 
 export const createPerspective = async (
   creatorId: string, 
@@ -9,13 +10,24 @@ export const createPerspective = async (
   jwt: string):Promise<string> => {
   
   const perspective: Perspective = {
-    origin: '',
+    origin: LOCAL_EVEES_PROVIDER,
     creatorId: creatorId,
     timestamp: timestamp
   }
 
+  const secured: Secured<Perspective> = {
+    id: '',
+    object: {
+      payload: perspective,
+      proof: {
+        signature: '',
+        type: ''
+      }
+    }
+  }
+
   const post = await request(router).post('/uprtcl/1/persp')
-  .send(perspective)
+  .send(secured)
   .set('Authorization', jwt ? `Bearer ${jwt}` : '');
   
   expect(post.status).toEqual(200);
@@ -56,8 +68,19 @@ export const createCommit = async (
     dataId: dataId
   }
 
+  const secured: Secured<Commit> = {
+    id: '',
+    object: {
+      payload: commit,
+      proof: {
+        signature: '',
+        type: ''
+      }
+    }
+  }
+
   const post = await request(router).post(`/uprtcl/1/commit`)
-  .send(commit)
+  .send(secured)
   .set('Authorization', jwt ? `Bearer ${jwt}` : '');;
 
   expect(post.status).toEqual(200);
@@ -67,7 +90,7 @@ export const createCommit = async (
   return result;
 }
 
-export const getPerspective = async (perspectiveId: string, jwt: string):Promise<Hashed<Signed<Perspective>>> => {
+export const getPerspective = async (perspectiveId: string, jwt: string):Promise<Secured<Perspective>> => {
   const get = await request(router)
     .get(`/uprtcl/1/persp/${perspectiveId}`)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');

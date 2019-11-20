@@ -65,7 +65,7 @@ export class IpldService {
 
   async generateCid(object: object, cidConfig: CidConfig): Promise<string> {
     if (typeof object !== 'object') {
-      throw new Error('Object expected, not the stringified string!');
+      throw new Error(`Object expected, received "${object}"`);
     }
 
     const b = Buffer.Buffer.from(JSON.stringify(object));

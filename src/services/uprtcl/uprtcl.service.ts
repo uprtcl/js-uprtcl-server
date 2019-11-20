@@ -15,12 +15,6 @@ export class UprtclService {
     protected access: AccessService) {
   }
 
-  async getGeneric(elementId: string, loggedUserId: string | null): Promise<Object | null> {
-    console.log('[UPRTCL-SERVICE] genericGet', {elementId, loggedUserId});
-    let object = await this.uprtclRepo.getGeneric(elementId);
-    return object;
-  };
-
   async createPerspective(
     perspective: Secured<Perspective>, 
     loggedUserId: string | null): Promise<string> {

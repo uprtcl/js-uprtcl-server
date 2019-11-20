@@ -68,23 +68,6 @@ export class KnownSourcesController {
             res.status(200).send(result);
           }
         ]
-      },
-
-      {
-        path: "/uprtcl/1/discovery/you",
-        method: "get",
-        handler: [
-          checkJwt,
-          async ({ params }: Request, res: Response) => {
-            const data = await this.knownSourcesService.getOrigin();
-            let result: GetResult = {
-              result: SUCCESS,
-              message: '',
-              data: data
-            }
-            res.status(200).send(result);
-          }
-        ]
       }
     ]
   }

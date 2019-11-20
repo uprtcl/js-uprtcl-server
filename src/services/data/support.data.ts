@@ -1,6 +1,7 @@
 import request from "supertest";
 import { DocNodeType, DataDto, DataType } from "./types";
 import { router } from "../../server";
+import { ExtendedMatchers } from "../../utils";
 
 export const createDocNode = async (text: string, doc_node_type: DocNodeType, links: string[], jwt: string):Promise<string> => {
   const data = {
