@@ -14,7 +14,7 @@ describe("routes", () => {
   expect.extend({toBeValidCid})
 
   test("CRUD public owner-less perspectives", async () => {
-    
+
     const creatorId = 'did:method:12345';
     const name = 'test';
     const context = 'wikipedia.barack_obama';
@@ -62,7 +62,8 @@ describe("routes", () => {
     expect(result3.data.name).toEqual(name);
   });
 
-  test.skip("CRUD private perspectives", async () => {
+  test("CRUD private perspectives", async () => {
+
     const creatorId = 'did:method:12345';
     const name = 'test';
     const context = 'wikipedia.barack_obama';
@@ -75,8 +76,7 @@ describe("routes", () => {
     
     let result1 = await getPerspective(perspectiveId, user2.jwt);
     expect(result1.result).toEqual(ERROR);
-    expect(result1.message).toEqual(NOT_AUTHORIZED_MSG);
-
+    
     let result2 = await getPerspective(perspectiveId, user1.jwt);
 
     expect(result2.data.id).toEqual(perspectiveId);

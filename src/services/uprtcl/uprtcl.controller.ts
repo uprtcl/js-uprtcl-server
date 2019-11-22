@@ -87,15 +87,39 @@ export class UprtclController {
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const data = await this.uprtclService.getPerspectiveDetails(
-              req.params.perspectiveId,
-              getUserFromReq(req));
-            let result: GetResult<PerspectiveDetails> = {
-              result: SUCCESS,
-              message: '',
-              data: data
+
+            let inputs: any = {
+              perspectiveId: req.params.perspectiveId, 
+              userId: getUserFromReq(req)
+            };
+
+            try {
+              const data = await this.uprtclService.getPerspectiveDetails(
+                inputs.perspectiveId,
+                inputs.userId);
+
+              let result: GetResult<PerspectiveDetails> = {
+                result: SUCCESS,
+                message: '',
+                data: data
+              }
+
+              console.log('[UPRTCL CONTROLLER] getPerspectiveDetails', 
+                { inputs: JSON.stringify(inputs), result: JSON.stringify(result) });
+
+              res.status(200).send(result);
+            } catch (error) {
+              console.log('[UPRTCL CONTROLLER] getPerspectiveDetails - Error', 
+                JSON.stringify(inputs), error);
+  
+              let result: GetResult<null> = {
+                result: ERROR,
+                message: error.message,
+                data: null
+              }
+  
+              res.status(200).send(result);
             }
-            res.status(200).send(result);
           }
         ]
       },
