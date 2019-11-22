@@ -2,8 +2,6 @@ import { Perspective, Commit, PerspectiveDetails, Secured } from "./types";
 import { DGraphService } from "../../db/dgraph.service";
 import { AccessService } from "../access/access.service";
 import { UprtclRepository } from "./uprtcl.repository";
-import { KnownSourcesRepository } from "../knownsources/knownsources.repository";
-import { DataRepository } from "../data/data.repository";
 import { PermissionType } from "../access/access.schema";
 import { NOT_AUTHORIZED_MSG } from "../../utils";
 
@@ -27,6 +25,9 @@ export class UprtclService {
 
   async getPerspective(perspectiveId: string, loggedUserId: string | null): Promise<Secured<Perspective>> {
     console.log('[UPRTCL-SERVICE] getPerspective', {perspectiveId, loggedUserId});
+    if (perspectiveId == undefined || perspectiveId === '') {
+      throw new Error(`perspectiveId is empty`)
+    }
     if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Read))) {
       throw new Error(`access to ${perspectiveId} denied to ${loggedUserId}`);
     }

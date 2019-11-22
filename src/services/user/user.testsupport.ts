@@ -29,7 +29,7 @@ const getJwtToken = async (userDid: string, privateKey: string) : Promise<string
   return JSON.parse(put.text).data.jwt;
 }
 
-const createUser = async (seed: string) : Promise<TestUser> => {
+export const createUser = async (seed: string) : Promise<TestUser> => {
   let web3 = new Web3();
   let account = web3.eth.accounts.create(seed);
   let userDid = `did:ethr:${account.address}`

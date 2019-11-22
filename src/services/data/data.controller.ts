@@ -47,7 +47,7 @@ export class DataController {
           async (req: Request, res: Response) => {
             const data = await this.dataService.getData(
               req.params.dataId);
-            let result: GetResult = {
+            let result: GetResult<any> = {
               result: SUCCESS,
               message: '',
               data: data

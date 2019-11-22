@@ -26,7 +26,7 @@ export class KnownSourcesController {
           checkJwt,
           async (req: Request, res: Response) => {
             const data = await this.knownSourcesService.getGeneric(req.params.hash, getUserFromReq(req));
-            let result: GetResult = {
+            let result: GetResult<string[]> = {
               result: SUCCESS,
               message: '',
               data: data
@@ -60,7 +60,7 @@ export class KnownSourcesController {
           checkJwt,
           async ({ params, }: Request, res: Response) => {
             const data = await this.knownSourcesService.getKnownSources(params.elementId);
-            let result: GetResult = {
+            let result: GetResult<string[]> = {
               result: SUCCESS,
               message: '',
               data: data

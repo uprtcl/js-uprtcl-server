@@ -19,18 +19,6 @@ export interface Commit {
   dataId: string;
 }
 
-export interface PostResult {
-  result: string;
-  message: string;
-  elementIds: string[];
-}
-
-export interface GetResult {
-  result: string;
-  message: string;
-  data: any;
-}
-
 export interface Hashed<T> {
   id: string;
   object: T;

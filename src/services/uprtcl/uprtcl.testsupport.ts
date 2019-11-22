@@ -1,7 +1,7 @@
 import request from "supertest";
 import { router } from "../../server";
 import { Perspective, Commit, PerspectiveDetails, Secured } from "./types";
-import { PostResult, ExtendedMatchers } from "../../utils";
+import { PostResult, ExtendedMatchers, GetResult } from "../../utils";
 import { LOCAL_EVEES_PROVIDER } from "../knownsources/knownsources.repository";
 
 export const createPerspective = async (
@@ -30,8 +30,6 @@ export const createPerspective = async (
   .send(secured)
   .set('Authorization', jwt ? `Bearer ${jwt}` : '');
   
-  expect(post.status).toEqual(200);
-
   let result: any = JSON.parse(post.text).elementIds[0];
   (expect(result) as unknown as ExtendedMatchers).toBeValidCid();
 
@@ -46,8 +44,6 @@ export const updatePerspective = async (
   const put = await request(router).put(`/uprtcl/1/persp/${perspectiveId}/details`)
   .send(details)
   .set('Authorization', jwt ? `Bearer ${jwt}` : '');
-
-  expect(put.status).toEqual(200);
 
   return JSON.parse(put.text);
 }
@@ -83,40 +79,33 @@ export const createCommit = async (
   .send(secured)
   .set('Authorization', jwt ? `Bearer ${jwt}` : '');;
 
-  expect(post.status).toEqual(200);
   let result: any = JSON.parse(post.text).elementIds[0];
   (expect(result) as unknown as ExtendedMatchers).toBeValidCid();
 
   return result;
 }
 
-export const getPerspective = async (perspectiveId: string, jwt: string):Promise<Secured<Perspective>> => {
+export const getPerspective = async (perspectiveId: string, jwt: string):Promise<GetResult<Secured<Perspective>>> => {
   const get = await request(router)
     .get(`/uprtcl/1/persp/${perspectiveId}`)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
-  expect(get.status).toEqual(200);
-  
-  return JSON.parse(get.text).data;
+  return JSON.parse(get.text);
 }
 
-export const getPerspectiveDetails = async (perspectiveId: string, jwt: string):Promise<PerspectiveDetails> => {
+export const getPerspectiveDetails = async (perspectiveId: string, jwt: string):Promise<GetResult<PerspectiveDetails>> => {
   const get = await request(router)
     .get(`/uprtcl/1/persp/${perspectiveId}/details`)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
-
-  expect(get.status).toEqual(200);
   
-  return JSON.parse(get.text).data;
+  return JSON.parse(get.text);
 }
 
-export const getCommit = async (commitId: string, jwt: string):Promise<Commit> => {
+export const getCommit = async (commitId: string, jwt: string):Promise<GetResult<Commit>> => {
   const get = await request(router)
     .get(`/uprtcl/1/commit/${commitId}`)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
-
-  expect(get.status).toEqual(200);
   
-  return JSON.parse(get.text).data;
+  return JSON.parse(get.text);
 }
 

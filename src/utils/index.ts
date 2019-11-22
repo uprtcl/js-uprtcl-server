@@ -39,17 +39,16 @@ export const SUCCESS = 'success';
 export const ERROR = 'error';
 export const NOT_AUTHORIZED_MSG = 'not authorized';
 
-
 export interface PostResult {
   result: string;
   message: string;
   elementIds: string[];
 }
 
-export interface GetResult {
+export interface GetResult <T> {
   result: string;
   message: string;
-  data: any;
+  data: T;
 }
 
 export const toBeValidCid = (received: any) => {
