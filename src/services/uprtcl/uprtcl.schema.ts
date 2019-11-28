@@ -41,6 +41,7 @@ head: uid .
 name: string @index(exact) .
 context: string @index(exact) .
 creator: uid .
+data: uid .
 proof: uid .
 
 `;
