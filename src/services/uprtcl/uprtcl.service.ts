@@ -1,28 +1,17 @@
-import { Perspective, Commit, DataDto, PerspectiveDetails, Secured } from "./types";
+import { Perspective, Commit, PerspectiveDetails, Secured } from "./types";
 import { DGraphService } from "../../db/dgraph.service";
 import { AccessService } from "../access/access.service";
-import { NOT_AUTHORIZED_MSG, SUCCESS } from "./uprtcl.controller";
-import { UserService } from "../user/user.service";
 import { UprtclRepository } from "./uprtcl.repository";
-import { PermissionType } from "../access/access.repository";
-import { KnownSourcesRepository } from "../knownsources/knownsources.repository";
-import { DataRepository } from "../data/data.repository";
+import { PermissionType } from "../access/access.schema";
+import { NOT_AUTHORIZED_MSG } from "../../utils";
 
 export class UprtclService {
 
   constructor(
     protected db: DGraphService, 
     protected uprtclRepo: UprtclRepository, 
-    protected dataRepo: DataRepository, 
-    protected knownSourcesRepo: KnownSourcesRepository, 
     protected access: AccessService) {
   }
-
-  async getGeneric(elementId: string, loggedUserId: string | null): Promise<Object | null> {
-    console.log('[UPRTCL-SERVICE] genericGet', {elementId, loggedUserId});
-    let object = await this.uprtclRepo.getGeneric(elementId);
-    return object;
-  };
 
   async createPerspective(
     perspective: Secured<Perspective>, 
@@ -36,6 +25,9 @@ export class UprtclService {
 
   async getPerspective(perspectiveId: string, loggedUserId: string | null): Promise<Secured<Perspective>> {
     console.log('[UPRTCL-SERVICE] getPerspective', {perspectiveId, loggedUserId});
+    if (perspectiveId == undefined || perspectiveId === '') {
+      throw new Error(`perspectiveId is empty`)
+    }
     if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Read))) {
       throw new Error(`access to ${perspectiveId} denied to ${loggedUserId}`);
     }
@@ -83,37 +75,5 @@ export class UprtclService {
     let commit = await this.uprtclRepo.getCommit(commitId);
     return commit;
   };
-
-  async createData(
-    data: DataDto, 
-    _loggedUserId: string | null): Promise<string> {
-
-    console.log('[UPRTCL-SERVICE] createData', data);
-    let dataId = await this.dataRepo.createData(data);
-    
-    return dataId;
-  };
-
-  async getData(dataId: string): Promise<any> {
-    console.log('[UPRTCL-SERVICE] getData', dataId);
-    let data = await this.dataRepo.getData(dataId);
-    return data;
-  };
-
-  async addKnownSources(elementId: string, sources: Array<string>) {
-    console.log('[UPRTCL-SERVICE] addKnownSources', {elementId}, {sources});
-    await this.knownSourcesRepo.addKnownSources(elementId, sources);
-  }
-
-  async getKnownSources(elementId: string):Promise<Array<string>> {
-    console.log('[UPRTCL-SERVICE] getKnownSources', {elementId});
-    let sources = this.knownSourcesRepo.getKnownSources(elementId);
-    return sources;
-  }
-
-  getOrigin():Promise<string> {
-    console.log('[UPRTCL-SERVICE] getOrigin');
-    return this.uprtclRepo.getOrigin();
-  }
 }
 

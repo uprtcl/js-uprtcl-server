@@ -1,52 +1,76 @@
 import { DGraphService } from "../../db/dgraph.service";
 import { UserRepository } from "../user/user.repository";
-import { KNOWN_SOURCES_SCHEMA_NAME } from "../../db/schema";
+import { KNOWN_SOURCES_SCHEMA_NAME } from "./knownsources.schema";
+import {
+  DATA_SCHEMA_NAME
+} from "../data/data.schema";
+import {
+  PERSPECTIVE_SCHEMA_NAME,
+  COMMIT_SCHEMA_NAME
+} from "../uprtcl/uprtcl.schema";
 
 const dgraph = require("dgraph-js");
+require('dotenv').config();
 
-export const LOCAL_PROVIDER = 'http:evees-v1:localhost';
-
-export interface DataC1If {
-  id: string;
-  type: string;
-  jsonData: string;
-}
-
+export const LOCAL_EVEES_PROVIDER = `http:evees-v1:${process.env.HOST}`;
+export const LOCAL_DATA_PROVIDER = `http:data-v1:${process.env.HOST}`;
 
 export class KnownSourcesRepository {
+  constructor(protected db: DGraphService) {}
 
-  constructor(
-    protected db: DGraphService,
-    protected userRepo: UserRepository) {
-  }
-
-  async addKnownSources(elementId: string, sources: Array<string>):Promise<void> {
+  async getTypes(elementId: string): Promise<string[]> {
     await this.db.ready();
 
-    console.log('[DGRAPH] addKnownSources', {elementId}, {sources});
+    const query = `query {
+      element(func: eq(xid, ${elementId})) {
+        dgraph.type
+      }
+    }`;
+
+    let result = await this.db.client.newTxn().query(query);
+    let json = result.getJson();
+    console.log("[DGRAPH] getGeneric", { query }, JSON.stringify(json));
+
+    return json.element[0]["dgraph.type"];
+  }
+
+  async addKnownSources(
+    elementId: string,
+    sources: Array<string>
+  ): Promise<void> {
+    await this.db.ready();
+
+    console.log("[DGRAPH] addKnownSources", { elementId }, { sources });
 
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    sources = sources.filter(source => source !== LOCAL_PROVIDER);
-    
+    sources = sources.filter(source => (source !== LOCAL_EVEES_PROVIDER) && (source !== LOCAL_DATA_PROVIDER));
+
     let query = `element as var(func: eq(elementId, "${elementId}"))`;
     req.setQuery(`query{${query}}`);
 
     let nquads = `uid(element) <elementId> "${elementId}" .`;
-    nquads = nquads.concat(`\nuid(element) <dgraph.type> "${KNOWN_SOURCES_SCHEMA_NAME}" .`);
+    nquads = nquads.concat(
+      `\nuid(element) <dgraph.type> "${KNOWN_SOURCES_SCHEMA_NAME}" .`
+    );
     for (let ix = 0; ix < sources.length; ix++) {
       nquads = nquads.concat(`\nuid(element) <sources> "${sources[ix]}" .`);
     }
-    
+
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
 
     let result = await this.db.callRequest(req);
-    console.log('[DGRAPH] addKnownSources', {query}, {nquads}, result.getUidsMap().toArray());
+    console.log(
+      "[DGRAPH] addKnownSources",
+      { query },
+      { nquads },
+      result.getUidsMap().toArray()
+    );
   }
 
-  async getKnownSources(elementId: string):Promise<Array<string>> {
+  async getKnownSources(elementId: string): Promise<Array<string>> {
     await this.db.ready();
 
     const query = `
@@ -57,21 +81,37 @@ export class KnownSourcesRepository {
     }`;
 
     let result = await this.db.client.newTxn().query(query);
-    console.log('[DGRAPH] getKnownSources', {query}, result.getJson());
+    console.log("[DGRAPH] getKnownSources", { query }, result.getJson());
 
-    let sources = result.getJson().sources.length > 0 ? result.getJson().sources[0].sources : []
+    let sources =
+      result.getJson().sources.length > 0
+        ? result.getJson().sources[0].sources
+        : [];
 
     const queryLocal = `
     query {
       element(func: eq(xid, ${elementId})) @filter(eq(stored, true)) {
-        xid
+        xid,
+        <dgraph.type>
       }
     }`;
 
     /** check if there is an xid for this element (it means we have a local copy of it) */
     let resultLocal = await this.db.client.newTxn().query(queryLocal);
     let elements = resultLocal.getJson().element;
-    if (elements.length > 0) sources.push(LOCAL_PROVIDER);
+    if (elements.length > 0) {
+      const types = elements[0]["dgraph.type"];
+      const uprtcl_types = [PERSPECTIVE_SCHEMA_NAME, COMMIT_SCHEMA_NAME];
+      const data_types = [DATA_SCHEMA_NAME];
+
+      if (types.some((type: string) => data_types.includes(type))) {
+        sources.push(LOCAL_DATA_PROVIDER);
+      }
+
+      if (types.some((type: string) => uprtcl_types.includes(type))) {
+        sources.push(LOCAL_EVEES_PROVIDER);
+      }
+    }
 
     return sources;
   }

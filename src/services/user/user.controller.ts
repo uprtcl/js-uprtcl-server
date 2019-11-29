@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { checksPlaceholder } from "../../middleware/checks";
 import { UserService } from "./user.service";
-import { GetResult, PostResult } from "../uprtcl/types";
 import { checkJwt } from "../../middleware/jwtCheck";
+import { GetResult } from "../../utils";
 
 const SUCCESS = 'success';
 
@@ -25,7 +25,7 @@ export class UserController {
           async ( req: any, res: Response) => {
             console.log('[USER-CONTROLLER] Authenticated user', {user: req.user});
             const user = await this.userService.get(req.params.userId);
-              let result: GetResult = {
+              let result: GetResult<Object> = {
                 result: SUCCESS,
                 message: '',
                 data: user
@@ -41,7 +41,7 @@ export class UserController {
           checkJwt,
           async ( req: any, res: Response) => {
             const nonce = await this.userService.getNonce(req.params.userId);
-              let result: GetResult = {
+              let result: GetResult<String> = {
                 result: SUCCESS,
                 message: '',
                 data: nonce
@@ -57,7 +57,7 @@ export class UserController {
           checkJwt,
           async ( req: any, res: Response) => {
             const jwt = await this.userService.getJwt(req.params.userId, req.body.signature);
-            let result: GetResult = {
+            let result: GetResult<Object> = {
               result: SUCCESS,
               message: '',
               data: {jwt}

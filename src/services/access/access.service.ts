@@ -1,6 +1,7 @@
 import { DGraphService } from "../../db/dgraph.service";
-import { SUCCESS, NOT_AUTHORIZED_MSG } from "../uprtcl/uprtcl.controller";
-import { PermissionConfig, AccessRepository, AccessConfig, PermissionType } from "./access.repository";
+import { PermissionConfig, AccessRepository, AccessConfig } from "./access.repository";
+import { PermissionType } from "./access.schema";
+import { NOT_AUTHORIZED_MSG } from "../../utils";
 require('dotenv').config();
 
 export class AccessService {
@@ -38,6 +39,8 @@ export class AccessService {
   async createAccessConfig(
     elementId: string,
     userId: string | null): Promise<void> {
+
+    if (elementId == undefined || elementId === '') throw new Error(`ElementId is empty`);
 
     let accessConfig: AccessConfig;
     let dftPermUid = await this.createDefaultPermissions(userId);

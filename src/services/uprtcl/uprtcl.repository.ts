@@ -1,10 +1,10 @@
 import { DGraphService } from "../../db/dgraph.service";
 import { ipldService } from "../ipld/ipldService";
-import { PERSPECTIVE_SCHEMA_NAME, COMMIT_SCHEMA_NAME, TEXT_SCHEMA_NAME, DOCUMENT_NODE_SCHEMA_NAME, TEXT_NODE_SCHEMA_NAME, DATA_SCHEMA_NAME, PROOF_SCHEMA_NAME } from "../../db/schema";
 import { UserRepository } from "../user/user.repository";
-import { LOCAL_PROVIDER } from "../knownsources/knownsources.repository";
+import { LOCAL_EVEES_PROVIDER } from "../knownsources/knownsources.repository";
 import { DataRepository } from "../data/data.repository";
 import { Perspective, PerspectiveDetails, Commit, Secured, Proof } from "./types";
+import { PERSPECTIVE_SCHEMA_NAME, PROOF_SCHEMA_NAME, COMMIT_SCHEMA_NAME } from "./uprtcl.schema";
 
 const dgraph = require("dgraph-js");
 
@@ -68,8 +68,8 @@ export class UprtclRepository {
     const perspective = securedPerspective.object.payload;
     const proof = securedPerspective.object.proof;
 
-    if (perspective.origin !== LOCAL_PROVIDER) {
-      throw new Error(`Should I store perspectives with origin ${perspective.origin} from other origins? I thought I am ${LOCAL_PROVIDER}`);
+    if (perspective.origin !== LOCAL_EVEES_PROVIDER) {
+      throw new Error(`Should I store perspectives with origin ${perspective.origin} from other origins? I thought I was ${LOCAL_EVEES_PROVIDER}`);
     }
 
     const mu = new dgraph.Mutation();
@@ -99,7 +99,7 @@ export class UprtclRepository {
     
     let result = await this.db.callRequest(req);
     console.log('[DGRAPH] createPerspective', {query}, {nquads}, result.getUidsMap().toArray());
-    return securedPerspective.id;
+    return id;
   }
 
   async createCommit(securedCommit: Secured<Commit>) {
@@ -203,43 +203,6 @@ export class UprtclRepository {
     let result = await this.db.callRequest(req);
     console.log('[DGRAPH] updatePerspective', {query}, {nquads}, result.getUidsMap().toArray());
   }
-
-  async getGeneric(elementId: string) {
-    await this.db.ready();
-
-    const query = `query {
-      element(func: eq(xid, ${elementId})) {
-        dgraph.type
-      }
-    }`;
-
-    let result = await this.db.client.newTxn().query(query);
-    let json = result.getJson();
-    console.log('[DGRAPH] getGeneric', {query}, JSON.stringify(json));
-    
-    let types: string[] = json.element[0]['dgraph.type'];
-
-    let dataTypes = [
-      DATA_SCHEMA_NAME,
-      TEXT_SCHEMA_NAME, 
-      TEXT_NODE_SCHEMA_NAME, 
-      DOCUMENT_NODE_SCHEMA_NAME
-    ]
-
-    /** if object is data */
-    if (dataTypes.includes(types[0])) {
-      return this.dataRepo.getData(elementId);
-    } else {
-      switch (types[0]) {
-        case PERSPECTIVE_SCHEMA_NAME:
-          return this.getPerspective(elementId);
-        
-        case COMMIT_SCHEMA_NAME:
-          return this.getCommit(elementId);
-      }
-    }
-    return null;
- }
 
   async getPerspective(perspectiveId: string): Promise<Secured<Perspective>> {
     await this.db.ready();
@@ -401,9 +364,5 @@ export class UprtclRepository {
       }
     }
     return securedCommit;
-  }
-
-  async getOrigin():Promise<string> {
-    return LOCAL_PROVIDER;
   }
 }
