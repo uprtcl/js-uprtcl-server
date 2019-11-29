@@ -2,8 +2,7 @@ import { DGraphService } from "../../db/dgraph.service";
 import { UserRepository } from "../user/user.repository";
 import { KNOWN_SOURCES_SCHEMA_NAME } from "./knownsources.schema";
 import {
-  DATA_SCHEMA_NAME,
-  DOCUMENT_NODE_SCHEMA_NAME
+  DATA_SCHEMA_NAME
 } from "../data/data.schema";
 import {
   PERSPECTIVE_SCHEMA_NAME,
@@ -14,7 +13,7 @@ const dgraph = require("dgraph-js");
 require('dotenv').config();
 
 export const LOCAL_EVEES_PROVIDER = `http:evees-v1:${process.env.HOST}`;
-export const LOCAL_DOCUMENTS_PROVIDER = `http:documents-v1:${process.env.HOST}`;
+export const LOCAL_DATA_PROVIDER = `http:data-v1:${process.env.HOST}`;
 
 export class KnownSourcesRepository {
   constructor(protected db: DGraphService) {}
@@ -46,7 +45,7 @@ export class KnownSourcesRepository {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    sources = sources.filter(source => (source !== LOCAL_EVEES_PROVIDER) && (source !== LOCAL_DOCUMENTS_PROVIDER));
+    sources = sources.filter(source => (source !== LOCAL_EVEES_PROVIDER) && (source !== LOCAL_DATA_PROVIDER));
 
     let query = `element as var(func: eq(elementId, "${elementId}"))`;
     req.setQuery(`query{${query}}`);
@@ -103,10 +102,10 @@ export class KnownSourcesRepository {
     if (elements.length > 0) {
       const types = elements[0]["dgraph.type"];
       const uprtcl_types = [PERSPECTIVE_SCHEMA_NAME, COMMIT_SCHEMA_NAME];
-      const doc_types = [DATA_SCHEMA_NAME, DOCUMENT_NODE_SCHEMA_NAME];
+      const data_types = [DATA_SCHEMA_NAME];
 
-      if (types.some((type: string) => doc_types.includes(type))) {
-        sources.push(LOCAL_DOCUMENTS_PROVIDER);
+      if (types.some((type: string) => data_types.includes(type))) {
+        sources.push(LOCAL_DATA_PROVIDER);
       }
 
       if (types.some((type: string) => uprtcl_types.includes(type))) {

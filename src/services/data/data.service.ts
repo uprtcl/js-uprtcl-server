@@ -1,6 +1,6 @@
 import { DGraphService } from "../../db/dgraph.service";
 import { DataRepository } from "../data/data.repository";
-import { DataDto } from "./types";
+import { Hashed } from "../uprtcl/types";
 
 export class DataService {
 
@@ -10,7 +10,7 @@ export class DataService {
   }
 
   async createData(
-    data: DataDto, 
+    data: Hashed<Object>, 
     _loggedUserId: string | null): Promise<string> {
 
     console.log('[UPRTCL-SERVICE] createData', data);

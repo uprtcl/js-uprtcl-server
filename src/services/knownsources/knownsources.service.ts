@@ -1,6 +1,6 @@
 import { DGraphService } from "../../db/dgraph.service";
 import { KnownSourcesRepository } from "./knownsources.repository";
-import { DATA_SCHEMA_NAME, TEXT_SCHEMA_NAME, TEXT_NODE_SCHEMA_NAME, DOCUMENT_NODE_SCHEMA_NAME } from "../data/data.schema";
+import { DATA_SCHEMA_NAME } from "../data/data.schema";
 import { PERSPECTIVE_SCHEMA_NAME, COMMIT_SCHEMA_NAME } from "../uprtcl/uprtcl.schema";
 import { DataService } from "../data/data.service";
 import { UprtclService } from "../uprtcl/uprtcl.service";
@@ -19,9 +19,9 @@ export class KnownSourcesService {
     console.log("[UPRTCL-SERVICE] genericGet", { elementId, loggedUserId });
     let types = await this.knownSourcesRepo.getTypes(elementId);
 
-    const doc_types = [DATA_SCHEMA_NAME, DOCUMENT_NODE_SCHEMA_NAME];
+    const data_types = [DATA_SCHEMA_NAME];
 
-    if (types.some((type: string) => doc_types.includes(type))) {
+    if (types.some((type: string) => data_types.includes(type))) {
       return this.dataService.getData(elementId);
     }
 

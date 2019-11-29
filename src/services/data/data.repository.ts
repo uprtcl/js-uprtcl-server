@@ -70,19 +70,19 @@ export class DataRepository {
   /** All data objects are stored as textValues, intValues, floatValues and boolValues 
    * or links to other objects, if the value is a valid CID string.
    * The path of the property in the JSON object is stored in a facet */
-  async createData(dataDto: Hashed<any>) {
+  async createData(hashedData: Hashed<Object>) {
     await this.db.ready();
 
     /** Validate ID */
-    const data = dataDto.object;
+    const data = hashedData.object;
     let id: string;
 
-    if (dataDto.id !== undefined && dataDto.id !== "") {
-      let valid = await ipldService.validateCid(dataDto.id, data);
+    if (hashedData.id !== undefined && hashedData.id !== "") {
+      let valid = await ipldService.validateCid(hashedData.id, data);
       if (!valid) {
-        throw new Error(`Invalid cid ${dataDto.id}`);
+        throw new Error(`Invalid cid ${hashedData.id}`);
       }
-      id = dataDto.id;
+      id = hashedData.id;
     } else {
       id = await ipldService.generateCidOrdered(data, localCidConfig);
       console.log("[DGRAPH] createData - create id", { data, id });

@@ -15,9 +15,9 @@ type ${DATA_SCHEMA_NAME} {
 
 # data objects
 stringValues: string @index(fulltext) .
-intValues: int @index(exact) .
-floatValues: float @index(exact) .
-boolValues: bool @index(exact) .
+intValues: int @index(int) .
+floatValues: float @index(float) .
+boolValues: bool @index(bool) .
 links: [uid] @reverse .
 
 `

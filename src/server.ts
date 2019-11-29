@@ -22,7 +22,7 @@ applyMiddleware(middleware, router);
 applyRoutes(routes, router);
 applyMiddleware(errorHandlers, router);
 
-const { PORT = 3100 } = process.env;
+const { PORT = 3200 } = process.env;
 const server = http.createServer(router);
 
 server.listen(PORT, () =>
