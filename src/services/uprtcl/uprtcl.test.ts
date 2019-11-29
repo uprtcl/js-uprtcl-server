@@ -9,11 +9,11 @@ import { Perspective, Commit } from "./types";
 import { delegatePermissionsTo, addPermission, setPublicPermission } from "../access/access.testsupport";
 import { PermissionType } from "../access/access.schema";
 
-describe.skip("routes", () => {
+describe("routes", () => {
 
   expect.extend({toBeValidCid})
 
-  test("CRUD public owner-less perspectives", async () => {
+  test("CRUD public owner-less perspectives", async (done) => {
 
     const creatorId = 'did:method:12345';
     const name = 'test';
@@ -60,9 +60,11 @@ describe.skip("routes", () => {
     expect(result3.data.headId).toEqual(commit2Id);
     expect(result3.data.context).toEqual(context);
     expect(result3.data.name).toEqual(name);
+
+    done();
   });
 
-  test("CRUD private perspectives", async () => {
+  test("CRUD private perspectives", async (done) => {
 
     const creatorId = 'did:method:12345';
     const name = 'test';
@@ -204,7 +206,9 @@ describe.skip("routes", () => {
     expect(result21.result).toEqual(SUCCESS);
 
     let result33 = await getPerspectiveDetails(perspectiveId, '');
-    expect(result33.data).toBeNull()
+    expect(result33.data).toBeNull();
+
+    done();
 
   });
 });

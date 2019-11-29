@@ -4,7 +4,7 @@ import { createData, getData } from "./support.data";
 describe("routes", () => {
   expect.extend({ toBeValidCid });
 
-  test("Create and read generic data", async () => {
+  test("Create and read generic data", async (done) => {
     const data = {
       text: "my text",
       type: "paragraph",
@@ -17,5 +17,7 @@ describe("routes", () => {
     expect(result.object.text).toEqual(data.text);
     expect(result.object.type).toEqual(data.type);
     expect(result.object.links.length).toEqual(0);
+
+    done();
   });
 });
