@@ -9,15 +9,13 @@ type ${DATA_SCHEMA_NAME} {
   stringValues: [string]
   intValues: [int]
   floatValues: [float]
-  boolValues: [bool]
   links: [uid]
 }
 
 # data objects
-stringValues: string @index(fulltext) .
-intValues: int @index(int) .
-floatValues: float @index(float) .
-boolValues: bool @index(bool) .
+stringValues: [string] @index(fulltext) .
+intValues: [int] @index(int) .
+floatValues: [float] @index(float) .
 links: [uid] @reverse .
 
 `

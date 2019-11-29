@@ -23,29 +23,34 @@ function objectToNquads(
   nquads: string[],
   queries: string[]
 ): void {
-  if (typeof object !== "object" || object instanceof Array) {
+  if (typeof object !== "object" && !(object instanceof Array)) {
     switch (typeof object) {
       case "string":
         /** any string that is a valid CID is considered a link! */
-        if (CID.isCID(new CID(object))) {
+        let isLink = false;
+        try {
+          isLink = CID.isCID(new CID(object));
+        } catch (e) {
+          isLink = false;
+        }
+        if (isLink) {
           const linkBlankUid = `links${path}`;
           queries.push(`${linkBlankUid} as var(func: eq(xid, ${object}))`);
-          nquads.push(`${oid} <links> uid(${linkBlankUid}) (path=${path}) .`);
+          nquads.push(`${oid} <links> uid(${linkBlankUid}) (path="${path}") .`);
           /** initialized the xid in case its not stored */
           nquads.push(`uid(${linkBlankUid}) <xid> "${object}" .`);
         } else {
-          nquads.push(`${oid} <stringValues> "${object}" (path=${path}) .`);
+          nquads.push(`${oid} <stringValues> "${object}" (path="${path}") .`);
         }
         break;
 
       case "number":
         const type = Number.isInteger(object) ? "intValues" : "floatValues";
-        nquads.push(`${oid} <${type}> "${object}" (path=${path}) .`);
+        nquads.push(`${oid} <${type}> "${object}" (path="${path})" .`);
         break;
 
-      case "boolean":
-        nquads.push(`${oid} <boolValues> "${object}" (path=${path}) .`);
-        break;
+      default:
+        throw new Error(`Property type not allowed`);
     }
     return;
   }
