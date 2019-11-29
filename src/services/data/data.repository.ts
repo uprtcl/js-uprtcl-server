@@ -8,63 +8,6 @@ import {
 import { Hashed } from "../uprtcl/types";
 
 const dgraph = require("dgraph-js");
-var CID  = require('cids');
-
-export interface DataC1If {
-  id: string;
-  type: string;
-  jsonData: string;
-}
-
-function objectToNquads(
-  object: any,
-  oid: string,
-  path: string,
-  nquads: string[],
-  queries: string[]
-): void {
-  if (typeof object !== "object" && !(object instanceof Array)) {
-    switch (typeof object) {
-      case "string":
-        /** any string that is a valid CID is considered a link! */
-        let isLink = false;
-        try {
-          isLink = CID.isCID(new CID(object));
-        } catch (e) {
-          isLink = false;
-        }
-        if (isLink) {
-          const linkBlankUid = `links${path}`;
-          queries.push(`${linkBlankUid} as var(func: eq(xid, ${object}))`);
-          nquads.push(`${oid} <links> uid(${linkBlankUid}) (path="${path}") .`);
-          /** initialized the xid in case its not stored */
-          nquads.push(`uid(${linkBlankUid}) <xid> "${object}" .`);
-        } else {
-          nquads.push(`${oid} <stringValues> "${object}" (path="${path}") .`);
-        }
-        break;
-
-      case "number":
-        const type = Number.isInteger(object) ? "intValues" : "floatValues";
-        nquads.push(`${oid} <${type}> "${object}" (path="${path})" .`);
-        break;
-
-      default:
-        throw new Error(`Property type not allowed`);
-    }
-    return;
-  }
-  const keys = Object.keys(object);
-  for (let i = 0; i < keys.length; i++) {
-    const subpath = object instanceof Array ? `[${keys[i]}]` : keys[i];
-    objectToNquads(object[keys[i]], oid, `${path}.${subpath}`, nquads, queries);
-  };
-}
-
-function valuesToObject(values: Object) : Object {
-  console.log(JSON.stringify(values));
-  return {};
-}
 
 export class DataRepository {
   constructor(
@@ -98,17 +41,11 @@ export class DataRepository {
 
     let query = `data as var(func: eq(xid, ${id}))`;
     let nquads = `uid(data) <xid> "${id}" .`;
+
     nquads = nquads.concat(`\nuid(data) <stored> "true" .`);
     nquads = nquads.concat(`\nuid(data) <dgraph.type> "${DATA_SCHEMA_NAME}" .`);
+    nquads = nquads.concat(`\nuid(data) <jsonString> "${JSON.stringify(data).replace(/"/g, '\\"')}" .`);
 
-    /** fill the nquads from the data json object properties */
-    const nquadsArray: string[] = [];
-    const queriesArray: string[] = [];
-    objectToNquads(data, 'uid(data)', 'root', nquadsArray, queriesArray);
-
-    nquads = nquads.concat(`\n${nquadsArray.join('\n')}`);
-    query = query.concat(`\n${queriesArray.join('\n')}`);
-    
     req.setQuery(`query {${query}}`);
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
@@ -123,27 +60,20 @@ export class DataRepository {
     return id;
   }
 
-  async getData(dataId: string): Promise<Object | null> {
+  async getData(dataId: string): Promise<Hashed<Object>> {
     await this.db.ready();
 
     const query = `query {
       data(func: eq(xid, ${dataId})) {
         xid
         stored
-        stringValues @facets
-        intValues @facets
-        floatValues @facets
-        boolValues @facets
-        links @facets {
-          xid
-        }
+        jsonString
       }
     }`;
 
     let result = await this.db.client.newTxn().query(query);
-    console.log("[DGRAPH] getData", { query }, result.getJson());
-
     const json = result.getJson();
+    console.log("[DGRAPH] getData", { query, json });
 
     if (json.data.length === 0) {
       throw new Error(`element with xid ${dataId} not found`)
@@ -153,17 +83,20 @@ export class DataRepository {
       throw new Error(`unexpected number of entries ${json.data.length} for xid ${dataId}`);
     }
 
-    if (json.data[0].stored) {
+    if (!json.data[0].stored) {
       throw new Error(`element with xid ${dataId} content not stored`)
     }
 
-    const data = valuesToObject(json.data[0]);
+    const data = JSON.parse(json.data[0].jsonString);
 
     console.log(
       "[DGRAPH] getData",
       { query, json, data }
     );
 
-    return data;
+    return {
+      id: dataId,
+      object: data
+    };
   }
 }
