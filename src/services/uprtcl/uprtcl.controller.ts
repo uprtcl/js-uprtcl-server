@@ -156,7 +156,7 @@ export class UprtclController {
 
       {
         path: "/uprtcl/1/persp",
-        method: "get",
+        method: "put",
         handler: [
           checkJwt,
           async (request: Request, res: Response) => {
