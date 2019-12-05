@@ -159,14 +159,23 @@ export class UprtclController {
         method: "get",
         handler: [
           checkJwt,
-          async ({ query }: Request, res: Response) => {
-            let perspectives = await this.uprtclService.getContextPerspectives(query.context);
-            let result: GetResult<Perspective[]> = {
-              result: SUCCESS,
-              message: '',
-              data: perspectives
+          async (request: Request, res: Response) => {
+            try {
+              let perspectives = await this.uprtclService.findPerspectives(request.body);
+              let result: GetResult<Secured<Perspective>[]> = {
+                result: SUCCESS,
+                message: 'perspectives found',
+                data: perspectives
+              }
+              res.status(200).send(result);
+            } catch (error) {
+              let result: PostResult = {
+                result:  ERROR,
+                message: error.message,
+                elementIds: []
+              }
+              res.status(400).send(result);
             }
-            res.status(200).send(result);
           }
         ]
       },

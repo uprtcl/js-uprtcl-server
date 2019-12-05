@@ -35,10 +35,10 @@ export class UprtclService {
     return perspective;
   };
 
-  async getContextPerspectives(context: string): Promise<Perspective[]> {
-    console.log('[UPRTCL-SERVICE] getContextPerspectives', {context});
+  async findPerspectives(details: PerspectiveDetails): Promise<Secured<Perspective>[]> {
+    console.log('[UPRTCL-SERVICE] findPerspectives', {details});
     // TODO filter by canRead
-    let perspectives = await this.uprtclRepo.getContextPerspectives(context);
+    let perspectives = await this.uprtclRepo.findPerspectives(details);
     return perspectives;
   };
 

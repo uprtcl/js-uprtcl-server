@@ -1,6 +1,6 @@
 
 import { toBeValidCid, ERROR, NOT_AUTHORIZED_MSG, SUCCESS } from "../../utils";
-import { createPerspective, getPerspective, createCommit, updatePerspective, getPerspectiveDetails } from "./uprtcl.testsupport";
+import { createPerspective, getPerspective, createCommit, updatePerspective, getPerspectiveDetails, findPerspectives } from "./uprtcl.testsupport";
 import { createData } from "../data/support.data";
 import { DocNodeType } from "../data/types";
 import { LOCAL_EVEES_PROVIDER } from "../knownsources/knownsources.repository";
@@ -60,6 +60,34 @@ describe("routes", () => {
     expect(result3.data.headId).toEqual(commit2Id);
     expect(result3.data.context).toEqual(context);
     expect(result3.data.name).toEqual(name);
+
+    done();
+  });
+
+  test("getContextPerspectives", async (done) => {
+
+    const creatorId = 'did:method:12345';
+    const context = 'context.test';
+    
+    const name1 = 'persp 1';
+    const perspectiveId1 = await createPerspective(creatorId, Date.now(), '');
+    await updatePerspective(perspectiveId1, { 
+      context: context,
+      name: name1
+    }, '');
+
+    const name2 = 'persp 2';
+    const perspectiveId2 = await createPerspective(creatorId, Date.now(), '');
+    await updatePerspective(perspectiveId2, { 
+      context: context,
+      name: name2
+    }, '');
+
+    const result = await findPerspectives({context}, '');
+
+    expect(result.data.length).toEqual(2);
+    expect(result.data.find(p => p.id === perspectiveId1)).not.toBeUndefined();
+    expect(result.data.find(p => p.id === perspectiveId2)).not.toBeUndefined();
 
     done();
   });

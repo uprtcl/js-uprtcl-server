@@ -252,10 +252,20 @@ export class UprtclRepository {
     return securedPerspective;
   }
 
-  async getContextPerspectives(context: string):Promise<Perspective[]> {
+  async findPerspectives(details: PerspectiveDetails):Promise<Secured<Perspective>[]> {
     await this.db.ready();
+    let condition = '';
+
+    if (details.name) {
+      condition = condition.concat(`${condition !== '' ? ' AND ' : ''} eq(name, ${details.name})`)
+    }
+
+    if (details.context) {
+      condition = condition.concat(`${condition !== '' ? ' AND ' : ''} eq(context, ${details.context})`)
+    }
+
     const query = `query {
-      perspective(func: eq(context, ${context})) {
+      perspective(func: ${condition}) {
         xid
         name
         context
@@ -265,20 +275,40 @@ export class UprtclRepository {
         }
         timestamp
         nonce
+        proof {
+          signature
+          type
+        }
+        ${details.headId ? `\nhead @filter(func: eq(xid, ${details.headId})){ xid }` : ''}
       }
     }`;
 
-    let result = await this.db.client.newTxn().query(query);
-    console.log('[DGRAPH] getContextPerspectives', {query}, result.getJson());
-    let perspectives = result.getJson().perspective.map((dperspective: DgPerspective):Perspective => {
-      return {
+    const result = await this.db.client.newTxn().query(query);
+    const json = result.getJson();
+    console.log('[DGRAPH] findPerspectives', {query}, json);
+    const securedPerspectives = json.perspective.map((dperspective: DgPerspective):Secured<Perspective> => {
+      const perspective: Perspective = {
         origin: dperspective.origin,
         creatorId: dperspective.creator.did,
-        timestamp: dperspective.timestamp,
+        timestamp: dperspective.timestamp      
       }
+  
+      const proof: Proof = {
+        signature: dperspective.proof.signature,
+        type: dperspective.proof.proof_type
+      }
+  
+      const securedPerspective: Secured<Perspective> = {
+        id: dperspective.xid,
+        object: {
+          payload: perspective,
+          proof: proof
+        }
+      }
+      return securedPerspective;
     })
     
-    return perspectives;
+    return securedPerspectives;
   }
 
   async getPerspectiveDetails(perspectiveId: string): Promise<PerspectiveDetails> {
