@@ -64,7 +64,7 @@ export const toBeValidCid = (received: any) => {
     };
   }
 }
-export interface ExtendedMatchers extends jest.Matchers<void, void> {
+export interface ExtendedMatchers extends jest.Matchers<void, any> {
   toBeValidCid: () => object;
 }
 
