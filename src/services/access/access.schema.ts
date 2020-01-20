@@ -33,6 +33,7 @@ accessConfig: uid @reverse .
 permissions: uid .
 publicRead: bool @index(bool) .
 publicWrite: bool @index(bool) .
+delegate: bool .
 delegateTo: [uid] @reverse .
 finDelegatedTo: [uid] @reverse .
 

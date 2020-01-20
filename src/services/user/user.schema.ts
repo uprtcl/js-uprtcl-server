@@ -8,5 +8,5 @@ type ${PROFILE_SCHEMA_NAME} {
 }
 
 did: string @index(exact) @upsert .
-
+nonce: string  .
 `;

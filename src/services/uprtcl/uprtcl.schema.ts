@@ -37,8 +37,14 @@ type ${PROOF_SCHEMA_NAME} {
 
 stored: bool @index(bool) . 
 xid: string @index(exact) @upsert .
+origin: string .
+timestamp: datetime .
+message: string .
 head: uid .
 name: string @index(exact) .
+parents: [uid] .
+signature: string .
+proof_type: string .
 context: string @index(exact) .
 creator: uid .
 data: uid .
