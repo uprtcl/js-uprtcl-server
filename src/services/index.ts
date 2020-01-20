@@ -16,7 +16,7 @@ import { DataController } from "./data/data.controller";
 import { KnownSourcesService } from "./knownsources/knownsources.service";
 
 /** poors man dependency injection */
-const dbService = new DGraphService('localhost:9080');
+const dbService = new DGraphService('localhost:9082');
 
 const userRepo = new UserRepository(dbService);
 const accessRepo = new AccessRepository(dbService, userRepo);
