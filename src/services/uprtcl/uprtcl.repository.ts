@@ -20,7 +20,7 @@ interface DgPerspective {
   context: string,
   origin: string,
   creator: DgRef,
-  timestamp: number,
+  timextamp: number,
   'dgraph.type'?: string,
   stored: boolean,
   proof: DgProof
@@ -35,7 +35,7 @@ interface DgCommit {
   uid?: string,
   xid: string,
   creators: DgRef[],
-  timestamp: number,
+  timextamp: number,
   message: string,
   parents: Array<DgRef>,
   data: DgRef,
@@ -84,7 +84,7 @@ export class UprtclRepository {
     let nquads = `_:perspective <xid> "${id}" .`;
     nquads = nquads.concat(`\n_:perspective <stored> "true" .`);
     nquads = nquads.concat(`\n_:perspective <creator> uid(profile) .`);
-    nquads = nquads.concat(`\n_:perspective <timestamp> "${perspective.timestamp}"^^<xs:int> .`);
+    nquads = nquads.concat(`\n_:perspective <timextamp> "${perspective.timestamp}"^^<xs:int> .`);
     nquads = nquads.concat(`\n_:perspective <origin> "${perspective.origin}" .`);
     nquads = nquads.concat(`\n_:perspective <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`);
 
@@ -131,10 +131,10 @@ export class UprtclRepository {
     for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
       await this.userRepo.upsertProfile(commit.creatorsIds[ix]);
       query = query.concat(`\ncreator${ix} as var(func: eq(did, "${commit.creatorsIds[ix].toLowerCase()}"))`);
-      nquads = nquads.concat(`\nuid(commit) <creator> uid(creator${ix}) .`);  
+      nquads = nquads.concat(`\nuid(commit) <creators> uid(creator${ix}) .`);  
     }
 
-    nquads = nquads.concat(`\nuid(commit) <timestamp> "${commit.timestamp}"^^<xs:int> .`);
+    nquads = nquads.concat(`\nuid(commit) <timextamp> "${commit.timestamp}"^^<xs:int> .`);
     nquads = nquads.concat(`\nuid(commit) <data> uid(data) .`)
 
     nquads = nquads.concat(`\n_:proof <dgraph.type> "${PROOF_SCHEMA_NAME}" .`);
@@ -215,7 +215,7 @@ export class UprtclRepository {
         creator {
           did
         }
-        timestamp
+        timextamp
         nonce
         stored
         proof {
@@ -226,7 +226,7 @@ export class UprtclRepository {
     }`;
 
     const result = await this.db.client.newTxn().query(query);
-    console.log('[DGRAPH] getPerspective', {query}, result.getJson());
+    console.log('[DGRAPH] getPerspective', {query}, JSON.stringify(result.getJson()));
     const dperspective: DgPerspective = result.getJson().perspective[0];
     if (!dperspective) throw new Error(`Perspective with id ${perspectiveId} not found`);
     if (!dperspective.stored) throw new Error(`Perspective with id ${perspectiveId} not found`);
@@ -234,7 +234,7 @@ export class UprtclRepository {
     const perspective: Perspective = {
       origin: dperspective.origin,
       creatorId: dperspective.creator.did,
-      timestamp: dperspective.timestamp      
+      timestamp: dperspective.timextamp      
     }
 
     const proof: Proof = {
@@ -273,7 +273,7 @@ export class UprtclRepository {
         creator {
           did
         }
-        timestamp
+        timextamp
         nonce
         proof {
           signature
@@ -290,7 +290,7 @@ export class UprtclRepository {
       const perspective: Perspective = {
         origin: dperspective.origin,
         creatorId: dperspective.creator.did,
-        timestamp: dperspective.timestamp      
+        timestamp: dperspective.timextamp      
       }
   
       const proof: Proof = {
@@ -349,7 +349,7 @@ export class UprtclRepository {
       commit(func: eq(xid, ${commitId})) {
         xid
         message
-        creator {
+        creators {
           did
         }
         data {
@@ -358,7 +358,7 @@ export class UprtclRepository {
         parents {
           xid
         }
-        timestamp
+        timextamp
         stored
         proof {
           signature
@@ -369,14 +369,14 @@ export class UprtclRepository {
 
     let result = await this.db.client.newTxn().query(query);
     let dcommit: DgCommit = result.getJson().commit[0];
-    console.log('[DGRAPH] getCommit', {query}, result.getJson());
+    console.log('[DGRAPH] getCommit', {query}, JSON.stringify(result.getJson()));
     if (!dcommit) new Error(`Commit with id ${commitId} not found`);
     if (!dcommit.stored) new Error(`Commit with id ${commitId} not found`);
 
     const commit: Commit = {
       creatorsIds: dcommit.creators.map((creator: any) => creator.did),
       dataId: dcommit.data.xid,
-      timestamp: dcommit.timestamp,
+      timestamp: dcommit.timextamp,
       message: dcommit.message,
       parentsIds: dcommit.parents ? dcommit.parents.map(parent => parent.xid) : []
     }

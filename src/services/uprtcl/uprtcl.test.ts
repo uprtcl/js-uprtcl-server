@@ -92,7 +92,7 @@ describe("routes", () => {
     done();
   });
 
-  test("CRUD private perspectives", async (done) => {
+  test.skip("CRUD private perspectives", async (done) => {
 
     const creatorId = 'did:method:12345';
     const name = 'test';

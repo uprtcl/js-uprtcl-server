@@ -10,7 +10,7 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   xid: string
   creator: uid
   origin: string
-  timestamp: datetime
+  timextamp: int
   head: ${COMMIT_SCHEMA_NAME}
   name: string
   context: string
@@ -21,8 +21,8 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
 
 type ${COMMIT_SCHEMA_NAME} {
   xid: string
-  creator: uid
-  timestamp: datetime
+  creators: [uid]
+  timextamp: int
   message: string
   parents: [uid]
   data: uid
@@ -38,7 +38,7 @@ type ${PROOF_SCHEMA_NAME} {
 stored: bool @index(bool) . 
 xid: string @index(exact) @upsert .
 origin: string .
-timestamp: datetime .
+timextamp: int .
 message: string .
 head: uid .
 name: string @index(exact) .
@@ -47,6 +47,7 @@ signature: string .
 proof_type: string .
 context: string @index(exact) .
 creator: uid .
+creators: [uid] .
 data: uid .
 proof: uid .
 

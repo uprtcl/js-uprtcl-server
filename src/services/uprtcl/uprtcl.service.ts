@@ -69,9 +69,6 @@ export class UprtclService {
 
   async getCommit(commitId: string, loggedUserId: string | null): Promise<Secured<Commit>> {
     console.log('[UPRTCL-SERVICE] getCommit', {commitId});
-    if (!(await this.access.can(commitId, loggedUserId, PermissionType.Read))) {
-      throw new Error(NOT_AUTHORIZED_MSG);
-    }
     let commit = await this.uprtclRepo.getCommit(commitId);
     return commit;
   };
