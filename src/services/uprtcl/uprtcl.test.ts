@@ -3,7 +3,7 @@ import { toBeValidCid, ERROR, NOT_AUTHORIZED_MSG, SUCCESS } from "../../utils";
 import { createPerspective, getPerspective, createCommit, updatePerspective, getPerspectiveDetails, findPerspectives } from "./uprtcl.testsupport";
 import { createData } from "../data/support.data";
 import { DocNodeType } from "../data/types";
-import { LOCAL_EVEES_PROVIDER } from "../knownsources/knownsources.repository";
+import { LOCAL_EVEES_PROVIDER } from "../providers";
 import { createUser } from "../user/user.testsupport";
 import { Perspective, Commit } from "./types";
 import { delegatePermissionsTo, addPermission, setPublicPermission } from "../access/access.testsupport";

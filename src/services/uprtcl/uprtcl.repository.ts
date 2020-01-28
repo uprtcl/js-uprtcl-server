@@ -1,12 +1,14 @@
 import { DGraphService } from "../../db/dgraph.service";
 import { ipldService } from "../ipld/ipldService";
 import { UserRepository } from "../user/user.repository";
-import { LOCAL_EVEES_PROVIDER } from "../knownsources/knownsources.repository";
+import { LOCAL_EVEES_PROVIDER } from "../providers";
 import { DataRepository } from "../data/data.repository";
 import { Perspective, PerspectiveDetails, Commit, Secured, Proof } from "./types";
 import { PERSPECTIVE_SCHEMA_NAME, PROOF_SCHEMA_NAME, COMMIT_SCHEMA_NAME } from "./uprtcl.schema";
 
 const dgraph = require("dgraph-js");
+
+export 
 
 interface DgRef {
   [x: string]: string;

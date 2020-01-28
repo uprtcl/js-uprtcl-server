@@ -2,7 +2,7 @@ import request from "supertest";
 import { router } from "../../server";
 import { Perspective, Commit, PerspectiveDetails, Secured } from "./types";
 import { PostResult, ExtendedMatchers, GetResult } from "../../utils";
-import { LOCAL_EVEES_PROVIDER } from "../knownsources/knownsources.repository";
+import { LOCAL_EVEES_PROVIDER } from "../providers";
 
 export const createPerspective = async (
   creatorId: string, 
