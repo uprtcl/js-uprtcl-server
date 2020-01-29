@@ -28,7 +28,7 @@ export class KnownSourcesRepository {
     let json = result.getJson();
     console.log("[DGRAPH] getGeneric", { query }, JSON.stringify(json));
 
-    return json.element[0]["dgraph.type"];
+    return json.element[0].dgraph.type ? json.element[0].dgraph.type : [];
   }
 
   async addKnownSources(

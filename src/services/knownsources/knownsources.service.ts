@@ -21,6 +21,10 @@ export class KnownSourcesService {
 
     const data_types = [DATA_SCHEMA_NAME];
 
+    if (types.length === 0) {
+      throw new Error('Element not found');
+    }
+
     if (types.some((type: string) => data_types.includes(type))) {
       return this.dataService.getData(elementId);
     }
