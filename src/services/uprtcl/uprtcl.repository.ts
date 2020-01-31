@@ -138,6 +138,7 @@ export class UprtclRepository {
 
     nquads = nquads.concat(`\nuid(commit) <timextamp> "${commit.timestamp}"^^<xs:int> .`);
     nquads = nquads.concat(`\nuid(commit) <data> uid(data) .`)
+    nquads = nquads.concat(`\nuid(data) <xid> "${commit.dataId}" .`)
 
     nquads = nquads.concat(`\n_:proof <dgraph.type> "${PROOF_SCHEMA_NAME}" .`);
     nquads = nquads.concat(`\n_:proof <signature> "${proof.signature}" .`);
