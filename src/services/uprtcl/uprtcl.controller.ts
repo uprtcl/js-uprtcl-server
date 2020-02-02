@@ -162,7 +162,7 @@ export class UprtclController {
           async (request: Request, res: Response) => {
             try {
               let perspectives = await this.uprtclService.findPerspectives(request.body);
-              let result: GetResult<Secured<Perspective>[]> = {
+              let result: GetResult<string[]> = {
                 result: SUCCESS,
                 message: 'perspectives found',
                 data: perspectives

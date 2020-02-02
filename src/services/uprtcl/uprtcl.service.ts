@@ -35,7 +35,7 @@ export class UprtclService {
     return perspective;
   };
 
-  async findPerspectives(details: PerspectiveDetails): Promise<Secured<Perspective>[]> {
+  async findPerspectives(details: PerspectiveDetails): Promise<string[]> {
     console.log('[UPRTCL-SERVICE] findPerspectives', {details});
     // TODO filter by canRead
     let perspectives = await this.uprtclRepo.findPerspectives(details);
