@@ -18,7 +18,7 @@ export class DataRepository {
   /** All data objects are stored as textValues, intValues, floatValues and boolValues 
    * or links to other objects, if the value is a valid CID string.
    * The path of the property in the JSON object is stored in a facet */
-  async createData(hashedData: Hashed<Object>) {
+  async createData(hashedData: Hashed<any>) {
     await this.db.ready();
 
     /** Validate ID */
@@ -39,12 +39,17 @@ export class DataRepository {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
+    // patch store quotes of string attributes as symbol
+    const dataCoded = {...data}
+    if (dataCoded.text !== undefined) dataCoded.text = dataCoded.text.replace(/"/g, '&quot;');
+    if (dataCoded.title !== undefined) dataCoded.title = dataCoded.title.replace(/"/g, '&quot;');
+
     let query = `data as var(func: eq(xid, ${id}))`;
     let nquads = `uid(data) <xid> "${id}" .`;
 
     nquads = nquads.concat(`\nuid(data) <stored> "true" .`);
     nquads = nquads.concat(`\nuid(data) <dgraph.type> "${DATA_SCHEMA_NAME}" .`);
-    nquads = nquads.concat(`\nuid(data) <jsonString> "${JSON.stringify(data).replace(/"/g, '\\"')}" .`);
+    nquads = nquads.concat(`\nuid(data) <jsonString> "${JSON.stringify(dataCoded).replace(/"/g, '\\"')}" .`);
 
     req.setQuery(`query {${query}}`);
     mu.setSetNquads(nquads);
@@ -87,7 +92,11 @@ export class DataRepository {
       throw new Error(`element with xid ${dataId} content not stored`)
     }
 
-    const data = JSON.parse(json.data[0].jsonString);
+    const dataCoded = JSON.parse(json.data[0].jsonString);
+
+    const data = {...dataCoded};
+    if (data.text !== undefined) data.text = data.text.replace(/&quot;/g,"\"" );
+    if (data.title !== undefined) data.title = data.title.replace(/&quot;/g,"\"" );
 
     console.log(
       "[DGRAPH] getData",

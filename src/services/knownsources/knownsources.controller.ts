@@ -42,8 +42,7 @@ export class KnownSourcesController {
 
               console.log('[KNOWNSOURCES CONTROLLER] getGeneric', 
                 { inputs: JSON.stringify(inputs), result: JSON.stringify(result) });
-  
-              res.status(200).send(result);
+              
             } catch (error) {
               console.log('[UPRTCL CONTROLLER] getGeneric - Error', 
                 JSON.stringify(inputs), error);

@@ -1,30 +1,51 @@
 import CID from 'cids';
+const CBOR = require('cbor-js');
+    
 import multihashing from 'multihashing-async';
-import Buffer from 'buffer/';
 import { CidConfig } from './cid.config';
 import { Secured } from '../uprtcl/types';
 import { localCidConfig } from '.';
 
-export function sortObject(object: any): object {
+type genericObject = {
+  [key: string]: any
+}
+
+function sortObject(object: genericObject): object {
   if (typeof object !== 'object' || object instanceof Array) {
     // Not to sort the array
     return object;
   }
   const keys = Object.keys(object).sort();
 
-  const newObject: any = {};
+  const newObject: genericObject = {};
   for (let i = 0; i < keys.length; i++) {
     newObject[keys[i]] = sortObject(object[keys[i]]);
   }
   return newObject;
 }
 
+
 export class IpldService {
   async generateCidOrdered(
     object: any,
     cidConfig: CidConfig
   ) {
-    return ipldService.generateCid(sortObject(object), cidConfig);
+
+    const sorted = sortObject(object);
+    const buffer = CBOR.encode(sorted);
+    const buffer2 = new Buffer(buffer);
+    const encoded = await multihashing(buffer2, cidConfig.type);
+    
+    const cid = new CID(
+      cidConfig.version,
+      cidConfig.codec,
+      encoded,
+      cidConfig.base
+    );
+
+    console.log(`hashed object:`, {object, sorted, buffer, buffer2, cid, cidStr: cid.toString()});
+    
+    return cid.toString()
   }
 
   async validateSecured(secured: Secured) {
@@ -62,24 +83,7 @@ export class IpldService {
     }
     return valid;
   }
-
-  async generateCid(object: object, cidConfig: CidConfig): Promise<string> {
-    if (typeof object !== 'object') {
-      throw new Error(`Object expected, received "${object}"`);
-    }
-
-    const b = Buffer.Buffer.from(JSON.stringify(object));
-    const encoded = await multihashing(b, cidConfig.type);
-    
-    const cid = new CID(
-      cidConfig.version,
-      cidConfig.codec,
-      encoded,
-      cidConfig.base
-    );
-
-    return cid.toString();
-  }
+ 
 }
 
 export const ipldService = new IpldService();
