@@ -109,7 +109,7 @@ export const getCommit = async (commitId: string, jwt: string):Promise<GetResult
   return JSON.parse(get.text);
 }
 
-export const findPerspectives = async (details: PerspectiveDetails, jwt: string):Promise<GetResult<Secured<Perspective>[]>> => {
+export const findPerspectives = async (details: PerspectiveDetails, jwt: string):Promise<GetResult<string[]>> => {
   const get = await request(router)
     .put(`/uprtcl/1/persp`)
     .send(details)

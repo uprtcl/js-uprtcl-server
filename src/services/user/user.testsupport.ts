@@ -15,9 +15,10 @@ const getJwtToken = async (userDid: string, privateKey: string) : Promise<string
 
   let nonce: string = JSON.parse(get.text).data;
 
-  var data = `Login to CollectiveOne \nnonce:${nonce}`;  
-  var message = ethUtil.toBuffer(data);
-  var msgHash = ethUtil.hashPersonalMessage(message);
+  var data = `Login to Uprtcl Evees HTTP Server \n\nnonce:${nonce}`;  
+  var message = '0x' + Buffer.from(data, 'utf8').toString('hex');
+  var messageBuffer = ethUtil.toBuffer(message);
+  var msgHash = ethUtil.hashPersonalMessage(messageBuffer);
 
   let ECDSAsignature = ethUtil.ecsign(msgHash, ethUtil.toBuffer(privateKey));
   let signature = ethUtil.bufferToHex(Buffer.concat([ECDSAsignature.r, ECDSAsignature.s,  Uint8Array.from([ECDSAsignature.v])]));
@@ -32,7 +33,7 @@ const getJwtToken = async (userDid: string, privateKey: string) : Promise<string
 export const createUser = async (seed: string) : Promise<TestUser> => {
   let web3 = new Web3();
   let account = web3.eth.accounts.create(seed);
-  let userDid = `did:ethr:${account.address}`
+  let userDid = account.address;
 
   let jwt: string = await getJwtToken(userDid, account.privateKey);
   console.log('[TEST] createUser', {userDid, jwt});

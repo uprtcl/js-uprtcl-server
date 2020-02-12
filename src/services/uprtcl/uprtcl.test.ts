@@ -12,7 +12,7 @@ describe("routes", () => {
 
   expect.extend({toBeValidCid})
 
-  test("CRUD public owner-less perspectives", async (done) => {
+  test.skip("CRUD public owner-less perspectives", async (done) => {
 
     const creatorId = 'did:method:12345';
     const name = 'test';
@@ -63,7 +63,7 @@ describe("routes", () => {
     done();
   });
 
-  test("getContextPerspectives", async (done) => {
+  test.skip("getContextPerspectives", async (done) => {
 
     const creatorId = 'did:method:12345';
     const context = 'context.test';
@@ -91,7 +91,7 @@ describe("routes", () => {
     done();
   });
 
-  test.skip("CRUD private perspectives", async (done) => {
+  test("CRUD private perspectives", async (done) => {
 
     const creatorId = 'did:method:12345';
     const name = 'test';

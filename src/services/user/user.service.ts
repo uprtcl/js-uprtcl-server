@@ -31,12 +31,14 @@ export class UserService {
     
     console.log('[USER-CONTROLLER] getJwt', {userDid});
 
-    let owner =  userDid.split(':')[2];
+    let owner =  userDid;
 
     let nonce = await this.userRepo.getNonce(userDid);
-    var data = `Login to CollectiveOne \nnonce:${nonce}`;  
-    var message = ethUtil.toBuffer(data);
-    var msgHash = ethUtil.hashPersonalMessage(message);
+    var data = `Login to Uprtcl Evees HTTP Server \n\nnonce:${nonce}`;  
+    var message = '0x' + Buffer.from(data, 'utf8').toString('hex');
+    var messageBuffer = ethUtil.toBuffer(message);
+    var msgHash = ethUtil.hashPersonalMessage(messageBuffer);
+   
 
     var signatureBytes = ethUtil.toBuffer(signature);
     var sigParams = ethUtil.fromRpcSig(signatureBytes);
@@ -45,7 +47,7 @@ export class UserService {
     var addr = ethUtil.bufferToHex(sender);
   
     if (addr.toLowerCase() == owner.toLowerCase()) { 
-      var token = jwt.sign({user: `did:ethr:${addr}`}, process.env.JWT_SECRET,  { expiresIn: '8d', algorithm: 'HS256', issuer: C1_ETH_AUTH });
+      var token = jwt.sign({user: `${addr}`}, process.env.JWT_SECRET,  { expiresIn: '8d', algorithm: 'HS256', issuer: C1_ETH_AUTH });
       console.log('[USER-CONTROLLER] getJwt() - user authenticated');
       return token;
     } else {
