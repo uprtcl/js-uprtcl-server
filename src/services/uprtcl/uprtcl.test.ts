@@ -12,7 +12,7 @@ describe("routes", () => {
 
   expect.extend({toBeValidCid})
 
-  test.skip("CRUD public owner-less perspectives", async (done) => {
+  test("CRUD public owner-less perspectives", async (done) => {
 
     const creatorId = 'did:method:12345';
     const name = 'test';
@@ -63,7 +63,7 @@ describe("routes", () => {
     done();
   });
 
-  test.skip("getContextPerspectives", async (done) => {
+  test("getContextPerspectives", async (done) => {
 
     const creatorId = 'did:method:12345';
     const context = 'context.test';
@@ -237,5 +237,58 @@ describe("routes", () => {
 
     done();
 
+  });
+
+  test("getContextPerspectives - private", async (done) => {
+    const creatorId = 'did:method:12345';
+    const context = 'context.test-2';
+
+    let user1 = await createUser('seed1');
+    let user2 = await createUser('seed2');
+   
+    const name1 = 'persp 1';
+    const perspectiveId1 = await createPerspective(creatorId, Date.now(), user1.jwt);
+    await updatePerspective(perspectiveId1, { 
+      context: context,
+      name: name1
+    }, user1.jwt);
+
+    const name2 = 'persp 2';
+    const perspectiveId2 = await createPerspective(creatorId, Date.now(), user1.jwt);
+    await updatePerspective(perspectiveId2, { 
+      context: context,
+      name: name2
+    }, user1.jwt);
+
+    const name3 = 'persp 3';
+    const perspectiveId3 = await createPerspective(creatorId, Date.now(), user2.jwt);
+    await updatePerspective(perspectiveId3, { 
+      context: context,
+      name: name3
+    }, user2.jwt);
+
+    const name4 = 'persp 4';
+    const perspectiveId4 = await createPerspective(creatorId, Date.now(), '');
+    await updatePerspective(perspectiveId4, { 
+      context: context,
+      name: name4
+    }, '');
+
+    const result1 = await findPerspectives({context}, '');
+    expect(result1.data.length).toEqual(1);
+    expect(result1.data).toContain(perspectiveId4);
+
+    const result2 = await findPerspectives({context}, user1.jwt);
+    expect(result2.data.length).toEqual(3);
+    expect(result2.data).toContain(perspectiveId1);
+    expect(result2.data).toContain(perspectiveId2);
+    expect(result2.data).toContain(perspectiveId4);
+
+    const result3 = await findPerspectives({context}, user2.jwt);
+    expect(result3.data.length).toEqual(2);
+    expect(result3.data).toContain(perspectiveId3);
+    expect(result3.data).toContain(perspectiveId4);
+
+    done();
   });
 });

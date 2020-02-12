@@ -159,9 +159,12 @@ export class UprtclController {
         method: "put",
         handler: [
           checkJwt,
-          async (request: Request, res: Response) => {
+          async (req: Request, res: Response) => {
             try {
-              let perspectives = await this.uprtclService.findPerspectives(request.body);
+              let perspectives = await this.uprtclService.findPerspectives(
+                req.body, 
+                getUserFromReq(req));
+                
               let result: GetResult<string[]> = {
                 result: SUCCESS,
                 message: 'perspectives found',

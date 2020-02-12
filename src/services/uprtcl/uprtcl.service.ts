@@ -35,11 +35,22 @@ export class UprtclService {
     return perspective;
   };
 
-  async findPerspectives(details: PerspectiveDetails): Promise<string[]> {
+  async findPerspectives(details: PerspectiveDetails, loggedUserId: string | null): Promise<string[]> {
     console.log('[UPRTCL-SERVICE] findPerspectives', {details});
-    // TODO filter by canRead
-    let perspectives = await this.uprtclRepo.findPerspectives(details);
-    return perspectives;
+    // TODO filter on query not by code...
+    const perspectivesIds = await this.uprtclRepo.findPerspectives(details);
+
+    const accessiblePerspectivesPromises = perspectivesIds.map(async (perspectiveId) => {
+      if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Read))) {
+        return '';
+      } else {
+        return perspectiveId;
+      }
+    })
+
+    const accessiblePerspectives = await Promise.all(accessiblePerspectivesPromises);
+    
+    return accessiblePerspectives.filter((e: string) => e !=='');
   };
 
   async updatePerspective(perspectiveId: string, details: PerspectiveDetails, loggedUserId: string | null): Promise<void> {
