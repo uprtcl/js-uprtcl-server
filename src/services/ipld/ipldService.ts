@@ -43,7 +43,7 @@ export class IpldService {
       cidConfig.base
     );
 
-    console.log(`hashed object:`, {object, sorted, buffer, buffer2, cid, cidStr: cid.toString()});
+    console.log(`hashed object:`, {object, sorted, buffer, buffer2, cidConfig, cid, cidStr: cid.toString()});
     
     return cid.toString()
   }
