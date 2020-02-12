@@ -5,8 +5,7 @@ import { createData } from "../data/support.data";
 import { DocNodeType } from "../data/types";
 import { LOCAL_EVEES_PROVIDER } from "../providers";
 import { createUser } from "../user/user.testsupport";
-import { Perspective, Commit } from "./types";
-import { delegatePermissionsTo, addPermission, setPublicPermission } from "../access/access.testsupport";
+import { addPermission, setPublicPermission } from "../access/access.testsupport";
 import { PermissionType } from "../access/access.schema";
 
 describe("routes", () => {
@@ -86,8 +85,8 @@ describe("routes", () => {
     const result = await findPerspectives({context}, '');
 
     expect(result.data.length).toEqual(2);
-    expect(result.data.find(p => p.id === perspectiveId1)).not.toBeUndefined();
-    expect(result.data.find(p => p.id === perspectiveId2)).not.toBeUndefined();
+    expect(result.data).toContain(perspectiveId1);
+    expect(result.data).toContain(perspectiveId2);
 
     done();
   });
