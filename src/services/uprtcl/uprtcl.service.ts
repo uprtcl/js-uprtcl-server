@@ -54,16 +54,16 @@ export class UprtclService {
   async createAndInitPerspective(perspectiveData: NewPerspectiveData, loggedUserId: string | null): Promise<string> {
     let perspId = await this.createPerspective(perspectiveData.perspective, loggedUserId);
     
-    if (perspectiveData.details) {
-      await this.updatePerspective(perspId, perspectiveData.details, loggedUserId);
-    }
-    
     if (perspectiveData.parentId) {
       await this.access.createAccessConfig(perspId, perspectiveData.parentId, loggedUserId);
     } else {
       await this.access.createAccessConfig(perspId, undefined, loggedUserId);
     }
 
+    if (perspectiveData.details) {
+      await this.updatePerspective(perspId, perspectiveData.details, loggedUserId);
+    }
+    
     return perspId;
   }
 
