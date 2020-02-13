@@ -180,8 +180,8 @@ export class AccessService {
 
     const accessConfig = await this.getAccessConfig(elementId, '')
     if (accessConfig.delegate) {
-      if (!accessConfig.delegateTo) throw new Error(`undefined delegateTo but accessConfig delegate of ${elementId} is true`);
-      permissionsElement = accessConfig.delegateTo;
+      if (!accessConfig.finDelegatedTo) throw new Error(`undefined delegateTo but accessConfig delegate of ${elementId} is true`);
+      permissionsElement = accessConfig.finDelegatedTo;
     }
 
     if (await this.accessRepo.isPublic(permissionsElement, type)) {
