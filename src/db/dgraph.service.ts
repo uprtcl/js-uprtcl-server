@@ -24,7 +24,7 @@ export class DGraphService {
     this.host = _host;
     this.connectionReady = new Promise(async (resolve) => {
       await this.connect();
-      await this.dropAll();
+      // await this.dropAll();
       await this.setSchema();
       console.log('[DGRAPH] Initialized');
       resolve();
