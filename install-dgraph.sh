@@ -92,12 +92,8 @@ printf $RESET
 
 	# Check sudo permissions
 	if hash sudo 2>/dev/null; then
-		sudo_cmd="sudo"
+		sudo_cmd=""
 		echo "Requires sudo permission to install Dgraph binaries to $install_path."
-		if ! $sudo_cmd -v; then
-			print_error "Need sudo privileges to complete installation."
-			exit 1;
-		fi
 	fi
 
 	if ! check_license_agreement; then
