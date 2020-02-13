@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
 import { checkJwt } from "../../middleware/jwtCheck";
 import { AccessService } from "./access.service";
-import { getUserFromReq, SUCCESS, ERROR, PostResult } from "../../utils";
+import { getUserFromReq, SUCCESS, ERROR, PostResult, GetResult } from "../../utils";
+import { AccessConfig, PermissionConfig } from "./access.repository";
 
 export class AccessController {
 
@@ -56,6 +57,94 @@ export class AccessController {
 
       {
         path: "/uprtcl/1/permissions/:elementId",
+        method: "put",
+        handler: [
+          checkJwt,
+          async (req: Request, res: Response) => {
+            debugger
+            let inputs: any = {
+              elementId: req.params.elementId, 
+              permissions: req.body,
+              userId: getUserFromReq(req)};
+
+            try {
+              await this.accessService.updatePermissions(
+                inputs.elementId,
+                inputs.permissions,
+                inputs.userId);
+  
+              console.log('[ACCESS CONTROLLER] updatePermissions', 
+                JSON.stringify(inputs));
+  
+              let result: PostResult = {
+                result: SUCCESS,
+                message: 'accessConfig updated',
+                elementIds: []
+              }
+  
+              res.status(200).send(result);
+            } catch (error) {
+              console.log('[ACCESS CONTROLLER] ERROR updatePermissions', 
+                JSON.stringify(inputs));
+  
+              let result: PostResult = {
+                result: ERROR,
+                message: error.message,
+                elementIds: []
+              }
+  
+              res.status(200).send(result);
+            }            
+          }
+        ]
+      },
+
+      {
+        path: "/uprtcl/1/permissions/:elementId",
+        method: "get",
+        handler: [
+          checkJwt,
+          async (req: Request, res: Response) => {
+            let inputs: any = {
+              elementId: req.params.elementId, 
+              userId: getUserFromReq(req)};
+
+            try {
+              const permissions = await this.accessService.getPermissionsConfigOfElement(
+                inputs.elementId,
+                inputs.userId);
+  
+              console.log('[ACCESS CONTROLLER] getPermissionsConfigOfElement', 
+                JSON.stringify(inputs));
+  
+              let result: GetResult<PermissionConfig> = {
+                result: SUCCESS,
+                message: '',
+                data: permissions
+              }
+
+              console.log('[ACCESS CONTROLLER] getPermissionsConfigOfElement', 
+                { inputs: JSON.stringify(inputs), result: JSON.stringify(result) });
+  
+              res.status(200).send(result);
+            } catch (error) {
+              console.log('[ACCESS CONTROLLER] ERROR getPermissionsConfigOfElement', 
+                JSON.stringify(inputs));
+  
+              let result: PostResult = {
+                result: ERROR,
+                message: error.message,
+                elementIds: []
+              }
+  
+              res.status(200).send(result);
+            }            
+          }
+        ]
+      },
+
+      {
+        path: "/uprtcl/1/permissions/:elementId/single",
         method: "put",
         handler: [
           checkJwt,

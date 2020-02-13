@@ -30,7 +30,7 @@ export const addPermission = async (
   type: PermissionType,   
   jwt: string) : Promise<PostResult> => {
 
-  const put = await request(router).put(`/uprtcl/1/permissions/${elementId}`)
+  const put = await request(router).put(`/uprtcl/1/permissions/${elementId}/single`)
     .send({
       type: type,
       userId: userToAddId

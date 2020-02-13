@@ -27,7 +27,7 @@ export const createPerspective = async (
   }
 
   const post = await request(router).post('/uprtcl/1/persp')
-  .send(secured)
+  .send({ perspective: secured })
   .set('Authorization', jwt ? `Bearer ${jwt}` : '');
   
   let result: any = JSON.parse(post.text).elementIds[0];

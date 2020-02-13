@@ -38,7 +38,7 @@ export class AccessRepository {
     
     let nquads = `_:permissions <publicRead> "${permissions.publicRead}" .`;
     nquads = nquads.concat(`\n_:permissions <dgraph.type> "${PERMISSIONS_SCHEMA_NAME}" .`);
-    nquads = nquads.concat(`\n_:permissions <publicWrite> "${permissions.publicRead}" .`);
+    nquads = nquads.concat(`\n_:permissions <publicWrite> "${permissions.publicWrite}" .`);
     
     if (permissions.canRead) {
       for (let ix = 0; ix < permissions.canRead.length; ix++) {
@@ -150,21 +150,31 @@ export class AccessRepository {
   async getPermissionsConfig(permissionsUid: string) : Promise<PermissionConfig> {
     let query = `
     permissions(func: uid(${permissionsUid})) {
-      expand(_all_)
+      publicRead
+      publicWrite
+      canRead {
+        did
+      }
+      canWrite {
+        did
+      }
+      canAdmin {
+        did
+      }
     }
     `
     
     let result = await this.db.client.newTxn().query(`query{${query}}`);
     console.log('[DGRAPH] getPermissionsConfig', {permissionsUid}, result.getJson());
 
-    let dpermissionsConfig = result.getJson().permissions
+    let dpermissionsConfig = result.getJson().permissions[0];
 
     return {
       publicRead: dpermissionsConfig.publicRead,
       publicWrite: dpermissionsConfig.publicWrite,
-      canRead: dpermissionsConfig.canRead.map((el:any) => el.did.toLowerCase()),
-      canWrite: dpermissionsConfig.canWrite.map((el:any) => el.did.toLowerCase()),
-      canAdmin: dpermissionsConfig.canAdmin.map((el:any) => el.did.toLowerCase()),
+      canRead: dpermissionsConfig.canRead ? dpermissionsConfig.canRead.map((el:any) => el.did.toLowerCase()) : [],
+      canWrite: dpermissionsConfig.canWrite ? dpermissionsConfig.canWrite.map((el:any) => el.did.toLowerCase()) : [],
+      canAdmin: dpermissionsConfig.canAdmin ? dpermissionsConfig.canAdmin.map((el:any) => el.did.toLowerCase()) : []
     };
   }
 
@@ -310,7 +320,8 @@ export class AccessRepository {
       nquads = nquads.concat(`\n<${accessConfigUid}> <finDelegatedTo> uid(finDelegatedTo) .`);
     }
     
-    req.setQuery(`query{${query}}`);
+    if (query !== '') req.setQuery(`query{${query}}`);
+    
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
     

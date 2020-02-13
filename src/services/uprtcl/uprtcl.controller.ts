@@ -27,7 +27,7 @@ export class UprtclController {
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const elementId = await this.uprtclService.createPerspective(
+            const elementId = await this.uprtclService.createAndInitPerspective(
               req.body, 
               getUserFromReq(req));
 

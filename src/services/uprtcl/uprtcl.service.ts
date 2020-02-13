@@ -1,4 +1,4 @@
-import { Perspective, Commit, PerspectiveDetails, Secured } from "./types";
+import { Perspective, Commit, PerspectiveDetails, Secured, NewPerspectiveData } from "./types";
 import { DGraphService } from "../../db/dgraph.service";
 import { AccessService } from "../access/access.service";
 import { UprtclRepository } from "./uprtcl.repository";
@@ -13,14 +13,12 @@ export class UprtclService {
     protected access: AccessService) {
   }
 
-  async createPerspective(
+  private async createPerspective(
     perspective: Secured<Perspective>, 
     loggedUserId: string | null): Promise<string> {
 
     console.log('[UPRTCL-SERVICE] createPerspective', {perspective, loggedUserId});
-    let perspId = await this.uprtclRepo.createPerspective(perspective);
-    await this.access.createAccessConfig(perspId, loggedUserId);
-    return perspId;
+    return this.uprtclRepo.createPerspective(perspective);
   };
 
   async getPerspective(perspectiveId: string, loggedUserId: string | null): Promise<Secured<Perspective>> {
@@ -52,6 +50,22 @@ export class UprtclService {
     
     return accessiblePerspectives.filter((e: string) => e !=='');
   };
+
+  async createAndInitPerspective(perspectiveData: NewPerspectiveData, loggedUserId: string | null): Promise<string> {
+    let perspId = await this.createPerspective(perspectiveData.perspective, loggedUserId);
+    
+    if (perspectiveData.details) {
+      await this.updatePerspective(perspId, perspectiveData.details, loggedUserId);
+    }
+    
+    if (perspectiveData.parentId) {
+      await this.access.createAccessConfig(perspId, perspectiveData.parentId, loggedUserId);
+    } else {
+      await this.access.createAccessConfig(perspId, undefined, loggedUserId);
+    }
+
+    return perspId;
+  }
 
   async updatePerspective(perspectiveId: string, details: PerspectiveDetails, loggedUserId: string | null): Promise<void> {
     console.log('[UPRTCL-SERVICE] updatePerspective', {perspectiveId}, {details});

@@ -31,22 +31,33 @@ export class AccessService {
         canAdmin: []
       }
     }
-    return this.accessRepo.createPermissionsConfig(persmissions);     
+    return this.accessRepo.createPermissionsConfig(persmissions);
   }
 
   /** if delegateTo is available, set its persmissions as the persissions of elementId
    *  if not, set its permissions as default. */
   async createAccessConfig(
     elementId: string,
+    delegateTo: string | undefined,
     userId: string | null): Promise<void> {
 
     if (elementId == undefined || elementId === '') throw new Error(`ElementId is empty`);
 
     let accessConfig: AccessConfig;
-    let dftPermUid = await this.createDefaultPermissions(userId);
-    accessConfig = {
-      delegate: false,
-      permissionsUid: dftPermUid
+    if (delegateTo) {
+      if (userId == null) throw new Error('cant inherit permissions if user is not logged in')
+      const delegateAccessConfig = await this.getAccessConfig(delegateTo, userId);
+      accessConfig = {
+        delegate: true,
+        delegateTo,
+        finDelegatedTo: delegateAccessConfig.finDelegatedTo
+      }
+    } else {
+      let dftPermUid = await this.createDefaultPermissions(userId);
+      accessConfig = {
+        delegate: false,
+        permissionsUid: dftPermUid
+      }
     }
 
     let accessConfigUid = await this.accessRepo.createAccessConfig(accessConfig);
@@ -54,29 +65,42 @@ export class AccessService {
     return this.accessRepo.setAccessConfigOf(elementId, accessConfigUid);
   }
 
-  async getPermissionsConfig(permissionsUid: string) : Promise<PermissionConfig> {
+  async getPermissionsConfig(permissionsUid: string): Promise<PermissionConfig> {
     return this.accessRepo.getPermissionsConfig(permissionsUid);
   }
 
-  async getAccessConfig(elementId: string, userId: string) : Promise<AccessConfig> {
+  async getAccessConfig(elementId: string, userId: string): Promise<AccessConfig> {
     return this.accessRepo.getAccessConfigOfElement(elementId, userId);
+  }
+
+  async getPermissionsConfigOfElement(elementId: string, userId: string) {
+    const { permissionsUid } = await this.accessRepo.getAccessConfigOfElement(elementId, userId);
+    if (!permissionsUid) throw new Error(`persmissions not found for element ${elementId}`);
+    return this.getPermissionsConfig(permissionsUid);
   }
 
   /** Create a new permissions config element and set it in the access config of the element. 
    * It does not change the delegate, delegateTo and finalDelegatedTo.
    */
-  async createPermissionsConfig(elementId: string, permissions: PermissionConfig) : Promise<string> {
+  async createPermissionsConfig(elementId: string, permissions: PermissionConfig): Promise<string> {
     return this.accessRepo.createPermissionsConfig(permissions)
   }
 
+  async updatePermissions(elementId: string, permissions: PermissionConfig, userId: string | null): Promise<void> {
+    const permissionsUid = await this.accessRepo.createPermissionsConfig(permissions)
+    let accessConfig = await this.accessRepo.getAccessConfigOfElement(elementId, userId);
+    accessConfig.permissionsUid = permissionsUid;
+    return this.updateAccessConfig(elementId, accessConfig, userId)
+  }
+
   async updateAccessConfig(
-    elementId: string, 
-    newAccessConfig: AccessConfig, 
-    userId: string | null) : Promise<void> {
+    elementId: string,
+    newAccessConfig: AccessConfig,
+    userId: string | null): Promise<void> {
 
     if (userId == null) throw new Error('logged user not found');
 
-    if(!await this.accessRepo.can(elementId, userId, PermissionType.Admin)) {
+    if (!await this.accessRepo.can(elementId, userId, PermissionType.Admin)) {
       throw new Error(NOT_AUTHORIZED_MSG);
     }
 
@@ -88,11 +112,11 @@ export class AccessService {
     if (newAccessConfig.delegate) {
       /** protection for undefined delegateTo and finDelegatedTo */
       if (!newAccessConfig.delegateTo) throw new Error('delegateTo not defined');
-      
+
       newDelegateTo = newAccessConfig.delegateTo;
 
       let delegateToAccessConfig = await this.getAccessConfig(newAccessConfig.delegateTo, userId);
-      
+
       if (delegateToAccessConfig.delegate) {
         /** if delegateTo is, in turn, delegated, jump to the final delegated element */
 
@@ -101,7 +125,7 @@ export class AccessService {
         if (!delegateToAccessConfig.finDelegatedTo) throw new Error('finDelegatedTo not found');
 
         newFinDelegatedTo = delegateToAccessConfig.finDelegatedTo;
-        let finDelegatedToAccessConfig = 
+        let finDelegatedToAccessConfig =
           await this.getAccessConfig(delegateToAccessConfig.finDelegatedTo, userId);
 
         newPermissionsUid = finDelegatedToAccessConfig.permissionsUid;
@@ -124,17 +148,17 @@ export class AccessService {
     }
 
     await this.accessRepo.updateAccessConfig(elementId, newAccessConfigProc);
-    
+
     /** now, recursively update the finDelegatedTo of all elements that are 
      * directly or indirectly using this element permissions */
     let newFinDelegatedToOfChilds = newFinDelegatedTo != null ? newFinDelegatedTo : elementId;
     await this.setFinDelegatedToRec(elementId, newFinDelegatedToOfChilds);
   }
 
-  private async setFinDelegatedToRec(elementId: string, finDelegatedTo: string) : Promise<void> {
+  private async setFinDelegatedToRec(elementId: string, finDelegatedTo: string): Promise<void> {
     /** get the list of elements that delegated to elementId */
     let delegatingFrom = await this.accessRepo.getDelegatedFrom(elementId);
-    
+
     /** for each of them, set the finDelegateTo and call recursively this function */
     let updateFinDelegatedTo = delegatingFrom.map(async (otherElementId: string) => {
       this.accessRepo.setFinDelegatedTo(otherElementId, finDelegatedTo)
@@ -145,46 +169,46 @@ export class AccessService {
   }
 
   async can(
-    elementId: string, 
-    userId: string | null, 
-    type: PermissionType) : Promise<boolean>  {
+    elementId: string,
+    userId: string | null,
+    type: PermissionType): Promise<boolean> {
 
     if (await this.accessRepo.isPublic(elementId, type)) {
       return true;
     }
-    
+
     if (userId != null) {
       return this.accessRepo.can(elementId, userId, type);
     }
 
-    console.log('[ACCESS-SERVICE] isRole - FALSE', {elementId, userId, type});    
+    console.log('[ACCESS-SERVICE] isRole - FALSE', { elementId, userId, type });
     return false
   }
 
   async setPublic(
-    elementId: string, 
+    elementId: string,
     type: PermissionType,
     value: boolean,
-    userId: string | null) : Promise<void> {
+    userId: string | null): Promise<void> {
 
     if (userId == null) throw new Error('logged user not found');
 
-    if(!await this.accessRepo.can(elementId, userId, PermissionType.Admin)) {
+    if (!await this.accessRepo.can(elementId, userId, PermissionType.Admin)) {
       throw new Error(NOT_AUTHORIZED_MSG);
     }
 
-    return this.accessRepo.setPublic(elementId, type, value);    
+    return this.accessRepo.setPublic(elementId, type, value);
   }
 
   async addPermission(
-    elementId: string, 
+    elementId: string,
     type: PermissionType,
-    toUserId: string, 
-    userId: string | null) : Promise<void> {
+    toUserId: string,
+    userId: string | null): Promise<void> {
 
     if (userId == null) throw new Error('logged user not found');
 
-    if(!await this.accessRepo.can(elementId, userId, PermissionType.Admin)) {
+    if (!await this.accessRepo.can(elementId, userId, PermissionType.Admin)) {
       throw new Error(NOT_AUTHORIZED_MSG);
     }
 

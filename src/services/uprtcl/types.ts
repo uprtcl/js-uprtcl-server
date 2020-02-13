@@ -34,3 +34,9 @@ export interface Signed<T = any> {
 }
 
 export type Secured<T = any> = Hashed<Signed<T>>;
+
+export interface NewPerspectiveData {
+  perspective: Secured<Perspective>;
+  details?: PerspectiveDetails;
+  parentId?: string;
+}
