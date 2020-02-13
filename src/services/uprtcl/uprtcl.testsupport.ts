@@ -7,7 +7,8 @@ import { LOCAL_EVEES_PROVIDER } from "../providers";
 export const createPerspective = async (
   creatorId: string, 
   timestamp: number, 
-  jwt: string):Promise<string> => {
+  jwt: string,
+  parentId?: string):Promise<string> => {
   
   const perspective: Perspective = {
     origin: LOCAL_EVEES_PROVIDER,
@@ -27,7 +28,7 @@ export const createPerspective = async (
   }
 
   const post = await request(router).post('/uprtcl/1/persp')
-  .send({ perspective: secured })
+  .send({ perspective: secured, parentId: parentId })
   .set('Authorization', jwt ? `Bearer ${jwt}` : '');
   
   let result: any = JSON.parse(post.text).elementIds[0];

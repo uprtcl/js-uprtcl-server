@@ -61,7 +61,6 @@ export class AccessController {
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            debugger
             let inputs: any = {
               elementId: req.params.elementId, 
               permissions: req.body,

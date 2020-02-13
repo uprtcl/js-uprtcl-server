@@ -185,8 +185,12 @@ export class AccessRepository {
       accessConfig {
         uid
         delegate
-        delegateTo
-        finDelegatedTo
+        delegateTo {
+          xid
+        }
+        finDelegatedTo {
+          xid
+        }
         permissions {
           uid
         }
@@ -200,9 +204,9 @@ export class AccessRepository {
 
     return {
       uid: daccessConfig.uid,
-      delegate: daccessConfig.delegate == 'true',
-      delegateTo: daccessConfig.delegateTo,
-      finDelegatedTo: daccessConfig.finDelegatedTo,
+      delegate: daccessConfig.delegate !== undefined ? daccessConfig.delegate :  false,
+      delegateTo: daccessConfig.delegateTo ? daccessConfig.delegateTo.xid : undefined,
+      finDelegatedTo: daccessConfig.finDelegatedTo ? daccessConfig.finDelegatedTo.xid : undefined,
       permissionsUid: daccessConfig.permissions.uid,
     };
   }
@@ -256,17 +260,23 @@ export class AccessRepository {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
+    let query = '';
+    if (accessConfig.delegateTo) query = query.concat(`\ndelegateToEl as var(func: eq(xid, "${accessConfig.delegateTo}"))`);
+    if (accessConfig.finDelegatedTo) query = query.concat(`\nfinDelegatedToEl as var(func: eq(xid, "${accessConfig.finDelegatedTo}"))`);
+
     let nquads = `_:accessConfig <permissions> <${accessConfig.permissionsUid}> .`;
     nquads = nquads.concat(`\n_:accessConfig <dgraph.type> "${ACCESS_CONFIG_SCHEMA_NAME}" .`);
     nquads = nquads.concat(`\n_:accessConfig <delegate> "${accessConfig.delegate}" .`);
-    if (accessConfig.delegateTo) nquads = nquads.concat(`\n_:accessConfig <delegateTo> <${accessConfig.delegateTo}> .`);
-    if (accessConfig.finDelegatedTo) nquads = nquads.concat(`\n_:accessConfig <finDelegatedTo> <${accessConfig.finDelegatedTo}> .`);
+    if (accessConfig.delegateTo) nquads = nquads.concat(`\n_:accessConfig <delegateTo> uid(delegateToEl) .`);
+    if (accessConfig.finDelegatedTo) nquads = nquads.concat(`\n_:accessConfig <finDelegatedTo> uid(finDelegatedToEl) .`);
     
+    if (query !== '') req.setQuery(`query{${query}}`);
+
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
     
     let result = await this.db.callRequest(req);
-    console.log('[DGRAPH] createAccessConfig', {nquads}, result.getUidsMap().toArray());
+    console.log('[DGRAPH] createAccessConfig', {query, nquads}, result.getUidsMap().toArray());
     return result.getUidsMap().toArray()[0][1];
   }
 

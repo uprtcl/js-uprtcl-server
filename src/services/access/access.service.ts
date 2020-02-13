@@ -47,10 +47,13 @@ export class AccessService {
     if (delegateTo) {
       if (userId == null) throw new Error('cant inherit permissions if user is not logged in')
       const delegateAccessConfig = await this.getAccessConfig(delegateTo, userId);
+      /** keep the final delegate updated */
+      const finDelegatedTo = delegateAccessConfig.delegate ? delegateAccessConfig.finDelegatedTo : delegateTo;
       accessConfig = {
         delegate: true,
         delegateTo,
-        finDelegatedTo: delegateAccessConfig.finDelegatedTo
+        finDelegatedTo,
+        permissionsUid: delegateAccessConfig.permissionsUid        
       }
     } else {
       let dftPermUid = await this.createDefaultPermissions(userId);
@@ -173,12 +176,20 @@ export class AccessService {
     userId: string | null,
     type: PermissionType): Promise<boolean> {
 
-    if (await this.accessRepo.isPublic(elementId, type)) {
+    let permissionsElement: string = elementId;
+
+    const accessConfig = await this.getAccessConfig(elementId, '')
+    if (accessConfig.delegate) {
+      if (!accessConfig.delegateTo) throw new Error(`undefined delegateTo but accessConfig delegate of ${elementId} is true`);
+      permissionsElement = accessConfig.delegateTo;
+    }
+
+    if (await this.accessRepo.isPublic(permissionsElement, type)) {
       return true;
     }
 
     if (userId != null) {
-      return this.accessRepo.can(elementId, userId, type);
+      return this.accessRepo.can(permissionsElement, userId, type);
     }
 
     console.log('[ACCESS-SERVICE] isRole - FALSE', { elementId, userId, type });

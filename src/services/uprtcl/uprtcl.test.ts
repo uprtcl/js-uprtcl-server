@@ -17,14 +17,13 @@ describe("routes", () => {
     const creatorId = 'did:method:12345';
     const name = 'test';
     const context = 'wikipedia.barack_obama';
-    const timestamp = 1568027451547;
 
-    let perspectiveId = await createPerspective(creatorId, timestamp, '');
+    let perspectiveId = await createPerspective(creatorId, 123456, '');
     let result1 = await getPerspective(perspectiveId, '');
     
     expect(result1.data.id).toEqual(perspectiveId);
     expect(result1.data.object.payload.creatorId).toEqual(creatorId);
-    expect(result1.data.object.payload.timestamp).toEqual(timestamp);
+    expect(result1.data.object.payload.timestamp).toEqual(123456);
     expect(result1.data.object.payload.origin).toEqual(LOCAL_EVEES_PROVIDER);
 
     /** update head */
@@ -32,7 +31,7 @@ describe("routes", () => {
     
     let text1 = 'new content';
     let par1Id = await createData({ text: text1, type: DocNodeType.paragraph, links: [] }, ''); 
-    let commit1Id = await createCommit([creatorId], timestamp, message, [], par1Id, '');
+    let commit1Id = await createCommit([creatorId], 45678, message, [], par1Id, '');
 
     await updatePerspective(perspectiveId, { 
       headId: commit1Id,
@@ -48,7 +47,7 @@ describe("routes", () => {
 
     let text2 = 'new content 2';
     let par2Id = await createData({ text: text2, type: DocNodeType.paragraph, links: [] }, '');
-    let commit2Id = await createCommit([creatorId], timestamp, message, [commit1Id], par2Id, '');
+    let commit2Id = await createCommit([creatorId], 984321, message, [commit1Id], par2Id, '');
 
     await updatePerspective(perspectiveId, { 
       headId: commit2Id
@@ -91,19 +90,16 @@ describe("routes", () => {
     done();
   });
 
-  test("CRUD private perspectives", async (done) => {
+  test.skip("CRUD private perspectives", async (done) => {
 
     const creatorId = 'did:method:12345';
     const name = 'test';
     const context = 'wikipedia.barack_obama';
-    const timestamp = 1568027451548;
 
     let user1 = await createUser('seed1');
     let user2 = await createUser('seed2');
-
-    debugger
    
-    let perspectiveId = await createPerspective(creatorId, timestamp, user1.jwt);
+    let perspectiveId = await createPerspective(creatorId, 846851, user1.jwt);
     
     let result1 = await getPerspective(perspectiveId, user2.jwt);
     expect(result1.result).toEqual(ERROR);
@@ -112,7 +108,7 @@ describe("routes", () => {
 
     expect(result2.data.id).toEqual(perspectiveId);
     expect(result2.data.object.payload.creatorId).toEqual(creatorId);
-    expect(result2.data.object.payload.timestamp).toEqual(timestamp);
+    expect(result2.data.object.payload.timestamp).toEqual(846851);
     expect(result2.data.object.payload.origin).toEqual(LOCAL_EVEES_PROVIDER);
 
     /** set head */
@@ -120,7 +116,7 @@ describe("routes", () => {
     
     let text1 = 'new content';
     let par1Id = await createData({ text: text1, type: DocNodeType.paragraph, links: [] }, user1.jwt); 
-    let commit1Id = await createCommit([creatorId], timestamp, message, [], par1Id, user1.jwt);
+    let commit1Id = await createCommit([creatorId], 8973612, message, [], par1Id, user1.jwt);
   
     let result5 = await updatePerspective(perspectiveId, {
       headId: commit1Id,
@@ -165,7 +161,7 @@ describe("routes", () => {
     /** update head */
     let text2 = 'new content 2';
     let par2Id = await createData({ text: text2, type: DocNodeType.paragraph, links: [] }, user1.jwt); 
-    let commit2Id = await createCommit([creatorId], timestamp, message, [commit1Id], par2Id, user1.jwt);
+    let commit2Id = await createCommit([creatorId], 983251, message, [commit1Id], par2Id, user1.jwt);
     
     let result7 = await updatePerspective(perspectiveId, { headId: commit2Id }, user2.jwt);
     expect(result7.result).toEqual(ERROR);
@@ -200,7 +196,7 @@ describe("routes", () => {
     /** set public write */
     let text3 = 'new content 3';
     let par3Id = await createData({ text: text3, type: DocNodeType.paragraph, links: [] }, user1.jwt); 
-    let commit3Id = await createCommit([creatorId], timestamp, message, [commit2Id], par3Id, user1.jwt);
+    let commit3Id = await createCommit([creatorId], 8787123, message, [commit2Id], par3Id, user1.jwt);
 
     let result14 = await updatePerspective(perspectiveId, { headId: commit3Id }, user3.jwt);
     expect(result14.result).toEqual(ERROR);
@@ -240,6 +236,46 @@ describe("routes", () => {
     done();
 
   });
+
+  test("CRUD private perspective inherited", async (done) => {
+
+    const creatorId = 'did:method:12345';
+
+    let user1 = await createUser('seed3');
+    let user2 = await createUser('seed4');
+   
+    let perspectiveId1 = await createPerspective(creatorId, 542154, user1.jwt);
+    let perspectiveId2 = await createPerspective(creatorId, 789498, user1.jwt, perspectiveId1);
+
+    let result1 = await getPerspective(perspectiveId1, user2.jwt);
+    expect(result1.result).toEqual(ERROR);
+
+    let result2 = await getPerspective(perspectiveId2, user2.jwt);
+    expect(result2.result).toEqual(ERROR);
+
+    let result3 = await getPerspective(perspectiveId1, '');
+    expect(result3.result).toEqual(ERROR);
+
+    let result4 = await getPerspective(perspectiveId2, '');
+    expect(result4.result).toEqual(ERROR);
+
+    let result5 = await getPerspective(perspectiveId1, user1.jwt);
+
+    expect(result5.data.id).toEqual(perspectiveId1);
+    expect(result5.data.object.payload.creatorId).toEqual(creatorId);
+    expect(result5.data.object.payload.timestamp).toEqual(542154);
+    expect(result5.data.object.payload.origin).toEqual(LOCAL_EVEES_PROVIDER);
+
+    let result6 = await getPerspective(perspectiveId2, user1.jwt);
+
+    expect(result6.data.id).toEqual(perspectiveId2);
+    expect(result6.data.object.payload.creatorId).toEqual(creatorId);
+    expect(result6.data.object.payload.timestamp).toEqual(789498);
+    expect(result6.data.object.payload.origin).toEqual(LOCAL_EVEES_PROVIDER);
+
+    done();
+  });
+
 
   test.skip("getContextPerspectives - private", async (done) => {
     const creatorId = 'did:method:12345';
