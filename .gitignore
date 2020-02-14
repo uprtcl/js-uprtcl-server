@@ -4,3 +4,4 @@ coverage/
 dgraph/1million.rdf.gz
 dgraph/
 uprtcl.pem
+.env
