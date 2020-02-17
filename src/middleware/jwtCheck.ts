@@ -6,10 +6,6 @@ const jwksRsa = require('jwks-rsa');
 
 require('dotenv').config();
 
-if (!process.env.AUTH0_DOMAIN || !process.env.AUTH0_AUDIENCE) {
-  throw 'Make sure you have AUTH0_DOMAIN, and AUTH0_AUDIENCE in your .env file';
-}
-
 export function getAuth0Secret(kid: string) {
   return new Promise((resolve, reject) => {
 
