@@ -73,6 +73,12 @@ export class UprtclService {
     await this.uprtclRepo.updatePerspective(perspectiveId, details);
   };
 
+  async deletePerspective(perspectiveId: string, loggedUserId: string | null): Promise<void> {
+    console.log('[UPRTCL-SERVICE] deletePerspective', {perspectiveId});
+    if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Admin))) throw new Error(NOT_AUTHORIZED_MSG);
+    await this.uprtclRepo.setDeletedPerspective(perspectiveId, true);
+  };
+
   async getPerspectiveDetails(perspectiveId: string, loggedUserId: string | null): Promise<PerspectiveDetails> {
     console.log('[UPRTCL-SERVICE] getPerspectiveDetails', {perspectiveId});
     if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Read))) {

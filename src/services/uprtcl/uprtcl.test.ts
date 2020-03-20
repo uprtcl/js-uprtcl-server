@@ -1,6 +1,6 @@
 
 import { toBeValidCid, ERROR, NOT_AUTHORIZED_MSG, SUCCESS } from "../../utils";
-import { createPerspective, getPerspective, createCommit, updatePerspective, getPerspectiveDetails, findPerspectives } from "./uprtcl.testsupport";
+import { createPerspective, getPerspective, createCommit, updatePerspective, getPerspectiveDetails, findPerspectives, deletePerspective } from "./uprtcl.testsupport";
 import { createData } from "../data/support.data";
 import { DocNodeType } from "../data/types";
 import { LOCAL_EVEES_PROVIDER } from "../providers";
@@ -233,6 +233,14 @@ describe("routes", () => {
     let result33 = await getPerspectiveDetails(perspectiveId, '');
     expect(result33.data).toBeNull();
 
+    /** delete perspective */
+    let result41 = await deletePerspective(perspectiveId, user2.jwt);
+    expect(result22.result).toEqual(ERROR);
+    expect(result22.message).toEqual(NOT_AUTHORIZED_MSG);
+
+    let result42 = await deletePerspective(perspectiveId, user1.jwt);
+    expect(result42.result).toEqual(SUCCESS);
+
     done();
 
   });
@@ -275,7 +283,6 @@ describe("routes", () => {
 
     done();
   });
-
 
   test("getContextPerspectives - private", async (done) => {
     const creatorId = 'did:method:12345';

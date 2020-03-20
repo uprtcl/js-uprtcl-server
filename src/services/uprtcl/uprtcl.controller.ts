@@ -155,6 +155,35 @@ export class UprtclController {
       },
 
       {
+        path: "/uprtcl/1/persp/:perspectiveId",
+        method: "delete",
+        handler: [
+          checkJwt,
+          async (req: Request, res: Response) => {
+            try {
+              await this.uprtclService.deletePerspective(
+                req.params.perspectiveId, 
+                getUserFromReq(req));
+  
+              let result: PostResult = {
+                result:  SUCCESS,
+                message: 'perspective deleted',
+                elementIds: []
+              }
+              res.status(200).send(result);
+            } catch (error) {
+              let result: PostResult = {
+                result:  ERROR,
+                message: error.message,
+                elementIds: []
+              }
+              res.status(400).send(result);
+            }
+          }
+        ]
+      },
+
+      {
         path: "/uprtcl/1/persp",
         method: "put",
         handler: [

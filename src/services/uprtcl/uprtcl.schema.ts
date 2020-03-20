@@ -17,6 +17,7 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   stored: bool
   accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
   proof: ${PROOF_SCHEMA_NAME}
+  deleted: bool
 }
 
 type ${COMMIT_SCHEMA_NAME} {
@@ -50,5 +51,6 @@ creator: uid .
 creators: [uid] .
 data: uid .
 proof: uid .
+deleted: bool @index(bool) . 
 
 `;

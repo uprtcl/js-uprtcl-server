@@ -33,6 +33,7 @@ interface DgPerspective {
   timextamp: number;
   "dgraph.type"?: string;
   stored: boolean;
+  deleted: boolean;
   proof: DgProof;
 }
 
@@ -97,6 +98,9 @@ export class UprtclRepository {
     nquads = nquads.concat(`\n_:perspective <creator> uid(profile) .`);
     nquads = nquads.concat(
       `\n_:perspective <timextamp> "${perspective.timestamp}"^^<xs:int> .`
+    );
+    nquads = nquads.concat(
+      `\n_:perspective <deleted> "false" .`
     );
     nquads = nquads.concat(
       `\n_:perspective <origin> "${perspective.origin}" .`
@@ -257,6 +261,35 @@ export class UprtclRepository {
     );
   }
 
+  async setDeletedPerspective(
+    perspectiveId: string,
+    deleted: boolean
+  ): Promise<void> {
+    await this.db.ready();
+
+    /**  */
+    const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
+
+    let query = `perspective as var(func: eq(xid, "${perspectiveId}"))`;
+    req.setQuery(`query{${query}}`);
+
+    let nquads = "";
+    nquads = nquads.concat(`\nuid(perspective) <xid> "${perspectiveId}" .`);
+    nquads = nquads.concat(`\nuid(perspective) <deleted> "${deleted}" .`);
+
+    mu.setSetNquads(nquads);
+    req.setMutationsList([mu]);
+
+    let result = await this.db.callRequest(req);
+    console.log(
+      "[DGRAPH] deletePerspective",
+      { query },
+      { nquads },
+      result.getUidsMap().toArray()
+    );
+  }
+
   async getPerspective(perspectiveId: string): Promise<Secured<Perspective>> {
     await this.db.ready();
     const query = `query {
@@ -271,6 +304,7 @@ export class UprtclRepository {
         timextamp
         nonce
         stored
+        deleted
         proof {
           signature
           type
@@ -288,7 +322,9 @@ export class UprtclRepository {
     if (!dperspective)
       throw new Error(`Perspective with id ${perspectiveId} not found`);
     if (!dperspective.stored)
-      throw new Error(`Perspective with id ${perspectiveId} not found`);
+      throw new Error(`Perspective with id ${perspectiveId} not stored`);
+    if (dperspective.deleted)
+      throw new Error(`Perspective with id ${perspectiveId} deleted`);
 
     const perspective: Perspective = {
       origin: dperspective.origin,

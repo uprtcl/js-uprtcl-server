@@ -102,6 +102,15 @@ export const getPerspectiveDetails = async (perspectiveId: string, jwt: string):
   return JSON.parse(get.text);
 }
 
+
+export const deletePerspective = async (perspectiveId: string, jwt: string):Promise<GetResult<PerspectiveDetails>> => {
+  const get = await request(router)
+    .delete(`/uprtcl/1/persp/${perspectiveId}`)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+  
+  return JSON.parse(get.text);
+}
+
 export const getCommit = async (commitId: string, jwt: string):Promise<GetResult<Commit>> => {
   const get = await request(router)
     .get(`/uprtcl/1/commit/${commitId}`)
