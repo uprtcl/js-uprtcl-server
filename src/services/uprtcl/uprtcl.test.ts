@@ -1,6 +1,6 @@
 
 import { toBeValidCid, ERROR, NOT_AUTHORIZED_MSG, SUCCESS } from "../../utils";
-import { createPerspective, getPerspective, createCommit, updatePerspective, getPerspectiveDetails, findPerspectives } from "./uprtcl.testsupport";
+import { createPerspective, getPerspective, createCommit, updatePerspective, getPerspectiveDetails, findPerspectives, deletePerspective } from "./uprtcl.testsupport";
 import { createData } from "../data/support.data";
 import { DocNodeType } from "../data/types";
 import { LOCAL_EVEES_PROVIDER } from "../providers";
@@ -24,7 +24,7 @@ describe("routes", () => {
     expect(result1.data.id).toEqual(perspectiveId);
     expect(result1.data.object.payload.creatorId).toEqual(creatorId);
     expect(result1.data.object.payload.timestamp).toEqual(123456);
-    expect(result1.data.object.payload.origin).toEqual(LOCAL_EVEES_PROVIDER);
+    expect(result1.data.object.payload.authority).toEqual(LOCAL_EVEES_PROVIDER);
 
     /** update head */
     const message = 'commit message';
@@ -109,7 +109,7 @@ describe("routes", () => {
     expect(result2.data.id).toEqual(perspectiveId);
     expect(result2.data.object.payload.creatorId).toEqual(creatorId);
     expect(result2.data.object.payload.timestamp).toEqual(846851);
-    expect(result2.data.object.payload.origin).toEqual(LOCAL_EVEES_PROVIDER);
+    expect(result2.data.object.payload.authority).toEqual(LOCAL_EVEES_PROVIDER);
 
     /** set head */
     const message = 'commit message';
@@ -233,6 +233,14 @@ describe("routes", () => {
     let result33 = await getPerspectiveDetails(perspectiveId, '');
     expect(result33.data).toBeNull();
 
+    /** delete perspective */
+    let result41 = await deletePerspective(perspectiveId, user2.jwt);
+    expect(result22.result).toEqual(ERROR);
+    expect(result22.message).toEqual(NOT_AUTHORIZED_MSG);
+
+    let result42 = await deletePerspective(perspectiveId, user1.jwt);
+    expect(result42.result).toEqual(SUCCESS);
+
     done();
 
   });
@@ -264,18 +272,17 @@ describe("routes", () => {
     expect(result5.data.id).toEqual(perspectiveId1);
     expect(result5.data.object.payload.creatorId).toEqual(creatorId);
     expect(result5.data.object.payload.timestamp).toEqual(542154);
-    expect(result5.data.object.payload.origin).toEqual(LOCAL_EVEES_PROVIDER);
+    expect(result5.data.object.payload.authority).toEqual(LOCAL_EVEES_PROVIDER);
 
     let result6 = await getPerspective(perspectiveId2, user1.jwt);
 
     expect(result6.data.id).toEqual(perspectiveId2);
     expect(result6.data.object.payload.creatorId).toEqual(creatorId);
     expect(result6.data.object.payload.timestamp).toEqual(789498);
-    expect(result6.data.object.payload.origin).toEqual(LOCAL_EVEES_PROVIDER);
+    expect(result6.data.object.payload.authority).toEqual(LOCAL_EVEES_PROVIDER);
 
     done();
   });
-
 
   test("getContextPerspectives - private", async (done) => {
     const creatorId = 'did:method:12345';
@@ -326,6 +333,14 @@ describe("routes", () => {
     expect(result3.data.length).toEqual(2);
     expect(result3.data).toContain(perspectiveId3);
     expect(result3.data).toContain(perspectiveId4);
+
+    let result4 = await deletePerspective(perspectiveId1, user1.jwt);
+    expect(result4.result).toEqual(SUCCESS);
+
+    const result5 = await findPerspectives({context}, user1.jwt);
+    expect(result5.data.length).toEqual(2);
+    expect(result5.data).toContain(perspectiveId2);
+    expect(result5.data).toContain(perspectiveId4);
 
     done();
   });

@@ -28,11 +28,12 @@ interface DgPerspective {
   xid: string;
   name: string;
   context: string;
-  origin: string;
+  authority: string;
   creator: DgRef;
   timextamp: number;
   "dgraph.type"?: string;
   stored: boolean;
+  deleted: boolean;
   proof: DgProof;
 }
 
@@ -77,9 +78,9 @@ export class UprtclRepository {
     const perspective = securedPerspective.object.payload;
     const proof = securedPerspective.object.proof;
 
-    if (perspective.origin !== LOCAL_EVEES_PROVIDER) {
+    if (perspective.authority !== LOCAL_EVEES_PROVIDER) {
       throw new Error(
-        `Should I store perspectives with origin ${perspective.origin} from other origins? I thought I was ${LOCAL_EVEES_PROVIDER}`
+        `Should I store perspectives with authority ${perspective.authority} from other authorities? I thought I was ${LOCAL_EVEES_PROVIDER}`
       );
     }
 
@@ -99,7 +100,10 @@ export class UprtclRepository {
       `\n_:perspective <timextamp> "${perspective.timestamp}"^^<xs:int> .`
     );
     nquads = nquads.concat(
-      `\n_:perspective <origin> "${perspective.origin}" .`
+      `\n_:perspective <deleted> "false" .`
+    );
+    nquads = nquads.concat(
+      `\n_:perspective <authority> "${perspective.authority}" .`
     );
     nquads = nquads.concat(
       `\n_:perspective <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`
@@ -257,6 +261,35 @@ export class UprtclRepository {
     );
   }
 
+  async setDeletedPerspective(
+    perspectiveId: string,
+    deleted: boolean
+  ): Promise<void> {
+    await this.db.ready();
+
+    /**  */
+    const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();
+
+    let query = `perspective as var(func: eq(xid, "${perspectiveId}"))`;
+    req.setQuery(`query{${query}}`);
+
+    let nquads = "";
+    nquads = nquads.concat(`\nuid(perspective) <xid> "${perspectiveId}" .`);
+    nquads = nquads.concat(`\nuid(perspective) <deleted> "${deleted}" .`);
+
+    mu.setSetNquads(nquads);
+    req.setMutationsList([mu]);
+
+    let result = await this.db.callRequest(req);
+    console.log(
+      "[DGRAPH] deletePerspective",
+      { query },
+      { nquads },
+      result.getUidsMap().toArray()
+    );
+  }
+
   async getPerspective(perspectiveId: string): Promise<Secured<Perspective>> {
     await this.db.ready();
     const query = `query {
@@ -264,13 +297,14 @@ export class UprtclRepository {
         xid
         name
         context
-        origin
+        authority
         creator {
           did
         }
         timextamp
         nonce
         stored
+        deleted
         proof {
           signature
           type
@@ -288,10 +322,12 @@ export class UprtclRepository {
     if (!dperspective)
       throw new Error(`Perspective with id ${perspectiveId} not found`);
     if (!dperspective.stored)
-      throw new Error(`Perspective with id ${perspectiveId} not found`);
+      throw new Error(`Perspective with id ${perspectiveId} not stored`);
+    if (dperspective.deleted)
+      throw new Error(`Perspective with id ${perspectiveId} deleted`);
 
     const perspective: Perspective = {
-      origin: dperspective.origin,
+      authority: dperspective.authority,
       creatorId: dperspective.creator.did,
       timestamp: dperspective.timextamp
     };
@@ -317,6 +353,10 @@ export class UprtclRepository {
     await this.db.ready();
     let condition = "";
 
+    condition = condition.concat(
+      `${condition !== "" ? " AND " : ""} eq(deleted, "false")`
+    );
+
     if (details.name) {
       condition = condition.concat(
         `${condition !== "" ? " AND " : ""} eq(name, ${details.name})`
@@ -330,11 +370,11 @@ export class UprtclRepository {
     }
 
     const query = `query {
-      perspective(func: ${condition}) {
+      perspective(func: eq(stored, "true")) @filter(${condition}) {
         xid
         name
         context
-        origin
+        authority
         creator {
           did
         }

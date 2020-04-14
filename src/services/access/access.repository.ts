@@ -118,6 +118,7 @@ export class AccessRepository {
 
     if (json.element.length > 0) {
       /** apply the logic canAdmin > canWrite > canRead */
+      if (json.element[0] === undefined) throw new Error(`undefined accessConfig in can() for element ${elementId}`);
       switch (type) {
         case PermissionType.Read:
           can = (json.element[0].accessConfig.permissions.canRead ? json.element[0].accessConfig.permissions.canRead[0].count > 0 : false) ||
@@ -199,8 +200,10 @@ export class AccessRepository {
     `
     
     let result = await this.db.client.newTxn().query(`query{${query}}`);
-    console.log('[DGRAPH] getAccessConfigOfElement', {elementId, userId}, JSON.stringify(result.getJson()));
-    let daccessConfig = result.getJson().elements[0].accessConfig;
+    const json = result.getJson();
+    console.log('[DGRAPH] getAccessConfigOfElement', {elementId, userId}, JSON.stringify(json));
+    if (json.elements[0] === undefined) throw new Error(`undefined accessConfig in getAccessConfigOfElement() for element ${elementId}`)
+    let daccessConfig = json.elements[0].accessConfig;
 
     return {
       uid: daccessConfig.uid,
@@ -225,8 +228,12 @@ export class AccessRepository {
     `
     
     let result = await this.db.client.newTxn().query(`query{${query}}`);
-    console.log(`[DGRAPH] isPublic ${type}`, {elementId}, JSON.stringify(result.getJson()));
-    return result.getJson().element[0].accessConfig.permissions[`public${type}`];
+    
+    const json = result.getJson();
+    console.log(`[DGRAPH] isPublic ${type}`, {elementId}, JSON.stringify(json));
+    if (json.element[0] === undefined) throw new Error(`undefined accessConfig in isPublic() for element ${elementId}`)
+
+    return json.element[0].accessConfig.permissions[`public${type}`];
   }
 
   async setPublic(elementId: string, type: PermissionType, value: boolean): Promise<void> {
@@ -293,6 +300,7 @@ export class AccessRepository {
 
     const res = await this.db.client.newTxn().query(`query{${query0}}`);
     let json = res.getJson();
+    if (json.element[0] === undefined) throw new Error(`undefined accessConfig in updateAccessConfig() for element ${elementId}`)
     const accessConfigUid = json.element[0].accessConfig.uid;
 
     /** delete the permissions 

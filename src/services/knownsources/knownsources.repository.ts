@@ -6,7 +6,7 @@ import {
   PERSPECTIVE_SCHEMA_NAME,
   COMMIT_SCHEMA_NAME
 } from "../uprtcl/uprtcl.schema";
-import { LOCAL_SOURCE } from '../providers';
+import { LOCAL_CASID } from '../providers';
 
 const dgraph = require("dgraph-js");
 require("dotenv").config();
@@ -33,16 +33,16 @@ export class KnownSourcesRepository {
 
   async addKnownSources(
     elementId: string,
-    sources: Array<string>
+    casIDs: Array<string>
   ): Promise<void> {
     await this.db.ready();
 
-    console.log("[DGRAPH] addKnownSources", { elementId }, { sources });
+    console.log("[DGRAPH] addKnownSources", { elementId }, { casIDs });
 
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    sources = sources.filter(source => source !== LOCAL_SOURCE);
+    casIDs = casIDs.filter(casID => casID !== LOCAL_CASID);
 
     let query = `element as var(func: eq(elementId, "${elementId}"))`;
     req.setQuery(`query{${query}}`);
@@ -51,8 +51,8 @@ export class KnownSourcesRepository {
     nquads = nquads.concat(
       `\nuid(element) <dgraph.type> "${KNOWN_SOURCES_SCHEMA_NAME}" .`
     );
-    for (let ix = 0; ix < sources.length; ix++) {
-      nquads = nquads.concat(`\nuid(element) <sources> "${sources[ix]}" .`);
+    for (let ix = 0; ix < casIDs.length; ix++) {
+      nquads = nquads.concat(`\nuid(element) <casIDs> "${casIDs[ix]}" .`);
     }
 
     mu.setSetNquads(nquads);
@@ -72,17 +72,17 @@ export class KnownSourcesRepository {
 
     const query = `
     query {
-      sources(func: eq(elementId, ${elementId})) {
-        sources
+      casIDs(func: eq(elementId, ${elementId})) {
+        casIDs
       }
     }`;
 
     let result = await this.db.client.newTxn().query(query);
     console.log("[DGRAPH] getKnownSources", { query }, result.getJson());
 
-    let sources =
-      result.getJson().sources.length > 0
-        ? result.getJson().sources[0].sources
+    let casIDs =
+      result.getJson().casIDs.length > 0
+        ? result.getJson().casIDs[0].casIDs
         : [];
 
     const queryLocal = `
@@ -102,14 +102,14 @@ export class KnownSourcesRepository {
       const data_types = [DATA_SCHEMA_NAME];
 
       if (types.some((type: string) => data_types.includes(type))) {
-        sources.push(LOCAL_SOURCE);
+        casIDs.push(LOCAL_CASID);
       }
 
       if (types.some((type: string) => uprtcl_types.includes(type))) {
-        sources.push(LOCAL_SOURCE);
+        casIDs.push(LOCAL_CASID);
       }
     }
 
-    return sources;
+    return casIDs;
   }
 }

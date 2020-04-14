@@ -11,7 +11,7 @@ export const createPerspective = async (
   parentId?: string):Promise<string> => {
   
   const perspective: Perspective = {
-    origin: LOCAL_EVEES_PROVIDER,
+    authority: LOCAL_EVEES_PROVIDER,
     creatorId: creatorId,
     timestamp: timestamp
   }
@@ -97,6 +97,15 @@ export const getPerspective = async (perspectiveId: string, jwt: string):Promise
 export const getPerspectiveDetails = async (perspectiveId: string, jwt: string):Promise<GetResult<PerspectiveDetails>> => {
   const get = await request(router)
     .get(`/uprtcl/1/persp/${perspectiveId}/details`)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+  
+  return JSON.parse(get.text);
+}
+
+
+export const deletePerspective = async (perspectiveId: string, jwt: string):Promise<GetResult<PerspectiveDetails>> => {
+  const get = await request(router)
+    .delete(`/uprtcl/1/persp/${perspectiveId}`)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
   
   return JSON.parse(get.text);
