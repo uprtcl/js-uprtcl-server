@@ -40,14 +40,14 @@ export class KnownSourcesService {
     throw new Error('Element not found');
   }
 
-  async addKnownSources(elementId: string, sources: Array<string>) {
-    console.log("[UPRTCL-SERVICE] addKnownSources", { elementId }, { sources });
-    await this.knownSourcesRepo.addKnownSources(elementId, sources);
+  async addKnownSources(elementId: string, casIDs: Array<string>) {
+    console.log("[UPRTCL-SERVICE] addKnownSources", { elementId }, { casIDs });
+    await this.knownSourcesRepo.addKnownSources(elementId, casIDs);
   }
 
   async getKnownSources(elementId: string): Promise<Array<string>> {
     console.log("[UPRTCL-SERVICE] getKnownSources", { elementId });
-    let sources = this.knownSourcesRepo.getKnownSources(elementId);
-    return sources;
+    let casIDs = this.knownSourcesRepo.getKnownSources(elementId);
+    return casIDs;
   }
 }

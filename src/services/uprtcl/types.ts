@@ -6,7 +6,7 @@ export interface PerspectiveDetails {
 }
 
 export interface Perspective {
-  origin: string;
+  authority: string;
   creatorId: string;
   timestamp: number;
 }
