@@ -9,7 +9,7 @@ export const UPRTCL_SCHEMA = `
 type ${PERSPECTIVE_SCHEMA_NAME} {
   xid: string
   creator: uid
-  origin: string
+  authority: string
   timextamp: int
   head: ${COMMIT_SCHEMA_NAME}
   name: string
@@ -38,7 +38,7 @@ type ${PROOF_SCHEMA_NAME} {
 
 stored: bool @index(bool) . 
 xid: string @index(exact) @upsert .
-origin: string .
+authority: string .
 timextamp: int .
 message: string .
 head: uid .

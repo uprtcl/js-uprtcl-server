@@ -28,7 +28,7 @@ interface DgPerspective {
   xid: string;
   name: string;
   context: string;
-  origin: string;
+  authority: string;
   creator: DgRef;
   timextamp: number;
   "dgraph.type"?: string;
@@ -78,9 +78,9 @@ export class UprtclRepository {
     const perspective = securedPerspective.object.payload;
     const proof = securedPerspective.object.proof;
 
-    if (perspective.origin !== LOCAL_EVEES_PROVIDER) {
+    if (perspective.authority !== LOCAL_EVEES_PROVIDER) {
       throw new Error(
-        `Should I store perspectives with origin ${perspective.origin} from other origins? I thought I was ${LOCAL_EVEES_PROVIDER}`
+        `Should I store perspectives with authority ${perspective.authority} from other authoritys? I thought I was ${LOCAL_EVEES_PROVIDER}`
       );
     }
 
@@ -103,7 +103,7 @@ export class UprtclRepository {
       `\n_:perspective <deleted> "false" .`
     );
     nquads = nquads.concat(
-      `\n_:perspective <origin> "${perspective.origin}" .`
+      `\n_:perspective <authority> "${perspective.authority}" .`
     );
     nquads = nquads.concat(
       `\n_:perspective <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`
@@ -297,7 +297,7 @@ export class UprtclRepository {
         xid
         name
         context
-        origin
+        authority
         creator {
           did
         }
@@ -327,7 +327,7 @@ export class UprtclRepository {
       throw new Error(`Perspective with id ${perspectiveId} deleted`);
 
     const perspective: Perspective = {
-      origin: dperspective.origin,
+      authority: dperspective.authority,
       creatorId: dperspective.creator.did,
       timestamp: dperspective.timextamp
     };
@@ -370,7 +370,7 @@ export class UprtclRepository {
         xid
         name
         context
-        origin
+        authority
         creator {
           did
         }

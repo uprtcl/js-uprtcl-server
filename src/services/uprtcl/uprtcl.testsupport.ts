@@ -11,7 +11,7 @@ export const createPerspective = async (
   parentId?: string):Promise<string> => {
   
   const perspective: Perspective = {
-    origin: LOCAL_EVEES_PROVIDER,
+    authority: LOCAL_EVEES_PROVIDER,
     creatorId: creatorId,
     timestamp: timestamp
   }
