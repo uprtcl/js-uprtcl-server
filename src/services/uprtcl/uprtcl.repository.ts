@@ -355,18 +355,18 @@ export class UprtclRepository {
 
     if (details.name) {
       condition = condition.concat(
-        `${condition !== "" ? " AND " : ""} eq(name, ${details.name})`
+        `${condition !== "" ? " AND " : ""}eq(name, ${details.name})`
       );
     }
 
     if (details.context) {
       condition = condition.concat(
-        `${condition !== "" ? " AND " : ""} eq(context, ${details.context})`
+        `${condition !== "" ? " AND " : ""}eq(context, ${details.context})`
       );
     }
 
     const query = `query {
-      perspective(func: ${condition}) {
+      perspective(func: eq(deleted, false)) @filter(${condition}) {
         xid
         name
         context
