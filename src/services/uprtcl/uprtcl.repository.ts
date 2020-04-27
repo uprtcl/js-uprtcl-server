@@ -359,13 +359,13 @@ export class UprtclRepository {
 
     if (details.name) {
       condition = condition.concat(
-        `${condition !== "" ? " AND " : ""} eq(name, ${details.name})`
+        `${condition !== "" ? " AND " : ""}eq(name, ${details.name})`
       );
     }
 
     if (details.context) {
       condition = condition.concat(
-        `${condition !== "" ? " AND " : ""} eq(context, ${details.context})`
+        `${condition !== "" ? " AND " : ""}eq(context, ${details.context})`
       );
     }
 

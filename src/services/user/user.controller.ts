@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { checksPlaceholder } from "../../middleware/checks";
 import { UserService } from "./user.service";
 import { checkJwt } from "../../middleware/jwtCheck";
-import { GetResult } from "../../utils";
+import { GetResult, getUserFromReq } from "../../utils";
 
 const SUCCESS = 'success';
 
@@ -61,6 +61,22 @@ export class UserController {
               result: SUCCESS,
               message: '',
               data: {jwt}
+            }
+            res.status(200).send(result);
+          }
+        ]
+      },
+      {
+        path: "/uprtcl/1/user/:userId/isAuthorized",
+        method: "get",
+        handler: [
+          checkJwt,
+          async ( req: any, res: Response) => {
+            const userId = getUserFromReq(req);
+            let result: GetResult<Object> = {
+              result: SUCCESS,
+              message: '',
+              data: userId !== null
             }
             res.status(200).send(result);
           }
