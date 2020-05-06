@@ -52,6 +52,8 @@ export class UprtclService {
   };
 
   async createAndInitPerspective(perspectiveData: NewPerspectiveData, loggedUserId: string | null): Promise<string> {
+    if (loggedUserId === null) throw new Error('Anonymous user. Cant create a perspective');
+
     let perspId = await this.createPerspective(perspectiveData.perspective, loggedUserId);
     
     if (perspectiveData.parentId) {

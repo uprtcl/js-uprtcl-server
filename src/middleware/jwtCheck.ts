@@ -123,10 +123,12 @@ export const checkJwt = (
         verifyC1Token(token).then((decodedToken: any) => {
           req.user = decodedToken.user;
           console.log(`[JWT CHECK] Authenticated req.user: ${req.user}`);
-          next()
+          next();
+        }).catch(() => {
+          next();
         });
       } catch (err) {
-        return next(new Error('invalid_token'));
+        return next();
       }
       break;
 
