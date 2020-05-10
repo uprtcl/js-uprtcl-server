@@ -18,6 +18,22 @@ export class UserController {
   routes() {
     return [
       {
+        path: "/uprtcl/1/user/isAuthorized",
+        method: "get",
+        handler: [
+          checkJwt,
+          async ( req: any, res: Response) => {
+            const userId = getUserFromReq(req);
+            let result: GetResult<Object> = {
+              result: SUCCESS,
+              message: '',
+              data: userId !== null
+            }
+            res.status(200).send(result);
+          }
+        ]
+      },
+      {
         path: "/uprtcl/1/user/:userId",
         method: "get",
         handler: [
@@ -61,22 +77,6 @@ export class UserController {
               result: SUCCESS,
               message: '',
               data: {jwt}
-            }
-            res.status(200).send(result);
-          }
-        ]
-      },
-      {
-        path: "/uprtcl/1/user/:userId/isAuthorized",
-        method: "get",
-        handler: [
-          checkJwt,
-          async ( req: any, res: Response) => {
-            const userId = getUserFromReq(req);
-            let result: GetResult<Object> = {
-              result: SUCCESS,
-              message: '',
-              data: userId !== null
             }
             res.status(200).send(result);
           }
