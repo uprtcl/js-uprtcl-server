@@ -26,9 +26,7 @@ export class UprtclService {
     if (perspectiveId == undefined || perspectiveId === '') {
       throw new Error(`perspectiveId is empty`)
     }
-    if (!(await this.access.can(perspectiveId, loggedUserId, PermissionType.Read))) {
-      throw new Error(`access to ${perspectiveId} denied to ${loggedUserId}`);
-    }
+    // perspectives are hashed objects, not risky to retrieve them. The protection is in getPerspectiveDetails.
     let perspective = await this.uprtclRepo.getPerspective(perspectiveId);
     return perspective;
   };
