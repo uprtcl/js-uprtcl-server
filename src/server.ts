@@ -17,7 +17,7 @@ process.on('unhandledRejection', (e) => {
   process.exit(1);
 });
 
-const createApp = async () => {
+export const createApp = async () => {
   const router = express();
   const routes = await getRoutes();
   applyMiddleware(middleware, router);
