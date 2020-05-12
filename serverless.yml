@@ -1,0 +1,71 @@
+service:
+  name: uprtcl-api
+# app and org for use with dashboard.serverless.com
+#app: your-app-name
+#org: your-org-name
+
+custom:
+  webpack:
+    webpackConfig: ./webpack.config.js
+    includeModules: true
+    packagerOptions:
+      scripts:
+        - npm rebuild grpc --target=12.0.0 --target_arch=x64 --target_platform=linux --target_libc=glibc
+  domainConf:
+    dev:
+      domainName: dev-api.intercreativity.io
+    prd:
+      domainName: api.intercreativity.io
+    test:
+      domainName: test-api.intercreativity.io
+  customDomain:
+    domainName: ${self:custom.domainConf.${self:provider.stage}.domainName}
+    basePath: ''
+    certificateName: '*.intercreativity.io'
+    stage: ${self:provider.stage}
+    createRoute53Record: true
+    endpointType: regional
+
+# Add the serverless-webpack plugin
+plugins:
+  - serverless-webpack
+  - serverless-pseudo-parameters
+  - serverless-domain-manager
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 1024
+  apiGateway:
+    minimumCompressionSize: 1024 # Enable gzip compression for responses > 1 KB
+  environment:
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    STAGE: ${self:provider.stage}
+    REGION: ${self:provider.region}
+  vpc:
+    securityGroupIds:
+      - sg-0b429fa32624c3b79
+    subnetIds:
+      - subnet-00f462f23a8348e38
+      - subnet-03fbe81e1efed31bd
+      - subnet-04108133162d43144
+  timeout: 30
+  iamRoleStatements:
+    - Effect: 'Allow'
+      Action:
+        - 'secretsmanager:GetSecretValue'
+        - 'ssm:GetParameterHistory'
+        - 'ssm:ListTagsForResource'
+        - 'ssm:GetParametersByPath'
+        - 'ssm:GetParameters'
+        - 'ssm:GetParameter'
+      Resource: '*'
+
+functions:
+  uprtclAPI:
+    handler: src/server.handler
+    events:
+      - http: any /
+      - http: any {proxy+}

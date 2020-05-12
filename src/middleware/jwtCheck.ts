@@ -1,5 +1,5 @@
-import { C1_ETH_AUTH } from "../services/user/user.service";
-import { NextFunction } from "express";
+import { C1_ETH_AUTH } from '../services/user/user.service';
+import { NextFunction } from 'express';
 
 var jwt = require('jsonwebtoken');
 const jwksRsa = require('jwks-rsa');
@@ -8,14 +8,13 @@ require('dotenv').config();
 
 export function getAuth0Secret(kid: string) {
   return new Promise((resolve, reject) => {
-
     const client = jwksRsa({
       strictSsl: true, // Default value
       jwksUri: `https://${process.env.AUTH0_DOMAIN}/.well-known/jwks.json`,
       cache: true,
-      rateLimit: true
+      rateLimit: true,
     });
-    
+
     client.getSigningKey(kid, (_err: any, key: any) => {
       const signingKey = key.publicKey || key.rsaPublicKey;
       resolve(signingKey);
@@ -27,54 +26,56 @@ export function verifyAuth0Token(token: string, kid: string) {
   return new Promise((resolve, reject) => {
     getAuth0Secret(kid).then((secret: any) => {
       jwt.verify(
-        token, 
-        secret, 
-        { 
-          algorithms: ['RS256'] 
-        }, 
+        token,
+        secret,
+        {
+          algorithms: ['RS256'],
+        },
         (err: any, decodedToken: any) => {
-            if (err || !decodedToken) {
-              return reject(err)
-            }
-            resolve(decodedToken)
+          if (err || !decodedToken) {
+            return reject(err);
+          }
+          resolve(decodedToken);
         }
       );
     });
-  })
+  });
 }
 
 export function verifyC1Token(token: string) {
-  return new Promise((resolve, reject) =>
-  {
+  return new Promise((resolve, reject) => {
     jwt.verify(
-      token, 
-      process.env.JWT_SECRET, 
-      { 
-        algorithms: ['HS256'] 
-      }, 
+      token,
+      process.env.JWT_SECRET,
+      {
+        algorithms: ['HS256'],
+      },
       (err: any, decodedToken: any) => {
-          if (err || !decodedToken) {
-            return reject(err)
-          }
-          resolve(decodedToken)
+        if (err || !decodedToken) {
+          return reject(err);
+        }
+        resolve(decodedToken);
       }
     );
-  })
+  });
 }
 
-export const checkJwt = (
-  req: any,
-  res: any,
-  next: NextFunction
-) => {
+export const checkJwt = (req: any, res: any, next: NextFunction) => {
   let token;
   let credentialsRequired = false;
 
-  if (req.method === 'OPTIONS' && req.headers.hasOwnProperty('access-control-request-headers')) {
-    var hasAuthInAccessControl = !!~req.headers['access-control-request-headers']
-                                  .split(',').map(function (header: any) {
-                                    return header.trim();
-                                  }).indexOf('authorization');
+  if (
+    req.method === 'OPTIONS' &&
+    req.headers.hasOwnProperty('access-control-request-headers')
+  ) {
+    var hasAuthInAccessControl = !!~req.headers[
+      'access-control-request-headers'
+    ]
+      .split(',')
+      .map(function (header: any) {
+        return header.trim();
+      })
+      .indexOf('authorization');
 
     if (hasAuthInAccessControl) {
       return next();
@@ -117,16 +118,18 @@ export const checkJwt = (
     return next(new Error('invalid_token'));
   }
 
-  switch(dtoken.payload.iss) {
+  switch (dtoken.payload.iss) {
     case C1_ETH_AUTH:
       try {
-        verifyC1Token(token).then((decodedToken: any) => {
-          req.user = decodedToken.user;
-          console.log(`[JWT CHECK] Authenticated req.user: ${req.user}`);
-          next();
-        }).catch(() => {
-          next();
-        });
+        verifyC1Token(token)
+          .then((decodedToken: any) => {
+            req.user = decodedToken.user;
+            console.log(`[JWT CHECK] Authenticated req.user: ${req.user}`);
+            next();
+          })
+          .catch(() => {
+            next();
+          });
       } catch (err) {
         return next();
       }
@@ -137,14 +140,14 @@ export const checkJwt = (
         verifyAuth0Token(token, dtoken.header.kid).then((decodedToken: any) => {
           req.user = decodedToken.sub;
           console.log(`[JWT CHECK] Authenticated req.user: ${req.user}`);
-          next()
+          next();
         });
       } catch (err) {
         return next(new Error('invalid_token'));
       }
       break;
 
-    default: 
+    default:
       return next(new Error('unexpected issuer'));
   }
 };
