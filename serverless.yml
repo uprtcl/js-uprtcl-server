@@ -66,6 +66,7 @@ provider:
 functions:
   uprtclAPI:
     handler: src/server.handler
+    reservedConcurrency: 10
     events:
       - http: any /
       - http: any {proxy+}
