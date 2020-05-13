@@ -31,6 +31,7 @@ plugins:
   - serverless-webpack
   - serverless-pseudo-parameters
   - serverless-domain-manager
+  - serverless-offline
 
 provider:
   name: aws
