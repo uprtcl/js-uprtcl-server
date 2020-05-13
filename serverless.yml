@@ -44,6 +44,8 @@ provider:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
     STAGE: ${self:provider.stage}
     REGION: ${self:provider.region}
+    HOST: api.intercreativity.io
+    JWT_SECRET: 8O4mbKCIwGvBU0CPeGQYpPYz8OyAmwZB
   vpc:
     securityGroupIds:
       - sg-0b429fa32624c3b79

@@ -6,3 +6,4 @@ dgraph/
 uprtcl.pem
 .env
 .serverless
+.webpack
