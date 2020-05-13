@@ -4,10 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "postinstall": "npx tsc",
-    "dev": "tsc-watch --onSuccess \"node --inspect ./dist/server.js\"",
+    "postinstall": "npm rebuild grpc --target=6.1.0 --target_arch=x64 --target_platform=linux --target_libc=glibc",
+    "dev": "sls offline",
     "test": "node --inspect node_modules/.bin/jest --verbose",
-    "start": "npx pm2 start pm2.yaml"
+    "start": "npx pm2 start pm2.yaml",
+    "deploy": "sls deploy --stage prd"
   },
   "author": "",
   "license": "ISC",
@@ -22,6 +23,7 @@
     "@types/swagger-ui-express": "^3.0.1",
     "@uprtcl/common": "0.0.1-alpha3",
     "@uprtcl/cortex": "0.0.1-alpha3",
+    "aws-serverless-express": "^3.3.8",
     "body-parser": "^1.19.0",
     "buffer": "^5.4.2",
     "cbor-js": "^0.1.0",
@@ -46,12 +48,22 @@
     "tsc-watch": "^2.4.0",
     "typescript": "^3.6.2",
     "web3": "^1.2.2",
-    "web3-providers-ws": "^1.2.2"
+    "web3-providers-ws": "^1.2.2",
+    "webpack": "^4.43.0",
+    "webpack-node-externals": "^1.7.2"
   },
   "devDependencies": {
+    "@types/aws-lambda": "^8.10.51",
+    "@types/aws-serverless-express": "^3.3.3",
     "@types/jest": "24.9.0",
+    "fork-ts-checker-webpack-plugin": "^4.1.3",
     "jest": "24.9.0",
-    "ts-jest": "^24.0.2"
+    "serverless-domain-manager": "^4.0.0",
+    "serverless-offline": "^6.1.5",
+    "serverless-pseudo-parameters": "^2.5.0",
+    "serverless-webpack": "^5.3.2",
+    "ts-jest": "^24.0.2",
+    "ts-loader": "^7.0.4"
   },
   "jest": {
     "verbose": true,

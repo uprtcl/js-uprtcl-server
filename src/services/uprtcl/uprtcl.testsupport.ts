@@ -1,20 +1,20 @@
-import request from "supertest";
-import { router } from "../../server";
-import { Perspective, Commit, PerspectiveDetails, Secured } from "./types";
-import { PostResult, ExtendedMatchers, GetResult } from "../../utils";
-import { LOCAL_EVEES_PROVIDER } from "../providers";
+import request from 'supertest';
+import { createApp } from '../../server';
+import { Perspective, Commit, PerspectiveDetails, Secured } from './types';
+import { PostResult, ExtendedMatchers, GetResult } from '../../utils';
+import { LOCAL_EVEES_PROVIDER } from '../providers';
 
 export const createPerspective = async (
-  creatorId: string, 
-  timestamp: number, 
+  creatorId: string,
+  timestamp: number,
   jwt: string,
-  parentId?: string):Promise<string> => {
-  
+  parentId?: string
+): Promise<string> => {
   const perspective: Perspective = {
     authority: LOCAL_EVEES_PROVIDER,
     creatorId: creatorId,
-    timestamp: timestamp
-  }
+    timestamp: timestamp,
+  };
 
   const secured: Secured<Perspective> = {
     id: '',
@@ -22,48 +22,51 @@ export const createPerspective = async (
       payload: perspective,
       proof: {
         signature: '',
-        type: ''
-      }
-    }
-  }
+        type: '',
+      },
+    },
+  };
+  const router = await createApp();
+  const post = await request(router)
+    .post('/uprtcl/1/persp')
+    .send({ perspective: secured, parentId: parentId })
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
-  const post = await request(router).post('/uprtcl/1/persp')
-  .send({ perspective: secured, parentId: parentId })
-  .set('Authorization', jwt ? `Bearer ${jwt}` : '');
-  
   let result: any = JSON.parse(post.text).elementIds[0];
-  (expect(result) as unknown as ExtendedMatchers).toBeValidCid();
+  ((expect(result) as unknown) as ExtendedMatchers).toBeValidCid();
 
   return result;
-}
+};
 
 export const updatePerspective = async (
-  perspectiveId: string, 
-  details: PerspectiveDetails, 
-  jwt: string) : Promise<PostResult> => {
-
-  const put = await request(router).put(`/uprtcl/1/persp/${perspectiveId}/details`)
-  .send(details)
-  .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+  perspectiveId: string,
+  details: PerspectiveDetails,
+  jwt: string
+): Promise<PostResult> => {
+  const router = await createApp();
+  const put = await request(router)
+    .put(`/uprtcl/1/persp/${perspectiveId}/details`)
+    .send(details)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   return JSON.parse(put.text);
-}
+};
 
 export const createCommit = async (
-  creatorsIds: string[], 
-  timestamp: number, 
-  message: string, 
-  parentsIds: Array<string>, 
+  creatorsIds: string[],
+  timestamp: number,
+  message: string,
+  parentsIds: Array<string>,
   dataId: string,
-  jwt: string) : Promise<string> => {
-  
+  jwt: string
+): Promise<string> => {
   const commit: Commit = {
     creatorsIds: creatorsIds,
     timestamp: timestamp,
     message: message,
     parentsIds: parentsIds,
-    dataId: dataId
-  }
+    dataId: dataId,
+  };
 
   const secured: Secured<Commit> = {
     id: '',
@@ -71,60 +74,79 @@ export const createCommit = async (
       payload: commit,
       proof: {
         signature: '',
-        type: ''
-      }
-    }
-  }
-
-  const post = await request(router).post(`/uprtcl/1/commit`)
-  .send(secured)
-  .set('Authorization', jwt ? `Bearer ${jwt}` : '');;
+        type: '',
+      },
+    },
+  };
+  const router = await createApp();
+  const post = await request(router)
+    .post(`/uprtcl/1/commit`)
+    .send(secured)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   let result: any = JSON.parse(post.text).elementIds[0];
-  (expect(result) as unknown as ExtendedMatchers).toBeValidCid();
+  ((expect(result) as unknown) as ExtendedMatchers).toBeValidCid();
 
   return result;
-}
+};
 
-export const getPerspective = async (perspectiveId: string, jwt: string):Promise<GetResult<Secured<Perspective>>> => {
+export const getPerspective = async (
+  perspectiveId: string,
+  jwt: string
+): Promise<GetResult<Secured<Perspective>>> => {
+  const router = await createApp();
   const get = await request(router)
     .get(`/uprtcl/1/persp/${perspectiveId}`)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   return JSON.parse(get.text);
-}
+};
 
-export const getPerspectiveDetails = async (perspectiveId: string, jwt: string):Promise<GetResult<PerspectiveDetails>> => {
+export const getPerspectiveDetails = async (
+  perspectiveId: string,
+  jwt: string
+): Promise<GetResult<PerspectiveDetails>> => {
+  const router = await createApp();
   const get = await request(router)
     .get(`/uprtcl/1/persp/${perspectiveId}/details`)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
-  
+
   return JSON.parse(get.text);
-}
+};
 
-
-export const deletePerspective = async (perspectiveId: string, jwt: string):Promise<GetResult<PerspectiveDetails>> => {
+export const deletePerspective = async (
+  perspectiveId: string,
+  jwt: string
+): Promise<GetResult<PerspectiveDetails>> => {
+  const router = await createApp();
   const get = await request(router)
     .delete(`/uprtcl/1/persp/${perspectiveId}`)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
-  
-  return JSON.parse(get.text);
-}
 
-export const getCommit = async (commitId: string, jwt: string):Promise<GetResult<Commit>> => {
+  return JSON.parse(get.text);
+};
+
+export const getCommit = async (
+  commitId: string,
+  jwt: string
+): Promise<GetResult<Commit>> => {
+  const router = await createApp();
   const get = await request(router)
     .get(`/uprtcl/1/commit/${commitId}`)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
-  
-  return JSON.parse(get.text);
-}
 
-export const findPerspectives = async (details: PerspectiveDetails, jwt: string):Promise<GetResult<string[]>> => {
+  return JSON.parse(get.text);
+};
+
+export const findPerspectives = async (
+  details: PerspectiveDetails,
+  jwt: string
+): Promise<GetResult<string[]>> => {
+  const router = await createApp();
   const get = await request(router)
     .put(`/uprtcl/1/persp`)
     .send(details)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   return JSON.parse(get.text);
-}
-
+};
