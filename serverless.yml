@@ -45,8 +45,14 @@ provider:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
     STAGE: ${self:provider.stage}
     REGION: ${self:provider.region}
-    HOST: api.intercreativity.io
-    JWT_SECRET: 8O4mbKCIwGvBU0CPeGQYpPYz8OyAmwZB
+    # PROTOCOL: https
+    # HOST: api.intercreativity.io
+    # JWT_SECRET: 8O4mbKCIwGvBU0CPeGQYpPYz8OyAmwZB
+    # DGRAPH_HOST: 10.52.68.89:9080
+    PROTOCOL: http
+    HOST: localhost:3000/dev
+    JWT_SECRET: 123456
+    DGRAPH_HOST: localhost:9082
   vpc:
     securityGroupIds:
       - sg-0b429fa32624c3b79

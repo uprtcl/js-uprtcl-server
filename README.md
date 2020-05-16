@@ -1,14 +1,15 @@
 # Webserver Service Provider for [js-uprtcl](https://github.com/uprtcl/js-uprtcl)
 
-To run it, install [dgraph](https://github.com/dgraph-io/dgraph) then
-
 **Prerequisites**
 
-`serverless` should be installed as global npm module
-
+Install `serverless` globally.
 `npm i -g serverless`
 
 **Local Development**
+
+Install [dgraph](https://github.com/dgraph-io/dgraph) using using the `/install-dgraph.sh` script.
+
+Then run dgraph and the server.
 
 ```
 npm i
