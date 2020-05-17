@@ -17,7 +17,10 @@ import { KnownSourcesService } from './knownsources/knownsources.service';
 
 export const getRoutes = async () => {
   /** poors man dependency injection */
-  const dbService = new DGraphService(process.env.DGRAPH_HOST);
+  console.log(process.env[`DGRAPH_HOST_${process.env.STAGE}`]);
+  const dbService = new DGraphService(
+    process.env[`DGRAPH_HOST_${process.env.STAGE}`] + ''
+  );
 
   // Make sure that DGraph DB is connected properly before
   // proceeding to start the API.

@@ -46,7 +46,7 @@ export function verifyC1Token(token: string) {
   return new Promise((resolve, reject) => {
     jwt.verify(
       token,
-      process.env.JWT_SECRET,
+      process.env[`JWT_SECRET_${process.env.STAGE}`],
       {
         algorithms: ['HS256'],
       },
