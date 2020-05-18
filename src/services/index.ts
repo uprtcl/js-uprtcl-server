@@ -15,13 +15,18 @@ import { DataService } from './data/data.service';
 import { DataController } from './data/data.controller';
 import { KnownSourcesService } from './knownsources/knownsources.service';
 
+// Cache the DB Service and DGraphDB Connection
+let dbService: DGraphService;
+
 export const getRoutes = async () => {
   /** poors man dependency injection */
   console.log(process.env[`DGRAPH_HOST_${process.env.STAGE}`]);
-  const dbService = new DGraphService(
-    process.env[`DGRAPH_HOST_${process.env.STAGE}`] + ''
-  );
 
+  if (!dbService) {
+    dbService = new DGraphService(
+      process.env[`DGRAPH_HOST_${process.env.STAGE}`] + ''
+    );
+  }
   // Make sure that DGraph DB is connected properly before
   // proceeding to start the API.
   await dbService
