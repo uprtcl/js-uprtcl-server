@@ -7,12 +7,21 @@ Install `serverless` globally.
 
 **Local Development**
 
-Install [dgraph](https://github.com/dgraph-io/dgraph) using using the `/install-dgraph.sh` script.
+- Install [dgraph](https://github.com/dgraph-io/dgraph) using using the `/install-dgraph.sh` script.
 
-Then run dgraph and the server.
+- Create a `.env` file in the root folder with the content:
 
-```
-npm i
-./run-dgraph.sh
-npm run dev
-```
+  ```
+  JWT_SECRET=123456
+  PROTOCOL=http
+  HOST=localhost:3100
+
+  ```
+
+- Then run dgraph and the server.
+
+  ```
+  npm i
+  ./run-dgraph.sh
+  npm run dev
+  ```
