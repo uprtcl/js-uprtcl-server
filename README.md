@@ -7,7 +7,11 @@ Install `serverless` globally.
 
 **Local Development**
 
-- Install [dgraph](https://github.com/dgraph-io/dgraph) using using the `/install-dgraph.sh` script.
+- Run [dgraph](https://github.com/dgraph-io/dgraph) using
+
+  ```
+  sudo docker run --rm -it -p 8080:8080 -p 9080:9080 -p 8000:8000 -v ~/dgraph:/dgraph dgraph/standalone:v20.03.3
+  ```
 
 - Create a `.env` file in the root folder with the content:
 
