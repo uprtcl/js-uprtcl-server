@@ -22,10 +22,9 @@ Install `serverless` globally.
 
   ```
 
-- Then run dgraph and the server.
+- Then the server in debug mode.
 
   ```
   npm i
-  ./run-dgraph.sh
-  npm run dev
+  npm run debug
   ```
