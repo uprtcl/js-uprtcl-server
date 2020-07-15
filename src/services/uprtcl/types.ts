@@ -1,3 +1,4 @@
+import { HeadUpdate } from "../proposals/proposals.repository";
 
 export interface PerspectiveDetails {
   name?: string;
@@ -9,6 +10,13 @@ export interface Perspective {
   authority: string;
   creatorId: string;
   timestamp: number;
+}
+
+export interface Proposal {
+  toPerspective: string,
+  fromPerspective: string,
+  updates: Array<HeadUpdate>,
+  state: string
 }
 
 export interface Commit {
