@@ -15,7 +15,8 @@ export const PROPOSAL_SCHEMA = `
 
     type ${HEAD_UPDATE_SCHEMA_NAME} {
         perspective: ${PERSPECTIVE_SCHEMA_NAME}
-        head: ${COMMIT_SCHEMA_NAME}
+        newHead: ${COMMIT_SCHEMA_NAME}
+        oldHead: ${COMMIT_SCHEMA_NAME}
     }
 
     type ${PROPOSALS_SCHEMA_NAME} {
@@ -27,7 +28,7 @@ export const PROPOSAL_SCHEMA = `
 
     perspective: uid .
     head: uid .
-    toPrespective: uid .
+    toPerspective: uid .
     fromPrespective: uid .
     updates: [uid] .
 `;
