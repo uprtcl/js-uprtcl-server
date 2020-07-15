@@ -1,5 +1,3 @@
-import { HeadUpdate } from "../proposals/proposals.repository";
-
 export interface PerspectiveDetails {
   name?: string;
   context?: string | undefined;
@@ -10,6 +8,11 @@ export interface Perspective {
   authority: string;
   creatorId: string;
   timestamp: number;
+}
+
+export interface HeadUpdate {
+  perspectiveId: string,
+  headId: string 
 }
 
 export interface Proposal {
