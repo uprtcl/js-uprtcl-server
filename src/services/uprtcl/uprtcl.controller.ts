@@ -125,6 +125,23 @@ export class UprtclController {
       },
 
       {
+        path: "/uprctl/1/persp/:perspectiveId/proposals",
+        method: "get",
+        handler: [
+          checkJwt,
+          async(req: Request, res: Response) => {
+            // TODO: Call getProposalsToPerspective from proposal service.
+            // Should return an array of proposals Array<Proposal>
+            /**
+              * Requires:
+              * -> PerspectiveId: string
+              */
+            res.status(200).send('Proposals from perspective . . .');
+          }
+        ]
+      },
+
+      {
         path: "/uprtcl/1/persp/:perspectiveId/details",
         method: "put",
         handler: [
