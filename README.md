@@ -22,9 +22,20 @@ Install `serverless` globally.
 
   ```
 
-- Then the server in debug mode.
+  Install packages
 
   ```
   npm i
+  ```
+
+  Test
+
+  ```
+  npm run test
+  ```
+
+- Run in debug mode.
+
+  ```
   npm run debug
   ```
