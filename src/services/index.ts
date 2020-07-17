@@ -15,7 +15,8 @@ import { DataService } from "./data/data.service";
 import { DataController } from "./data/data.controller";
 import { KnownSourcesService } from "./knownsources/knownsources.service";
 import { ProposalsController } from "./proposals/proposals.controller";
-//import { ProposalsService } from "./proposals/proposals.service";
+import { ProposalsService } from "./proposals/proposals.service";
+import { ProposalsRepository } from "./proposals/proposals.repository";
 
 /** poors man dependency injection */
 const dbService = new DGraphService('localhost:9082');
@@ -25,6 +26,7 @@ const accessRepo = new AccessRepository(dbService, userRepo);
 const dataRepo = new DataRepository(dbService, userRepo);
 const uprtclRepo = new UprtclRepository(dbService, userRepo, dataRepo);
 const knownSourcesRepo = new KnownSourcesRepository(dbService);
+const proposalsRepo = new ProposalsRepository(dbService);
 
 const dataService = new DataService(dbService, dataRepo);
 const dataController = new DataController(dataService);
@@ -41,8 +43,8 @@ const userController = new UserController(userService);
 const knownSourcesService = new KnownSourcesService(dbService, knownSourcesRepo, dataService, uprtclService);
 const knownSourcesController = new KnownSourcesController(knownSourcesService);
 
-//const proposalsService = new ProposalsService();
-const proposalsController = new ProposalsController();
+const proposalsService = new ProposalsService(proposalsRepo);
+const proposalsController = new ProposalsController(proposalsService);
 
 export const routes = [
   ...uprtclController.routes(), 
