@@ -11,6 +11,7 @@ export const PROPOSAL_SCHEMA = `
         Closed
         Executed
         Cancelled
+        Declined
     }
 
     type ${HEAD_UPDATE_SCHEMA_NAME} {
