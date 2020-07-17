@@ -2,7 +2,11 @@ import request from 'supertest';
 import { createApp } from '../../server';
 import { Perspective, Commit, PerspectiveDetails, Secured } from './types';
 import { PostResult, ExtendedMatchers, GetResult } from '../../utils';
-import { LOCAL_EVEES_PROVIDER } from '../providers';
+import {
+  LOCAL_EVEES_PROVIDER,
+  LOCAL_EVEES_PATH,
+  LOCAL_EVEES_REMOTE,
+} from '../providers';
 import { createData } from '../data/support.data';
 import { DocNodeType } from '../data/types';
 
@@ -14,7 +18,8 @@ export const createPerspective = async (
   parentId?: string
 ): Promise<string> => {
   const perspective: Perspective = {
-    authority: LOCAL_EVEES_PROVIDER,
+    remote: LOCAL_EVEES_REMOTE,
+    path: LOCAL_EVEES_PATH,
     creatorId: creatorId,
     timestamp: timestamp,
   };
