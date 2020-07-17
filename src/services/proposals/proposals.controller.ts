@@ -9,7 +9,15 @@ export class ProposalsController {
                method: "post",
                handler: [
                    checkJwt,
-                   async (req: Request, res: Response) => {                       
+                   async (req: Request, res: Response) => {      
+                       // TODO: Call createOrUpdateProposal from service.   
+                       // Should return an array as a result.   
+                       /**
+                        *  Requires:
+                        *   -> toPerspectiveId: string
+                        *   -> fromPerspectiveId: string
+                        *   -> headUpdates: Array<HeadUpdate>
+                        */           
                        res.status(200).send('Create proposal...');
                    }
                ]
@@ -21,19 +29,32 @@ export class ProposalsController {
                handler: [
                    checkJwt,
                    async (req: Request, res: Response) => {
+                       // TODO: Call getProposal from service.
+                       // Should return a proposal object.
+                       /**
+                        * Requires:
+                        *   -> ProposalId: string
+                        */
                        res.status(200).send('Get proposal...');
                    }
                ]
            },
 
            {
-               path: "/uprtcl/1/proposal/:proposalId/head",
+               path: "/uprtcl/1/proposal/:proposalId/heads",
                method: "put",
                handler: [
                    checkJwt,
                    async (req: Request, res: Response) => {
-                       res.status(200).send('Update proposal...');
-                       //addUpdatesToProposal -> createHeadUpdate 
+                       // TODO: Call createOrUpdate from service.
+                       // Should return an array as a result.
+                       /**
+                        *  Requires:
+                        *   -> toPerspectiveId: string
+                        *   -> fromPerspectiveId: string
+                        *   -> headUpdates: Array<HeadUpdate>
+                        */       
+                       res.status(200).send('Update proposal...');                       
                    }
                ]
            },
@@ -45,7 +66,12 @@ export class ProposalsController {
                    checkJwt,
                    async(req: Request, res: Response) => {
                        res.status(200).send('Accept proposal...');
-                       // -> acceptProposal (depends on permissions) (modify state) -> executeProposal            
+                       // TODO: Call acceptProposal from service.
+                       // Should not return information since it is a void type function.  
+                       /**
+                        *  Requires:
+                        *   -> proposalId: string
+                        */          
                    }
                ]
            },
@@ -57,47 +83,29 @@ export class ProposalsController {
                    checkJwt,
                    async(req: Request, res: Response) => {
                        res.status(200).send('Cancel proposal...');
-                       //-> cancelProposal (modifies proposal state)
+                       // TODO: Call cancelProposal from proposal service.
+                       // Should not return information since it is a void type function.
+                       /**
+                        *  Requires:
+                        *   -> proposalId: string
+                        */
                    }
                ]
            },
 
            {
-               path: "/uprtcl/1/proposal/:proposalId/freeze",
-               method: "put",
-               handler: [
-                   checkJwt,
-                   async (req: Request, res: Response) => {
-                       res.status(200).send('Freeze proposal...');
-                       // What is the proper operation for this situation?
-                       // To set "close proposal" status?
-                       //-> freezeProposal (modifies proposal state to close?)
-                   }
-               ]
-           },
-
-           {
-               path: "/uprtcl/1/proposal/:proposalId/reject",
+               path: "/uprtcl/1/proposal/:proposalId/decline",
                method: "put",
                handler: [
                    checkJwt,
                    async (req: Request, res: Response) => {
                         res.status(200).send('Reject proposal...');
-                       // Does rejecting a proposal means to set "Reject state" to a proposal?
-                       // -> rejectProposal (modifies proposal state to rejected?)
-                   }
-               ]
-           },
-           
-           {
-               path: "/uprtcl/1/proposal/:proposalId",
-               method: "delete",
-               handler: [
-                   checkJwt,
-                   async (req: Request, res: Response) => {
-                        res.status(200).send('Delete proposal...');
-                       //pulls proposal from the DB?
-                       // -> deleteProposal (pulls proposal from the DB?)
+                        // TODO: Call declineProposal from proposal service.
+                        // Should not return information since it is a void type function.
+                       /**
+                        *  Requires:
+                        *   -> proposalId: string
+                        */    
                    }
                ]
            }
