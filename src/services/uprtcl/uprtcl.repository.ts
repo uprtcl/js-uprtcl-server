@@ -84,7 +84,7 @@ export class UprtclRepository {
       throw new Error(
         `Should I store perspectives with authority ${getAuthority(
           perspective
-        )} from other authorities? I thought I was ${LOCAL_EVEES_PROVIDER}`
+        )}? I thought I was ${LOCAL_EVEES_PROVIDER}`
       );
     }
 
