@@ -159,7 +159,7 @@ export class UprtclController {
                 data: null
               }
 
-              res.status(400).send(error);
+              res.status(400).send(result);
             }
           }
         ]
