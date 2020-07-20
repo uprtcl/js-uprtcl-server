@@ -1,22 +1,23 @@
-import { DGraphService } from "../../db/dgraph.service";
-import { ipldService } from "../ipld/ipldService";
-import { UserRepository } from "../user/user.repository";
-import { LOCAL_EVEES_PROVIDER } from "../providers";
-import { DataRepository } from "../data/data.repository";
+import { DGraphService } from '../../db/dgraph.service';
+import { ipldService } from '../ipld/ipldService';
+import { UserRepository } from '../user/user.repository';
+import { LOCAL_EVEES_PROVIDER } from '../providers';
+import { DataRepository } from '../data/data.repository';
 import {
   Perspective,
   PerspectiveDetails,
   Commit,
   Secured,
-  Proof
-} from "./types";
+  Proof,
+  getAuthority,
+} from './types';
 import {
   PERSPECTIVE_SCHEMA_NAME,
   PROOF_SCHEMA_NAME,
-  COMMIT_SCHEMA_NAME
-} from "./uprtcl.schema";
+  COMMIT_SCHEMA_NAME,
+} from './uprtcl.schema';
 
-const dgraph = require("dgraph-js");
+const dgraph = require('dgraph-js');
 
 export interface DgRef {
   [x: string]: string;
@@ -28,10 +29,11 @@ interface DgPerspective {
   xid: string;
   name: string;
   context: string;
-  authority: string;
+  remote: string;
+  path: string;
   creator: DgRef;
   timextamp: number;
-  "dgraph.type"?: string;
+  'dgraph.type'?: string;
   stored: boolean;
   deleted: boolean;
   proof: DgProof;
@@ -50,7 +52,7 @@ interface DgCommit {
   message: string;
   parents: Array<DgRef>;
   data: DgRef;
-  "dgraph.type"?: string;
+  'dgraph.type'?: string;
   stored: boolean;
   proof: DgProof;
 }
@@ -78,9 +80,11 @@ export class UprtclRepository {
     const perspective = securedPerspective.object.payload;
     const proof = securedPerspective.object.proof;
 
-    if (perspective.authority !== LOCAL_EVEES_PROVIDER) {
+    if (getAuthority(perspective) !== LOCAL_EVEES_PROVIDER) {
       throw new Error(
-        `Should I store perspectives with authority ${perspective.authority} from other authorities? I thought I was ${LOCAL_EVEES_PROVIDER}`
+        `Should I store perspectives with authority ${getAuthority(
+          perspective
+        )}? I thought I was ${LOCAL_EVEES_PROVIDER}`
       );
     }
 
@@ -99,12 +103,11 @@ export class UprtclRepository {
     nquads = nquads.concat(
       `\n_:perspective <timextamp> "${perspective.timestamp}"^^<xs:int> .`
     );
+    nquads = nquads.concat(`\n_:perspective <deleted> "false" .`);
     nquads = nquads.concat(
-      `\n_:perspective <deleted> "false" .`
+      `\n_:perspective <remote> "${perspective.remote}" .`
     );
-    nquads = nquads.concat(
-      `\n_:perspective <authority> "${perspective.authority}" .`
-    );
+    nquads = nquads.concat(`\n_:perspective <path> "${perspective.path}" .`);
     nquads = nquads.concat(
       `\n_:perspective <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`
     );
@@ -120,7 +123,7 @@ export class UprtclRepository {
 
     let result = await this.db.callRequest(req);
     console.log(
-      "[DGRAPH] createPerspective",
+      '[DGRAPH] createPerspective',
       { query },
       { nquads },
       result.getUidsMap().toArray()
@@ -196,7 +199,7 @@ export class UprtclRepository {
 
     let result = await this.db.callRequest(req);
     console.log(
-      "[DGRAPH] createCommit",
+      '[DGRAPH] createCommit',
       { query },
       { nquads },
       result.getUidsMap().toArray()
@@ -234,7 +237,7 @@ export class UprtclRepository {
       query = query.concat(`\nhead as var(func: eq(xid, "${details.headId}"))`);
 
     req.setQuery(`query{${query}}`);
-    let nquads = "";
+    let nquads = '';
     nquads = nquads.concat(`\nuid(perspective) <xid> "${perspectiveId}" .`);
 
     if (details.headId !== undefined) {
@@ -254,7 +257,7 @@ export class UprtclRepository {
 
     let result = await this.db.callRequest(req);
     console.log(
-      "[DGRAPH] updatePerspective",
+      '[DGRAPH] updatePerspective',
       { query },
       { nquads },
       result.getUidsMap().toArray()
@@ -274,7 +277,7 @@ export class UprtclRepository {
     let query = `perspective as var(func: eq(xid, "${perspectiveId}"))`;
     req.setQuery(`query{${query}}`);
 
-    let nquads = "";
+    let nquads = '';
     nquads = nquads.concat(`\nuid(perspective) <xid> "${perspectiveId}" .`);
     nquads = nquads.concat(`\nuid(perspective) <deleted> "${deleted}" .`);
 
@@ -283,7 +286,7 @@ export class UprtclRepository {
 
     let result = await this.db.callRequest(req);
     console.log(
-      "[DGRAPH] deletePerspective",
+      '[DGRAPH] deletePerspective',
       { query },
       { nquads },
       result.getUidsMap().toArray()
@@ -297,7 +300,8 @@ export class UprtclRepository {
         xid
         name
         context
-        authority
+        remote
+        path
         creator {
           did
         }
@@ -314,7 +318,7 @@ export class UprtclRepository {
 
     const result = await this.db.client.newTxn().query(query);
     console.log(
-      "[DGRAPH] getPerspective",
+      '[DGRAPH] getPerspective',
       { query },
       JSON.stringify(result.getJson())
     );
@@ -327,45 +331,44 @@ export class UprtclRepository {
       throw new Error(`Perspective with id ${perspectiveId} deleted`);
 
     const perspective: Perspective = {
-      authority: dperspective.authority,
+      remote: dperspective.remote,
+      path: dperspective.path,
       creatorId: dperspective.creator.did,
-      timestamp: dperspective.timextamp
+      timestamp: dperspective.timextamp,
     };
 
     const proof: Proof = {
       signature: dperspective.proof.signature,
-      type: dperspective.proof.proof_type
+      type: dperspective.proof.proof_type,
     };
 
     const securedPerspective: Secured<Perspective> = {
       id: dperspective.xid,
       object: {
         payload: perspective,
-        proof: proof
-      }
+        proof: proof,
+      },
     };
     return securedPerspective;
   }
 
-  async findPerspectives(
-    details: PerspectiveDetails
-  ): Promise<string[]> {
+  async findPerspectives(details: PerspectiveDetails): Promise<string[]> {
     await this.db.ready();
-    let condition = "";
+    let condition = '';
 
     condition = condition.concat(
-      `${condition !== "" ? " AND " : ""} eq(deleted, "false")`
+      `${condition !== '' ? ' AND ' : ''} eq(deleted, "false")`
     );
 
     if (details.name) {
       condition = condition.concat(
-        `${condition !== "" ? " AND " : ""}eq(name, ${details.name})`
+        `${condition !== '' ? ' AND ' : ''}eq(name, ${details.name})`
       );
     }
 
     if (details.context) {
       condition = condition.concat(
-        `${condition !== "" ? " AND " : ""}eq(context, ${details.context})`
+        `${condition !== '' ? ' AND ' : ''}eq(context, ${details.context})`
       );
     }
 
@@ -387,14 +390,31 @@ export class UprtclRepository {
         ${
           details.headId
             ? `\nhead @filter(func: eq(xid, ${details.headId})){ xid }`
-            : ""
+            : ''
         }
       }
     }`;
 
-    const result = await this.db.client.newTxn().query(query);
-    const json = result.getJson();
-    console.log("[DGRAPH] findPerspectives", { query }, json);
+    const result1 = await this.db.client.newTxn().query(query);
+    console.log(
+      '[DGRAPH] getContextPerspectives',
+      { query },
+      result1.getJson()
+    );
+    let perspectives = result1.getJson().perspective.map(
+      (dperspective: DgPerspective): Perspective => {
+        return {
+          remote: dperspective.remote,
+          path: dperspective.path,
+          creatorId: dperspective.creator.did,
+          timestamp: dperspective.timextamp,
+        };
+      }
+    );
+
+    const result2 = await this.db.client.newTxn().query(query);
+    const json = result2.getJson();
+    console.log('[DGRAPH] findPerspectives', { query }, json);
     const securedPerspectives = json.perspective.map(
       (dperspective: DgPerspective): string => dperspective.xid
     );
@@ -420,15 +440,15 @@ export class UprtclRepository {
     let result = await this.db.client.newTxn().query(query);
     let json = result.getJson();
     console.log(
-      "[DGRAPH] getPerspectiveDetails",
+      '[DGRAPH] getPerspectiveDetails',
       { query },
       JSON.stringify(json)
     );
     if (json.perspective.length === 0) {
       return {
-        name: "",
-        context: "",
-        headId: ""
+        name: '',
+        context: '',
+        headId: '',
       };
     }
 
@@ -436,7 +456,7 @@ export class UprtclRepository {
     return {
       name: details.name,
       context: details.context,
-      headId: details.head.xid
+      headId: details.head.xid,
     };
   }
 
@@ -467,7 +487,7 @@ export class UprtclRepository {
     let result = await this.db.client.newTxn().query(query);
     let dcommit: DgCommit = result.getJson().commit[0];
     console.log(
-      "[DGRAPH] getCommit",
+      '[DGRAPH] getCommit',
       { query },
       JSON.stringify(result.getJson())
     );
@@ -480,21 +500,21 @@ export class UprtclRepository {
       timestamp: dcommit.timextamp,
       message: dcommit.message,
       parentsIds: dcommit.parents
-        ? dcommit.parents.map(parent => parent.xid)
-        : []
+        ? dcommit.parents.map((parent) => parent.xid)
+        : [],
     };
 
     const proof: Proof = {
       signature: dcommit.proof.signature,
-      type: dcommit.proof.proof_type
+      type: dcommit.proof.proof_type,
     };
 
     const securedCommit: Secured<Commit> = {
       id: dcommit.xid,
       object: {
         payload: commit,
-        proof: proof
-      }
+        proof: proof,
+      },
     };
     return securedCommit;
   }
