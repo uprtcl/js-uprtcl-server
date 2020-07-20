@@ -10,16 +10,29 @@ export interface Perspective {
   timestamp: number;
 }
 
-export interface HeadUpdate {
-  perspectiveId: string,
-  headId: string 
+export interface Proposal {
+  id: string;
+  creatorId?: string;
+  toPerspectiveId?: string;
+  fromPerspectiveId: string;
+  toHeadId?: string;
+  fromHeadId?: string;
+  updates?: Array<UpdateRequest>;
+  //status?: boolean; // why boolean?
+  authorized?: boolean;
+  open?: boolean;
+  closed?: boolean;
+  executed?: boolean;
+  cancelled?: boolean;
+  declined?: boolean;
+  canAuthorize?: boolean;
 }
 
-export interface Proposal {
-  toPerspective: string,
-  fromPerspective: string,
-  updates: Array<HeadUpdate>,
-  state: string
+export interface UpdateRequest {
+  fromPerspectiveId?: string;
+  oldHeadId?: string;
+  perspectiveId: string;
+  newHeadId: string;
 }
 
 export interface Commit {
@@ -50,4 +63,12 @@ export interface NewPerspectiveData {
   perspective: Secured<Perspective>;
   details?: PerspectiveDetails;
   parentId?: string;
+}
+
+export interface NewProposalData {
+  fromPerspectiveId: string;
+  toPerspectiveId: string;
+  fromHeadId: string;
+  toHeadId: string;
+  updates: UpdateRequest[];
 }
