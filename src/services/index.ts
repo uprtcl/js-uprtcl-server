@@ -34,17 +34,17 @@ const dataController = new DataController(dataService);
 const accessService = new AccessService(dbService, accessRepo);
 const accessController = new AccessController(accessService);
 
+const proposalsService = new ProposalsService(proposalsRepo);
+const proposalsController = new ProposalsController(proposalsService);
+
 const uprtclService = new UprtclService(dbService, uprtclRepo, accessService);
-const uprtclController = new UprtclController(uprtclService);
+const uprtclController = new UprtclController(uprtclService, proposalsService);
 
 const userService = new UserService(dbService, userRepo);
 const userController = new UserController(userService);
 
 const knownSourcesService = new KnownSourcesService(dbService, knownSourcesRepo, dataService, uprtclService);
 const knownSourcesController = new KnownSourcesController(knownSourcesService);
-
-const proposalsService = new ProposalsService(proposalsRepo);
-const proposalsController = new ProposalsController(proposalsService);
 
 export const routes = [
   ...uprtclController.routes(), 
