@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
 import { checksPlaceholder } from "../../middleware/checks";
 import { UprtclService } from "./uprtcl.service";
+import { ProposalsService } from "../proposals/proposals.service";
 import { checkJwt } from "../../middleware/jwtCheck";
 import { getUserFromReq, GetResult, SUCCESS, PostResult, ERROR } from "../../utils";
-import { Secured, Perspective, PerspectiveDetails, Commit } from "./types";
+import { Secured, Perspective, PerspectiveDetails, Commit, Proposal } from "./types";
 
 declare global {
   namespace Express {
@@ -15,7 +16,7 @@ declare global {
 
 export class UprtclController {
 
-  constructor(protected uprtclService: UprtclService) {
+  constructor(protected uprtclService: UprtclService, protected proposalsService: ProposalsService) {
   }
 
   routes() {
@@ -124,19 +125,40 @@ export class UprtclController {
         ]
       },
 
+      /**
+       * Calls:
+       *  -> getProposalsToPerspective() from proposals service.
+       * Returns:
+       *  -> Proposals[]           
+       * Requires:
+       *  -> perspectiveId: string
+       */ 
+
       {
         path: "/uprctl/1/persp/:perspectiveId/proposals",
         method: "get",
         handler: [
           checkJwt,
           async(req: Request, res: Response) => {
-            // TODO: Call getProposalsToPerspective from proposal service.
-            // Should return an array of proposals Array<Proposal>
-            /**
-              * Requires:
-              * -> PerspectiveId: string
-              */
-            res.status(200).send('Proposals from perspective . . .');
+            try {
+              const proposals = await this.proposalsService.getProposalsToPerspective(
+                req.params.perspectiveId
+              );
+
+              let result: GetResult <Proposal[]> = {
+                result: SUCCESS,
+                message: '',
+                data: proposals
+              }
+
+              res.status(200).send(result);
+            } catch (error) {
+              let result: GetResult<null> = {
+                result: ERROR,
+                message: error.message,
+                data: null
+              }
+            }
           }
         ]
       },
