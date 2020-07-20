@@ -3,6 +3,7 @@ import { UprtclController } from './uprtcl/uprtcl.controller';
 import { UprtclService } from './uprtcl/uprtcl.service';
 import { UserController } from './user/user.controller';
 import { UserService } from './user/user.service';
+import { ProposalsService } from './proposals/proposals.service';
 import { AccessService } from './access/access.service';
 import { AccessController } from './access/access.controller';
 import { AccessRepository } from './access/access.repository';
@@ -14,6 +15,7 @@ import { KnownSourcesController } from './knownsources/knownsources.controller';
 import { DataService } from './data/data.service';
 import { DataController } from './data/data.controller';
 import { KnownSourcesService } from './knownsources/knownsources.service';
+import { ProposalsRepository } from "./proposals/proposals.repository";
 
 /** poors man dependency injection */
 const dbService = new DGraphService(process.env.DGRAPH_HOST as string);
@@ -22,6 +24,7 @@ const userRepo = new UserRepository(dbService);
 const accessRepo = new AccessRepository(dbService, userRepo);
 const dataRepo = new DataRepository(dbService, userRepo);
 const uprtclRepo = new UprtclRepository(dbService, userRepo, dataRepo);
+const proposalsRepo = new ProposalsRepository(dbService);
 const knownSourcesRepo = new KnownSourcesRepository(dbService);
 
 const dataService = new DataService(dbService, dataRepo);
@@ -30,8 +33,10 @@ const dataController = new DataController(dataService);
 const accessService = new AccessService(dbService, accessRepo);
 const accessController = new AccessController(accessService);
 
+const proposalsService = new ProposalsService(proposalsRepo);
+
 const uprtclService = new UprtclService(dbService, uprtclRepo, accessService);
-const uprtclController = new UprtclController(uprtclService);
+const uprtclController = new UprtclController(uprtclService, proposalsService);
 
 const userService = new UserService(dbService, userRepo);
 const userController = new UserController(userService);
