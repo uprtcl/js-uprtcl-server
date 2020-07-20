@@ -158,6 +158,8 @@ export class UprtclController {
                 message: error.message,
                 data: null
               }
+
+              res.status(400).send(error);
             }
           }
         ]
