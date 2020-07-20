@@ -1,5 +1,4 @@
 import { Proposal, UpdateRequest, NewProposalData, NewPerspectiveData } from "../uprtcl/types"
-import { ProposalsRepository } from "./proposals.repository";
 
 export class ProposalsService {
 
