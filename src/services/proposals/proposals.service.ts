@@ -42,12 +42,6 @@ export class ProposalsService {
         return proposal;
     };
 
-    async addUpdatesToProposal(proposalId: string, updates: UpdateRequest[], loggedUserId: string | null): Promise<void> {
-        if (loggedUserId === null) throw new Error('Anonymous user. Cant create a perspective');
-        // TODO: Call createOrUpdate from repository.
-        return;
-    }
-
     async getProposalsToPerspective(perspectiveId: string): Promise<Array<Proposal>> {
         // TODO: Call getProposalsToPerspective from repository.
         const proposals: Array<Proposal> = [
@@ -65,17 +59,26 @@ export class ProposalsService {
         return proposals;
     };
 
-    async acceptProposal(proposalId: string): Promise<void> {
+    async addUpdatesToProposal(proposalId: string, updates: UpdateRequest[], loggedUserId: string | null): Promise<void> {
+        if (loggedUserId === null) throw new Error('Anonymous user. Cant create a perspective');
+        // TODO: Call createOrUpdate from repository.
+        return;
+    }
+
+    async acceptProposal(proposalId: string, loggedUserId: string | null): Promise<void> {
+        if (loggedUserId === null) throw new Error('Anonymous user. Cant create a perspective');
         // TODO: Call acceptProposal from repository
         return;
     };
 
-    async cancelProposal(proposalId: string): Promise<void> {
+    async cancelProposal(proposalId: string, loggedUserId: string | null): Promise<void> {
+        if (loggedUserId === null) throw new Error('Anonymous user. Cant create a perspective');
         // TODO: Call cancelProposal from repository
         return;
     };
 
-    async declineProposal(proposalId: string): Promise<void> {
+    async declineProposal(proposalId: string, loggedUserId: string | null): Promise<void> {
+        if (loggedUserId === null) throw new Error('Anonymous user. Cant create a perspective');
         // TODO: Call declineProposal from repository
         return;
     };
