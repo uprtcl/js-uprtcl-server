@@ -72,7 +72,8 @@ export class ProposalsController {
                          const elementId = await this.proposalService.createAndPropose(
                              req.body.NewPerspectiveData,
                              req.body.proposal,
-                             getUserFromReq(req));
+                             getUserFromReq(req)
+                        );
  
                          let result: PostResult = {
                              result: SUCCESS,
@@ -196,7 +197,10 @@ export class ProposalsController {
                    checkJwt,
                    async(req: Request, res: Response) => {
                     try {
-                        await this.proposalService.acceptProposal(req.params.proposalId);
+                        await this.proposalService.acceptProposal(
+                            req.params.proposalId,
+                            getUserFromReq(req)
+                        );
 
                         let result: PostResult = {
                             result:  SUCCESS,
@@ -234,7 +238,10 @@ export class ProposalsController {
                    checkJwt,
                    async(req: Request, res: Response) => {
                     try {
-                        await this.proposalService.cancelProposal(req.params.proposalId);
+                        await this.proposalService.cancelProposal(
+                            req.params.proposalId,
+                            getUserFromReq(req)
+                        );
 
                         let result: PostResult = {
                             result:  SUCCESS,
@@ -272,7 +279,10 @@ export class ProposalsController {
                    checkJwt,
                    async(req: Request, res: Response) => {
                     try {
-                        await this.proposalService.acceptProposal(req.params.proposalId);
+                        await this.proposalService.declineProposal(
+                            req.params.proposalId,
+                            getUserFromReq(req)
+                        );
 
                         let result: PostResult = {
                             result:  SUCCESS,
