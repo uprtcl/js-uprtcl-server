@@ -51,50 +51,6 @@ export class ProposalsController {
                ]
            },
 
-           /**
-             * Calls:
-             *  -> createAndPropose() from service
-             * Returns:
-             *  -> String proposalId           
-             * Requires:
-             *  -> type NewPerspectiveData[]
-             *  -> Type NewProposalData
-             *  -> Logged user
-             */   
-
-            {
-                path: "/uprtcl/1/proposal/propose",
-                method: "post",
-                handler: [
-                    checkJwt,
-                    async (req: Request, res: Response) => {        
-                        try {
-                         const elementId = await this.proposalService.createAndPropose(
-                             req.body.NewPerspectiveData,
-                             req.body.proposal,
-                             getUserFromReq(req)
-                        );
- 
-                         let result: PostResult = {
-                             result: SUCCESS,
-                             message: '',
-                             elementIds: [elementId]
-                         }
- 
-                         res.status(200).send(result);
-                        } catch (error) {
-                            let result: PostResult = {
-                                result: ERROR,
-                                message: error.message,
-                                elementIds: []
-                            }
- 
-                            res.status(400).send(result);
-                        }                                                                  
-                    }
-                ]
-            },
-
             /**
              * Calls:
              *  -> getProposal() from service
