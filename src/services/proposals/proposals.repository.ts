@@ -1,6 +1,7 @@
 import { DGraphService } from "../../db/dgraph.service";
-import { NewProposalData } from "../uprtcl/types";
+import { NewProposalData, NewPerspectiveData } from "../uprtcl/types";
 import { UserRepository } from "../user/user.repository";
+import { UprtclService } from '../uprtcl/uprtcl.service';
 import { PROPOSALS_SCHEMA_NAME } from "../proposals/proposals.schema";
 import { Perspective, Proposal, UpdateRequest } from "../uprtcl/types";
 
@@ -8,13 +9,16 @@ const dgraph = require("dgraph-js");
 require("dotenv").config();
 
 export class ProposalsRepository {
-    constructor(protected db: DGraphService) {}
+    constructor(
+        protected db: DGraphService,
+        protected uprtclService: UprtclService
+    ) {}
 
     errorProposalId() {        
         throw new Error(`proposalId is empty`);        
     }
 
-    async createOrUpdateProposal(proposalData: NewProposalData) {        
+    async createOrUpdateProposal(proposalData: NewProposalData): Promise <string> {        
         await this.db.ready();
 
        /** 
@@ -40,6 +44,35 @@ export class ProposalsRepository {
         const result = await this.db.callRequest(req);        
 
         return result.getUidsMap().get("proposal");
+    }
+
+    async createAndPropose(newPerspectivesData: NewPerspectiveData[], loggedUserId: string | null): Promise <string> {                 
+
+        /* Creates perspectives */
+        const promises:Array<Promise<string>> = [];
+        const perspsIds:Array<string> = [];
+
+        newPerspectivesData.map(persp => {                  
+             promises.push(
+                 this.uprtclService.createAndInitPerspective(persp, loggedUserId).then((res) => {
+                     return res;
+                 })
+             );
+        });
+
+       const perspectivesIds = await Promise.all(promises);                                           
+
+
+       // Creates proposal
+       const proposalData = {
+           fromPerspectiveId: perspectivesIds[0],
+           toPerspectiveId: perspectivesIds[1],
+           toHeadId: '',
+           fromHeadId: '',
+           updates: []
+       };              
+
+       return await this.createOrUpdateProposal(proposalData);
     }
 
     async getProposal(proposalId: string): Promise<Proposal> {
