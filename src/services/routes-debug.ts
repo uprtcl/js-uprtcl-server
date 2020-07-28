@@ -25,8 +25,8 @@ const userRepo = new UserRepository(dbService);
 const accessRepo = new AccessRepository(dbService, userRepo);
 const dataRepo = new DataRepository(dbService, userRepo);
 const uprtclRepo = new UprtclRepository(dbService, userRepo, dataRepo);
-const proposalsRepo = new ProposalsRepository(dbService);
 const knownSourcesRepo = new KnownSourcesRepository(dbService);
+const proposalsRepo = new ProposalsRepository(dbService, uprtclRepo);
 
 const dataService = new DataService(dbService, dataRepo);
 const dataController = new DataController(dataService);
@@ -34,11 +34,11 @@ const dataController = new DataController(dataService);
 const accessService = new AccessService(dbService, accessRepo);
 const accessController = new AccessController(accessService);
 
+const uprtclService = new UprtclService(dbService, uprtclRepo, accessService);
+const uprtclController = new UprtclController(uprtclService);
+
 const proposalsService = new ProposalsService(proposalsRepo);
 const proposalsController = new ProposalsController(proposalsService);
-
-const uprtclService = new UprtclService(dbService, uprtclRepo, accessService);
-const uprtclController = new UprtclController(uprtclService, proposalsService);
 
 const userService = new UserService(dbService, userRepo);
 const userController = new UserController(userService);
