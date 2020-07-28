@@ -56,7 +56,7 @@ export class UprtclController {
        */   
 
       {
-          path: "/uprtcl/1/pers/propose",
+          path: "/uprtcl/1/persp/propose",
           method: "post",
           handler: [
               checkJwt,
