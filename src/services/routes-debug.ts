@@ -18,31 +18,33 @@ import { KnownSourcesService } from './knownsources/knownsources.service';
 import { ProposalsRepository } from "./proposals/proposals.repository";
 import { ProposalsController } from './proposals/proposals.controller';
 
+// TODO: Update index.ts
+
 /** poors man dependency injection */
 const dbService = new DGraphService(process.env.DGRAPH_HOST as string);
 
 const userRepo = new UserRepository(dbService);
-const accessRepo = new AccessRepository(dbService, userRepo);
-const dataRepo = new DataRepository(dbService, userRepo);
-const uprtclRepo = new UprtclRepository(dbService, userRepo, dataRepo);
-const knownSourcesRepo = new KnownSourcesRepository(dbService);
-const proposalsRepo = new ProposalsRepository(dbService, uprtclRepo);
-
-const dataService = new DataService(dbService, dataRepo);
-const dataController = new DataController(dataService);
-
-const accessService = new AccessService(dbService, accessRepo);
-const accessController = new AccessController(accessService);
-
-const uprtclService = new UprtclService(dbService, uprtclRepo, accessService);
-const uprtclController = new UprtclController(uprtclService);
-
-const proposalsService = new ProposalsService(proposalsRepo);
-const proposalsController = new ProposalsController(proposalsService);
-
 const userService = new UserService(dbService, userRepo);
 const userController = new UserController(userService);
 
+const dataRepo = new DataRepository(dbService, userRepo);
+const dataService = new DataService(dbService, dataRepo);
+const dataController = new DataController(dataService);
+
+const accessRepo = new AccessRepository(dbService, userRepo);
+const accessService = new AccessService(dbService, accessRepo);
+const accessController = new AccessController(accessService);
+
+const uprtclRepo = new UprtclRepository(dbService, userRepo, dataRepo);
+const uprtclService = new UprtclService(dbService, uprtclRepo, accessService);
+const uprtclController = new UprtclController(uprtclService);
+
+const proposalsRepo = new ProposalsRepository(dbService, uprtclService);
+const proposalsService = new ProposalsService(proposalsRepo);
+const proposalsController = new ProposalsController(proposalsService);
+
+
+const knownSourcesRepo = new KnownSourcesRepository(dbService);
 const knownSourcesService = new KnownSourcesService(
   dbService,
   knownSourcesRepo,
