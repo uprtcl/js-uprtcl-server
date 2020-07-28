@@ -1,10 +1,7 @@
 import { DGraphService } from "../../db/dgraph.service";
 import { NewProposalData } from "../uprtcl/types";
 import { UserRepository } from "../user/user.repository";
-import {
-    PERSPECTIVE_SCHEMA_NAME,
-    COMMIT_SCHEMA_NAME
-} from "../uprtcl/uprtcl.schema";
+import { PROPOSALS_SCHEMA_NAME } from "../proposals/proposals.schema";
 import { Perspective, Proposal, UpdateRequest } from "../uprtcl/types";
 
 const dgraph = require("dgraph-js");
@@ -20,7 +17,7 @@ export class ProposalsRepository {
     async createOrUpdateProposal(proposalData: NewProposalData) {        
         await this.db.ready();
 
-        /** 
+       /** 
          *  Needs to validate if proposal exists to update instead
          */        
 
@@ -32,19 +29,17 @@ export class ProposalsRepository {
         
         let nquads = `_:proposal  <toPerspective> uid(toPerspective) .`;
         nquads = nquads.concat(`\n_:proposal <fromPerspective> uid(fromPerspective) .`);
-        nquads = nquads.concat(`\n_:proposal <state>  "open".`);
+        nquads = nquads.concat(`\n_:proposal <state>  "Open".`);
+        nquads = nquads.concat(`\n_:proposal <dgraph.type> "${PROPOSALS_SCHEMA_NAME}" .`);
+      
 
         req.setQuery(`query{${query}}`);
         mu.setSetNquads(nquads);
         req.setMutationsList([mu]);
 
-        let result = await this.db.callRequest(req);
-        console.log(
-            '[DGRAPH] createProposal',  
-            { query },
-            { nquads },
-            result.getUidsMap().toArray()
-          );
+        const result = await this.db.callRequest(req);        
+
+        return result.getUidsMap().get("proposal");
     }
 
     async getProposal(proposalId: string): Promise<Proposal> {

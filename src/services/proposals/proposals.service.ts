@@ -10,12 +10,10 @@ export class ProposalsService {
     async createProposal(proposalData: NewProposalData, loggedUserId: string | null): Promise<string> {
         if (loggedUserId === null) throw new Error('Anonymous user. Cant create a proposal');
                 
-        const result = await this.proposalRepo.createOrUpdateProposal(proposalData);
-        
-        return 'some string';
+        return await this.proposalRepo.createOrUpdateProposal(proposalData);
     };
 
-    async createAndPropose(newPerspectivesData: NewPerspectiveData[], proposalData: NewProposalData, loggedUserId: string | null): Promise<string> {
+    async createAndPropose(newPerspectivesData: NewPerspectiveData[], loggedUserId: string | null): Promise<string> {
         if (loggedUserId === null) throw new Error('Anonymous user. Cant create a perspective');
 
         // Call createOrUpdate from repository
