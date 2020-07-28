@@ -80,6 +80,7 @@
       "jsx",
       "json",
       "node"
-    ]
+    ],
+    "modulePathIgnorePatterns": ["dist"]
   }
 }
