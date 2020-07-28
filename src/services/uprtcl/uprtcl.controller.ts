@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import { checksPlaceholder } from "../../middleware/checks";
 import { UprtclService } from "./uprtcl.service";
-import { ProposalsService } from "../proposals/proposals.service";
 import { checkJwt } from "../../middleware/jwtCheck";
 import { getUserFromReq, GetResult, SUCCESS, PostResult, ERROR } from "../../utils";
 import { Secured, Perspective, PerspectiveDetails, Commit, Proposal } from "./types";
@@ -16,7 +15,7 @@ declare global {
 
 export class UprtclController {
 
-  constructor(protected uprtclService: UprtclService, protected proposalsService: ProposalsService) {
+  constructor(protected uprtclService: UprtclService) {
   }
 
   routes() {
@@ -40,52 +39,6 @@ export class UprtclController {
             res.status(200).send(result);
           }
         ]
-      },
-
-      /**
-       * Calls:
-       *  -> createAndPropose() from proposal service
-       * Returns:
-       *  -> String toPerspectiveId     
-       *  -> String fromPerspectiveId     
-       *  -> String proposalId    
-       * Requires:
-       *  -> Type NewPerspectiveData[]
-       *  -> Type NewProposalData
-       *  -> Logged user
-       */   
-
-      {
-          path: "/uprtcl/1/persp/propose",
-          method: "post",
-          handler: [
-              checkJwt,
-              async (req: Request, res: Response) => {        
-                  try {
-                   const elementId = await this.proposalsService.createAndPropose(
-                       req.body.newPerspectivesData,      
-                       req.body.newProposalData,                       
-                       getUserFromReq(req)
-                  );
-
-                   let result: PostResult = {
-                       result: SUCCESS,
-                       message: '',
-                       elementIds: [elementId]
-                   }
-
-                   res.status(200).send(result);
-                  } catch (error) {
-                      let result: PostResult = {
-                          result: ERROR,
-                          message: error.message,
-                          elementIds: []
-                      }
-
-                      res.status(400).send(result);
-                  }                                                                  
-              }
-          ]
       },
 
       {
@@ -166,46 +119,6 @@ export class UprtclController {
               }
   
               res.status(200).send(result);
-            }
-          }
-        ]
-      },
-
-      /**
-       * Calls:
-       *  -> getProposalsToPerspective() from proposals service.
-       * Returns:
-       *  -> Proposals[]           
-       * Requires:
-       *  -> perspectiveId: string
-       */ 
-
-      {
-        path: "/uprctl/1/persp/:perspectiveId/proposals",
-        method: "get",
-        handler: [
-          checkJwt,
-          async(req: Request, res: Response) => {
-            try {
-              const proposals = await this.proposalsService.getProposalsToPerspective(
-                req.params.perspectiveId
-              );
-
-              let result: GetResult <Proposal[]> = {
-                result: SUCCESS,
-                message: '',
-                data: proposals
-              }
-
-              res.status(200).send(result);
-            } catch (error) {
-              let result: GetResult<null> = {
-                result: ERROR,
-                message: error.message,
-                data: null
-              }
-
-              res.status(400).send(result);
             }
           }
         ]
