@@ -33,7 +33,6 @@ export const getRoutes = async () => {
   const accessRepo = new AccessRepository(dbService, userRepo);
   const dataRepo = new DataRepository(dbService, userRepo);
   const uprtclRepo = new UprtclRepository(dbService, userRepo, dataRepo);
-  const proposalsRepo = new ProposalsRepository(dbService);
   const knownSourcesRepo = new KnownSourcesRepository(dbService);
 
   const dataService = new DataService(dbService, dataRepo);
@@ -42,14 +41,15 @@ export const getRoutes = async () => {
   const accessService = new AccessService(dbService, accessRepo);
   const accessController = new AccessController(accessService);
 
-  const proposalsService = new ProposalsService(proposalsRepo);
-  const proposalsController = new ProposalsController(proposalsService);
-
   const uprtclService = new UprtclService(dbService, uprtclRepo, accessService);
-  const uprtclController = new UprtclController(uprtclService, proposalsService);
+  const uprtclController = new UprtclController(uprtclService);
 
   const userService = new UserService(dbService, userRepo);
   const userController = new UserController(userService);
+
+  const proposalsRepo = new ProposalsRepository(dbService, uprtclService);
+  const proposalsService = new ProposalsService(proposalsRepo);
+  const proposalsController = new ProposalsController(proposalsService);
 
   const knownSourcesService = new KnownSourcesService(
     dbService,
