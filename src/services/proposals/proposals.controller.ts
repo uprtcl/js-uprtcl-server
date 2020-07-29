@@ -261,54 +261,6 @@ export class ProposalsController {
 
           /**
            * Calls:
-           *  -> createAndPropose() from proposal service
-           * Returns:
-           *  -> Array[
-                   String toPerspectiveId     
-                   String fromPerspectiveId     
-                   String proposalId    
-                 ]
-           * Requires:
-           *  -> Type NewPerspectiveData[]
-           *  -> Type NewProposalData
-           *  -> Logged user
-           */   
-
-          {
-              path: "/uprtcl/1/persp/propose",
-              method: "post",
-              handler: [
-                  checkJwt,
-                  async (req: Request, res: Response) => {        
-                      try {
-                       const elementId = await this.proposalService.createAndPropose(
-                           req.body.newPerspectivesData,      
-                           req.body.newProposalData,                       
-                           getUserFromReq(req)
-                      );
-
-                       let result: PostResult = {
-                           result: SUCCESS,
-                           message: '',
-                           elementIds: elementId
-                       }
-
-                       res.status(200).send(result);
-                      } catch (error) {
-                          let result: PostResult = {
-                              result: ERROR,
-                              message: error.message,
-                              elementIds: []
-                          }
-
-                          res.status(400).send(result);
-                      }                                                                  
-                  }
-              ]
-          },
-
-          /**
-           * Calls:
            *  -> getProposalsToPerspective() from proposals service.
            * Returns:
            *  -> Proposals[]           

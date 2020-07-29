@@ -10,8 +10,7 @@ require("dotenv").config();
 
 export class ProposalsRepository {
     constructor(
-        protected db: DGraphService,
-        protected uprtclService: UprtclService
+        protected db: DGraphService
     ) {}
 
     errorProposalId() {        
@@ -44,35 +43,6 @@ export class ProposalsRepository {
         const result = await this.db.callRequest(req);        
 
         return result.getUidsMap().get("proposal");
-    }
-
-    async createAndPropose(newPerspectivesData: NewPerspectiveData[], loggedUserId: string | null): Promise <string> {                 
-
-        /* Creates perspectives */
-        const promises:Array<Promise<string>> = [];
-        const perspsIds:Array<string> = [];
-
-        newPerspectivesData.map(persp => {                  
-             promises.push(
-                 this.uprtclService.createAndInitPerspective(persp, loggedUserId).then((res) => {
-                     return res;
-                 })
-             );
-        });
-
-       const perspectivesIds = await Promise.all(promises);                                           
-
-
-       // Creates proposal
-       const proposalData = {
-           fromPerspectiveId: perspectivesIds[0],
-           toPerspectiveId: perspectivesIds[1],
-           toHeadId: '',
-           fromHeadId: '',
-           updates: []
-       };              
-
-       return await this.createOrUpdateProposal(proposalData);
     }
 
     async getProposal(proposalId: string): Promise<Proposal> {

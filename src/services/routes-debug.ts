@@ -39,7 +39,7 @@ const uprtclRepo = new UprtclRepository(dbService, userRepo, dataRepo);
 const uprtclService = new UprtclService(dbService, uprtclRepo, accessService);
 const uprtclController = new UprtclController(uprtclService);
 
-const proposalsRepo = new ProposalsRepository(dbService, uprtclService);
+const proposalsRepo = new ProposalsRepository(dbService);
 const proposalsService = new ProposalsService(proposalsRepo);
 const proposalsController = new ProposalsController(proposalsService);
 

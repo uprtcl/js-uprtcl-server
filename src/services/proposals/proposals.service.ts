@@ -13,14 +13,6 @@ export class ProposalsService {
         return await this.proposalRepo.createOrUpdateProposal(proposalData);
     };
 
-    async createAndPropose(newPerspectivesData: NewPerspectiveData[], loggedUserId: string | null): Promise<string> {            
-        if (loggedUserId === null) throw new Error('Anonymous user. Cant create a perspective');
-
-        if(newPerspectivesData.length > 2) throw new Error('A proposal can not have more that two (2) perspectives. `From` and `To` are needed.');        
-
-        return await this.proposalRepo.createAndPropose(newPerspectivesData, loggedUserId);
-    } 
-
     async getProposal(proposalId: string): Promise<Proposal> {
         if(proposalId == undefined || proposalId == '') {
             throw new Error(`proposalId is empty`);
