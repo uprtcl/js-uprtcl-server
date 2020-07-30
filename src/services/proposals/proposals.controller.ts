@@ -3,301 +3,302 @@ import { checkJwt } from "../../middleware/jwtCheck";
 import { Proposal, Secured } from "../uprtcl/types"
 import { ProposalsService } from "./proposals.service";
 import { getUserFromReq, GetResult, SUCCESS, PostResult, ERROR } from "../../utils";
+
 export class ProposalsController {
 
-    constructor(protected proposalService: ProposalsService) {}
+  constructor(protected proposalService: ProposalsService) {}
 
-    routes() {
-        return [  
+  routes() {
+    return [  
 
-            /**
-             * Calls:
-             *  -> createProposal() from service
-             * Returns:
-             *  -> String proposalId
-             * Requires:
-             *  -> Type NewProposalData
-             *  -> Logged user
-             */   
+        /**
+         * Calls:
+         *  -> createProposal() from service
+         * Returns:
+         *  -> String proposalId
+         * Requires:
+         *  -> Type NewProposalData
+         *  -> Logged user
+         */   
 
-           {
-               path: "/uprtcl/1/proposal",
-               method: "post",
-               handler: [
-                   checkJwt,
-                   async (req: Request, res: Response) => {        
-                       try {
-                        const elementId = await this.proposalService.createProposal(
-                            req.body,
-                            getUserFromReq(req));
+       {
+           path: "/uprtcl/1/proposal",
+           method: "post",
+           handler: [
+               checkJwt,
+               async (req: Request, res: Response) => {        
+                   try {
+                    const elementId = await this.proposalService.createProposal(
+                        req.body,
+                        getUserFromReq(req));
 
-                        let result: PostResult = {
-                            result: SUCCESS,
-                            message: '',
-                            elementIds: [elementId]
-                        }
+                    let result: PostResult = {
+                        result: SUCCESS,
+                        message: '',
+                        elementIds: [elementId]
+                    }
 
-                        res.status(200).send(result);
-                       } catch (error) {
-                           let result: PostResult = {
-                               result: ERROR,
-                               message: error.message,
-                               elementIds: []
-                           }
+                    res.status(200).send(result);
+                   } catch (error) {
+                       let result: PostResult = {
+                           result: ERROR,
+                           message: error.message,
+                           elementIds: []
+                       }
 
-                           res.status(400).send(result);
-                       }                                                                  
-                   }
-               ]
-           },
+                       res.status(400).send(result);
+                   }                                                                  
+               }
+           ]
+       },
 
-            /**
-             * Calls:
-             *  -> getProposal() from service
-             * Returns:
-             *  -> Proposal as Proposal type           
-             * Requires:
-             *  -> proposalId: string
-             */      
+        /**
+         * Calls:
+         *  -> getProposal() from service
+         * Returns:
+         *  -> Proposal as Proposal type           
+         * Requires:
+         *  -> proposalId: string
+         */      
 
-           {
-               path: "/uprtcl/1/proposal/:proposalId",
-               method: "get",
-               handler: [
-                   checkJwt,
-                   async (req: Request, res: Response) => {                                          
-                    try {
-                        const proposal = await this.proposalService.getProposal(
-                            req.params.proposalId
-                        );
-                        
-                        let result: GetResult <Proposal> = {
-                            result: SUCCESS,
-                            message: '',
-                            data: proposal
-                        }
-
-                        res.status(200).send(result);
-                        
-                    } catch(error) {
-                        let result: GetResult<null> = {
-                            result: ERROR,
-                            message: error.message,
-                            data: null
-                        }
-
-                        res.status(200).send(result);
-                    }                       
-                   }
-               ]
-           },
-
-           /**
-             * Calls:
-             *  -> addUpdatesToProposal() from service
-             * Returns:
-             *  -> Does not return anything  since it is only a remote call procedure.      
-             * Requires:
-             *  -> proposalId: string
-             * ->  updates: UpdateRequest[]
-             *  -> Logged user
-             */   
-
-           {
-               path: "/uprtcl/1/proposal/:proposalId",
-               method: "put",
-               handler: [
-                   checkJwt,
-                   async (req: Request, res: Response) => {
-                    try {
-                        await this.proposalService.addUpdatesToProposal(
-                            req.params.proposalId,
-                            req.body,
-                            getUserFromReq(req)
-                        );
-
-                        let result: PostResult = {
-                            result: SUCCESS,
-                            message: 'proposal updated',
-                            elementIds: []
-                        }
-
-                        res.status(200).send(result);
-                    } catch (error) {
-                        let result: PostResult ={
-                            result: ERROR,
-                            message: error.message,
-                            elementIds: []
-                        }
-
-                        res.status(400).send(result);
-                    }                      
-                   }
-               ]
-           },
-
-           /**
-             * Calls:
-             *  -> acceptProposal() from service
-             * Returns:
-             *  -> Does not return anything  since it is only a remote call procedure.       
-             * Requires:
-             *  -> proposalId: string
-             *  -> Logged user
-             */      
-
-           {
-               path: "/uprtcl/1/proposal/:proposalId/accept",
-               method: "put",
-               handler: [
-                   checkJwt,
-                   async(req: Request, res: Response) => {
-                    try {
-                        await this.proposalService.acceptProposal(
-                            req.params.proposalId,
-                            getUserFromReq(req)
-                        );
-
-                        let result: PostResult = {
-                            result:  SUCCESS,
-                            message: 'proposal accepted',
-                            elementIds: []
-                        }
-                        res.status(200).send(result);
-                         
-                    } catch(error) {
-                        let result: PostResult = {
-                            result:  ERROR,
-                            message: error.message,
-                            elementIds: []
-                        }
-                        res.status(400).send(result);
-                    }                       
-                   }
-               ]
-           },
-
-           /**
-             * Calls:
-             *  -> cancelProposal() from service
-             * Returns:
-             *  -> Does not return anything  since it is only a remote call procedure.       
-             * Requires:
-             *  -> proposalId: string
-             *  -> Logged user
-             */      
-
-           {
-               path: "/uprtcl/1/proposal/:proposalId/cancel",
-               method: "put",
-               handler: [
-                   checkJwt,
-                   async(req: Request, res: Response) => {
-                    try {
-                        await this.proposalService.cancelProposal(
-                            req.params.proposalId,
-                            getUserFromReq(req)
-                        );
-
-                        let result: PostResult = {
-                            result:  SUCCESS,
-                            message: 'proposal cancelled',
-                            elementIds: []
-                        }
-                        res.status(200).send(result);
-                         
-                    } catch(error) {
-                        let result: PostResult = {
-                            result:  ERROR,
-                            message: error.message,
-                            elementIds: []
-                        }
-                        res.status(400).send(result);
-                    }                       
-                   }
-               ]
-           },
-
-           /**
-             * Calls:
-             *  -> declineProposal() from service
-             * Returns:
-             *  -> Does not return anything  since it is only a remote call procedure.       
-             * Requires:
-             *  -> proposalId: string
-             *  -> Logged user
-             */      
-
-           {
-               path: "/uprtcl/1/proposal/:proposalId/decline",
-               method: "put",
-               handler: [
-                   checkJwt,
-                   async(req: Request, res: Response) => {
-                    try {
-                        await this.proposalService.declineProposal(
-                            req.params.proposalId,
-                            getUserFromReq(req)
-                        );
-
-                        let result: PostResult = {
-                            result:  SUCCESS,
-                            message: 'proposal declined',
-                            elementIds: []
-                        }
-                        res.status(200).send(result);
-                         
-                    } catch(error) {
-                        let result: PostResult = {
-                            result:  ERROR,
-                            message: error.message,
-                            elementIds: []
-                        }
-                        res.status(400).send(result);
-                    }                       
-                   }
-               ]
-           },
-
-          /**
-           * Calls:
-           *  -> getProposalsToPerspective() from proposals service.
-           * Returns:
-           *  -> Proposals[]           
-           * Requires:
-           *  -> perspectiveId: string
-           */ 
-
-          {
-            path: "/uprctl/1/persp/:perspectiveId/proposals",
-            method: "get",
-            handler: [
-              checkJwt,
-              async(req: Request, res: Response) => {
+       {
+           path: "/uprtcl/1/proposal/:proposalId",
+           method: "get",
+           handler: [
+               checkJwt,
+               async (req: Request, res: Response) => {                                          
                 try {
-                  const proposals = await this.proposalService.getProposalsToPerspective(
-                    req.params.perspectiveId
-                  );
+                    const proposal = await this.proposalService.getProposal(
+                        req.params.proposalId
+                    );
+                    
+                    let result: GetResult <Proposal> = {
+                        result: SUCCESS,
+                        message: '',
+                        data: proposal
+                    }
 
-                  let result: GetResult <Proposal[]> = {
-                    result: SUCCESS,
-                    message: '',
-                    data: proposals
-                  }
+                    res.status(200).send(result);
+                    
+                } catch(error) {
+                    let result: GetResult<null> = {
+                        result: ERROR,
+                        message: error.message,
+                        data: null
+                    }
 
-                  res.status(200).send(result);
+                    res.status(200).send(result);
+                }                       
+               }
+           ]
+       },
+
+       /**
+         * Calls:
+         *  -> addUpdatesToProposal() from service
+         * Returns:
+         *  -> Does not return anything  since it is only a remote call procedure.      
+         * Requires:
+         *  -> proposalId: string
+         * ->  updates: UpdateRequest[]
+         *  -> Logged user
+         */   
+
+       {
+           path: "/uprtcl/1/proposal/:proposalId",
+           method: "put",
+           handler: [
+               checkJwt,
+               async (req: Request, res: Response) => {
+                try {
+                    await this.proposalService.addUpdatesToProposal(
+                        req.params.proposalId,
+                        req.body,
+                        getUserFromReq(req)
+                    );
+
+                    let result: PostResult = {
+                        result: SUCCESS,
+                        message: 'proposal updated',
+                        elementIds: []
+                    }
+
+                    res.status(200).send(result);
                 } catch (error) {
-                  let result: GetResult<null> = {
-                    result: ERROR,
-                    message: error.message,
-                    data: null
-                  }
+                    let result: PostResult ={
+                        result: ERROR,
+                        message: error.message,
+                        elementIds: []
+                    }
 
-                  res.status(400).send(result);
-                }
+                    res.status(400).send(result);
+                }                      
+               }
+           ]
+       },
+
+       /**
+         * Calls:
+         *  -> acceptProposal() from service
+         * Returns:
+         *  -> Does not return anything  since it is only a remote call procedure.       
+         * Requires:
+         *  -> proposalId: string
+         *  -> Logged user
+         */      
+
+       {
+           path: "/uprtcl/1/proposal/:proposalId/accept",
+           method: "put",
+           handler: [
+               checkJwt,
+               async(req: Request, res: Response) => {
+                try {
+                    await this.proposalService.acceptProposal(
+                        req.params.proposalId,
+                        getUserFromReq(req)
+                    );
+
+                    let result: PostResult = {
+                        result:  SUCCESS,
+                        message: 'proposal accepted',
+                        elementIds: []
+                    }
+                    res.status(200).send(result);
+                     
+                } catch(error) {
+                    let result: PostResult = {
+                        result:  ERROR,
+                        message: error.message,
+                        elementIds: []
+                    }
+                    res.status(400).send(result);
+                }                       
+               }
+           ]
+       },
+
+       /**
+         * Calls:
+         *  -> cancelProposal() from service
+         * Returns:
+         *  -> Does not return anything  since it is only a remote call procedure.       
+         * Requires:
+         *  -> proposalId: string
+         *  -> Logged user
+         */      
+
+       {
+           path: "/uprtcl/1/proposal/:proposalId/cancel",
+           method: "put",
+           handler: [
+               checkJwt,
+               async(req: Request, res: Response) => {
+                try {
+                    await this.proposalService.cancelProposal(
+                        req.params.proposalId,
+                        getUserFromReq(req)
+                    );
+
+                    let result: PostResult = {
+                        result:  SUCCESS,
+                        message: 'proposal cancelled',
+                        elementIds: []
+                    }
+                    res.status(200).send(result);
+                     
+                } catch(error) {
+                    let result: PostResult = {
+                        result:  ERROR,
+                        message: error.message,
+                        elementIds: []
+                    }
+                    res.status(400).send(result);
+                }                       
+               }
+           ]
+       },
+
+       /**
+         * Calls:
+         *  -> declineProposal() from service
+         * Returns:
+         *  -> Does not return anything  since it is only a remote call procedure.       
+         * Requires:
+         *  -> proposalId: string
+         *  -> Logged user
+         */      
+
+       {
+           path: "/uprtcl/1/proposal/:proposalId/decline",
+           method: "put",
+           handler: [
+               checkJwt,
+               async(req: Request, res: Response) => {
+                try {
+                    await this.proposalService.declineProposal(
+                        req.params.proposalId,
+                        getUserFromReq(req)
+                    );
+
+                    let result: PostResult = {
+                        result:  SUCCESS,
+                        message: 'proposal declined',
+                        elementIds: []
+                    }
+                    res.status(200).send(result);
+                     
+                } catch(error) {
+                    let result: PostResult = {
+                        result:  ERROR,
+                        message: error.message,
+                        elementIds: []
+                    }
+                    res.status(400).send(result);
+                }                       
+               }
+           ]
+       },
+
+      /**
+       * Calls:
+       *  -> getProposalsToPerspective() from proposals service.
+       * Returns:
+       *  -> Proposals[]           
+       * Requires:
+       *  -> perspectiveId: string
+       */ 
+
+      {
+        path: "/uprctl/1/persp/:perspectiveId/proposals",
+        method: "get",
+        handler: [
+          checkJwt,
+          async(req: Request, res: Response) => {
+            try {
+              const proposals = await this.proposalService.getProposalsToPerspective(
+                req.params.perspectiveId
+              );
+
+              let result: GetResult <string[]> = {
+                result: SUCCESS,
+                message: '',
+                data: proposals
               }
-            ]
-          },
+
+              res.status(200).send(result);
+            } catch (error) {
+              let result: GetResult<null> = {
+                result: ERROR,
+                message: error.message,
+                data: null
+              }
+
+              res.status(400).send(result);
+            }
+          }
         ]
-    }
+      }
+    ]
+  }
 }
