@@ -4,6 +4,7 @@ import { PostResult, GetResult } from '../../utils';
 import { Proposal } from '../uprtcl/types';
 
 export const createProposal = async (
+	creatorId: string,
 	fromPerspectiveId: string,
 	toPerspectiveId: string,
 	jwt: string
@@ -12,6 +13,7 @@ export const createProposal = async (
 	const post = await request(router)
 		.post('/uprtcl/1/proposal')
 		.send({
+			"creatorId": creatorId,
 			"fromPerspectiveId": fromPerspectiveId,
 			"toPerspectiveId": toPerspectiveId
 		}).set('Authorization', jwt ? `Bearer ${jwt}` : '');
@@ -29,8 +31,18 @@ export const getProposal = async (
 	const get = await request(router)
 		.get(`/uprtcl/1/proposal/${proposalId}`)
 		.set('Authorization', jwt ? `Bearer ${jwt}` : '');
-	
-	const result: any = get.text;		
 
 	return JSON.parse(get.text);	
 };
+
+export const getProposalsToPerspective = async (
+	perspectiveId: string,
+	jwt: string
+): Promise<void> => {//<string[]> => {
+	const router = await createApp();
+	const get = await request(router)
+		.get(`/uprtcl/1/persp/${perspectiveId}/proposals`)
+		.set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
+	console.log(get.text);
+}

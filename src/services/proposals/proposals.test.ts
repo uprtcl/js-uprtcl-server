@@ -5,7 +5,8 @@ import { createUser } from '../user/user.testsupport';
 
 import { 
   createProposal,
-  getProposal
+  getProposal,
+  getProposalsToPerspective
 } from './proposals.testsupport';
 
 import {
@@ -18,7 +19,8 @@ describe('Testing controller, service and repo', () => {
 
     // Mock data
     let user1: any = {};
-    let creatorId = 'did:method:12345';
+    let perspectiveCreator = 'did:method:12345';
+    let proposalCreator = 'did:method:00000';
     let commit1Id: string = '';
     let commit2Id: string = '';
     let toPerspectiveId: string = '';
@@ -32,12 +34,11 @@ describe('Testing controller, service and repo', () => {
 
     it('should create a proposal', async () => {  
       
-      user1 = await createUser('seed1');
-      creatorId = 'did:method:12345';
+      user1 = await createUser('seed1');      
 
       commit1Id = await createCommitAndData('text 123456', user1.jwt);
       toPerspectiveId = await createPerspective(
-        creatorId,
+        perspectiveCreator,
         846851,
         user1.jwt,
         commit1Id
@@ -45,23 +46,22 @@ describe('Testing controller, service and repo', () => {
 
       commit2Id = await createCommitAndData('text 12345', user1.jwt);
       fromPerspectiveId = await createPerspective(
-        creatorId,
+        perspectiveCreator,
         118948,
         user1.jwt,
         commit2Id
       );          
 
 
-      const proposal = await createProposal(fromPerspectiveId, toPerspectiveId, user1.jwt);      
+      const proposal = await createProposal(proposalCreator, fromPerspectiveId, toPerspectiveId, user1.jwt);      
       const { result, elementIds } = JSON.parse(proposal);
       proposalId = elementIds[0];
 
-      expect(result).toEqual(SUCCESS);
-      
+      expect(result).toEqual(SUCCESS);          
     });
 
     it('should return error if creating a proposal without authentication', async() => {
-      const proposal = await createProposal(fromPerspectiveId, toPerspectiveId, '');
+      const proposal = await createProposal(proposalCreator, fromPerspectiveId, toPerspectiveId, '');
       const { result } = JSON.parse(proposal);     
 
       expect(result).toEqual(ERROR);      
@@ -75,6 +75,8 @@ describe('Testing controller, service and repo', () => {
       
       const proposal = await getProposal(proposalId, user1.jwt);      
       const { result, data } = proposal;
+
+      console.log(data);
 
       expect(result).toEqual(SUCCESS);                 
     });
@@ -92,16 +94,9 @@ describe('Testing controller, service and repo', () => {
      */
 
     // it('should call getProposalsToPerspective method', async () => {
-    //   let getProposalsToPerspective: SpyInstace = jest.spyOn(ProposalsService.prototype, 'getProposalsToPerspective');
-      
-    //   const router = await createApp();      
-    //   const perspectiveId = 'randomId';
+    //   const proposalIds = await getProposalsToPerspective(fromPerspectiveId, user1.jwt);
 
-    //   await request(router)
-    //     .get(`/uprctl/1/persp/${perspectiveId}/proposals`)        
-    //     .set('Authorization', user1.jwt ? `Bearer ${user1.jwt}` : '');
-
-    //   expect(getProposalsToPerspective).toHaveBeenCalled(); 
+    //   console.log(proposalIds);
     // });
 
     // /**
