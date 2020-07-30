@@ -1,3 +1,10 @@
+export enum ProposalState {
+  Open = "OPEN",
+  Cancelled = "CANCELLED",
+  Executed = "EXECUTED",
+  Declined = "DECLINED"
+}
+
 export interface PerspectiveDetails {
   name?: string
   context?: string | undefined
@@ -22,14 +29,8 @@ export interface Proposal {
   fromPerspectiveId: string
   toHeadId?: string
   fromHeadId?: string
-  updates?: Array<UpdateRequest>;
-  //status?: boolean; // why boolean?
-  authorized?: boolean
-  open?: boolean
-  closed?: boolean
-  executed?: boolean
-  cancelled?: boolean
-  declined?: boolean
+  updates?: Array<UpdateRequest>
+  state: ProposalState
   canAuthorize?: boolean
 }
 
@@ -71,6 +72,7 @@ export interface NewPerspectiveData {
 }
 
 export interface NewProposalData {
+  creatorId: string,
   fromPerspectiveId: string
   toPerspectiveId: string
   fromHeadId: string
