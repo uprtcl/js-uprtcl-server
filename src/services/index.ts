@@ -47,7 +47,7 @@ export const getRoutes = async () => {
   const userService = new UserService(dbService, userRepo);
   const userController = new UserController(userService);
 
-  const proposalsRepo = new ProposalsRepository(dbService);
+  const proposalsRepo = new ProposalsRepository(dbService, userRepo);
   const proposalsService = new ProposalsService(proposalsRepo);
   const proposalsController = new ProposalsController(proposalsService);
 
