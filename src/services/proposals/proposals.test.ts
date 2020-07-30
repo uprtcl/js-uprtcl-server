@@ -2,7 +2,12 @@ import { toBeValidCid, ERROR, NOT_AUTHORIZED_MSG, SUCCESS, PostResult } from '..
 
 // Test support
 import { createUser } from '../user/user.testsupport';
-import { createProposal } from './proposals.testsupport';
+
+import { 
+  createProposal,
+  getProposal
+} from './proposals.testsupport';
+
 import {
   createPerspective,  
   createCommitAndData,
@@ -18,6 +23,7 @@ describe('Testing controller, service and repo', () => {
     let commit2Id: string = '';
     let toPerspectiveId: string = '';
     let fromPerspectiveId: string = '';
+    let proposalId: string = '';
 
 
     /**
@@ -46,9 +52,9 @@ describe('Testing controller, service and repo', () => {
       );          
 
 
-      const proposal = await createProposal(fromPerspectiveId, toPerspectiveId, user1.jwt);
-
-      const { result } = JSON.parse(proposal);
+      const proposal = await createProposal(fromPerspectiveId, toPerspectiveId, user1.jwt);      
+      const { result, elementIds } = JSON.parse(proposal);
+      proposalId = elementIds[0];
 
       expect(result).toEqual(SUCCESS);
       
@@ -56,28 +62,30 @@ describe('Testing controller, service and repo', () => {
 
     it('should return error if creating a proposal without authentication', async() => {
       const proposal = await createProposal(fromPerspectiveId, toPerspectiveId, '');
-
       const { result } = JSON.parse(proposal);     
 
-      expect(result).toEqual(ERROR);
+      expect(result).toEqual(ERROR);      
     });
 
     /**
      * CRUD get
      */
 
-    // it('should call getProposal method', async () => {
-    //   let getProposal: SpyInstace = jest.spyOn(ProposalsService.prototype, 'getProposal');
+    it('should get a proposal', async () => {      
       
-    //   const router = await createApp();      
-    //   const proposalId = 'randomId';
+      const proposal = await getProposal(proposalId, user1.jwt);      
+      const { result, data } = proposal;
 
-    //   await request(router)
-    //     .get(`/uprtcl/1/proposal/${proposalId}`)        
-    //     .set('Authorization', user1.jwt ? `Bearer ${user1.jwt}` : '');
+      expect(result).toEqual(SUCCESS);                 
+    });
 
-    //   expect(getProposal).toHaveBeenCalled(); 
-    // });
+    it('should return not found for non-existent proposalId', async() => {
+      const proposal = await getProposal('randomId', user1.jwt);      
+      const { result, data } = proposal;
+
+      expect(result).toEqual(ERROR);    
+      expect(data).toBeNull(); 
+    });
 
     /**
      * CRUD get proposals from perspective
