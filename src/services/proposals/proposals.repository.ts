@@ -8,14 +8,21 @@ import { Perspective, Proposal, UpdateRequest } from "../uprtcl/types";
 const dgraph = require("dgraph-js");
 require("dotenv").config();
 
+interface DgProposal {
+    state: string
+    fromPerspective: DgPerspective
+    toPerspective: DgPerspective
+    updates?: Array<string>    
+}
+
+interface DgPerspective {
+    xid: string
+}
+
 export class ProposalsRepository {
     constructor(
         protected db: DGraphService
     ) {}
-
-    errorProposalId() {        
-        throw new Error(`proposalId is empty`);        
-    }
 
     async createOrUpdateProposal(proposalData: NewProposalData): Promise <string> {        
         await this.db.ready();
@@ -27,7 +34,7 @@ export class ProposalsRepository {
         const mu = new dgraph.Mutation();
         const req = new dgraph.Request();
 
-        let query = `\ntoPerspective as var(func: eq(xid, ${proposalData.toPerspectiveId}))`;
+        let query = `toPerspective as var(func: eq(xid, ${proposalData.toPerspectiveId}))`;
         query = query.concat(`\nfromPerspective as var(func: eq(xid, ${proposalData.fromPerspectiveId}))`);
         
         let nquads = `_:proposal  <toPerspective> uid(toPerspective) .`;
@@ -46,15 +53,42 @@ export class ProposalsRepository {
     }
 
     async getProposal(proposalId: string): Promise<Proposal> {
-        const proposal: Proposal = {    
-            id: 'id9430',        
-            fromPerspectiveId: 'perspectiveModifying',
-            updates: [
-                { perspectiveId: 'testId',
-                  newHeadId: 'headId' }
-            ],
-            executed: true
-        }
+        
+        await this.db.ready();
+
+        let query = `query {
+            proposal(func: uid(${proposalId})) {
+                state
+                fromPerspective {
+                    xid
+                }
+                toPerspective {
+                    xid
+                }
+            }
+        }`;
+
+        const result = await this.db.client.newTxn().query(query);
+
+        const dproposal: DgProposal = result.getJson().proposal[0];
+
+        if(!dproposal) throw new Error(`Proposal with id ${proposalId} not found`);        
+
+        const { fromPerspective: { xid: fromPerspectiveId },
+                toPerspective: { xid: toPerspectiveId },
+                state
+              } = dproposal;                            
+
+        const proposal: Proposal = {
+            // creatorId
+            // toHeadId
+            // fromHeadId
+            // updates
+            id: proposalId,
+            toPerspectiveId: toPerspectiveId,
+            fromPerspectiveId: fromPerspectiveId,
+            [state.toLowerCase()]: true,            
+        }                
 
         return proposal;
     }
