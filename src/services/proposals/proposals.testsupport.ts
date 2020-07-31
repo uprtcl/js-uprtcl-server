@@ -1,12 +1,14 @@
 import request from 'supertest';
 import { createApp } from '../../server';
 import { PostResult, GetResult } from '../../utils';
-import { Proposal } from '../uprtcl/types';
+import { Proposal, UpdateRequest } from '../uprtcl/types';
 
 export const createProposal = async (
 	creatorId: string,
 	fromPerspectiveId: string,
 	toPerspectiveId: string,
+	fromHeadId: string,
+	toHeadId: string,
 	jwt: string
 ): Promise<string> => {
 	const router = await createApp();
@@ -15,7 +17,9 @@ export const createProposal = async (
 		.send({
 			"creatorId": creatorId,
 			"fromPerspectiveId": fromPerspectiveId,
-			"toPerspectiveId": toPerspectiveId
+			"toPerspectiveId": toPerspectiveId,
+			"fromHeadId": fromHeadId,
+			"toHeadId": toHeadId
 		}).set('Authorization', jwt ? `Bearer ${jwt}` : '');
 	
 	let result: any = post.text;  	
@@ -45,4 +49,32 @@ export const getProposalsToPerspective = async (
 		.set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
 	console.log(get.text);
-}
+};
+
+export const createUpdateRequest = async (
+	perspectiveId: string,
+	oldHeadId: string,
+	newHeadId: string
+): Promise<UpdateRequest> => {
+	const update: UpdateRequest = {
+		oldHeadId: (oldHeadId !== '') ? oldHeadId : undefined,
+		perspectiveId: perspectiveId,
+		newHeadId: newHeadId
+	};
+
+	return update;
+};
+
+export const addUpdatesToProposal = async (
+	updates: UpdateRequest[],
+	proposalUid: string,
+	jwt: string
+): Promise<PostResult> => {
+	const router = await createApp();
+	const put = await request(router)
+		 .put(`/uprtcl/1/proposal/${proposalUid}`)
+		 .send({ "updates": updates })
+		 .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
+	return JSON.parse(put.text);
+};
