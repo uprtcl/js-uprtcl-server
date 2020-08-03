@@ -10,7 +10,7 @@ export class ProposalsService {
     async createProposal(proposalData: NewProposalData, loggedUserId: string | null): Promise<string> {
         if (loggedUserId === null) throw new Error('Anonymous user. Cant create a proposal');
                 
-        return await this.proposalRepo.createOrUpdateProposal(proposalData);
+        return await this.proposalRepo.createProposal(proposalData);
     };
 
     async getProposal(proposalId: string): Promise<Proposal> {
@@ -23,7 +23,7 @@ export class ProposalsService {
         return proposal;
     };
 
-    async getProposalsToPerspective(perspectiveId: string): Promise<Array<Proposal>> {
+    async getProposalsToPerspective(perspectiveId: string): Promise<string[]> {
         if(perspectiveId == undefined || perspectiveId == '') {
             throw new Error(`perspectiveId is empty`);
         }
@@ -33,10 +33,10 @@ export class ProposalsService {
         return proposals;
     };
 
-    async addUpdatesToProposal(proposalId: string, updates: UpdateRequest[], loggedUserId: string | null): Promise<void> {
-        if (loggedUserId === null) throw new Error('Anonymous user. Cant update a proposal');
-        // TODO: Call createOrUpdate from repository.
-        return;
+    async addUpdatesToProposal(proposalUid: string, updates: UpdateRequest[], loggedUserId: string | null): Promise<void> {
+        if (loggedUserId === null) throw new Error('Anonymous user. Cant update a proposal');           
+
+        await this.proposalRepo.addUpdatesToProposal(proposalUid, updates);
     }
 
     async acceptProposal(proposalId: string, loggedUserId: string | null): Promise<void> {
@@ -48,12 +48,12 @@ export class ProposalsService {
     async cancelProposal(proposalId: string, loggedUserId: string | null): Promise<void> {
         if (loggedUserId === null) throw new Error('Anonymous user. Cant cancel a proposal');
                 
-        return await this.proposalRepo.cancelProposal(proposalId);;
+        return await this.proposalRepo.cancelProposal(proposalId);
     };
 
-    async declineProposal(proposalId: string, loggedUserId: string | null): Promise<void> {
+    async declineProposal(proposalId: string, loggedUserId: string | null): Promise<void> {        
         if (loggedUserId === null) throw new Error('Anonymous user. Cant decline a proposal');
 
-        return await this.proposalRepo.acceptProposal(proposalId);;
+        return await this.proposalRepo.declineProposal(proposalId, loggedUserId);
     };
 }
