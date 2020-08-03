@@ -62,14 +62,14 @@ export class ProposalsController {
          */      
 
        {
-           path: "/uprtcl/1/proposal/:proposalId",
+           path: "/uprtcl/1/proposal/:proposalUid",
            method: "get",
            handler: [
                checkJwt,
                async (req: Request, res: Response) => {                                          
                 try {
                     const proposal = await this.proposalService.getProposal(
-                        req.params.proposalId
+                        req.params.proposalUid
                     );
                     
                     let result: GetResult <Proposal> = {
@@ -99,21 +99,21 @@ export class ProposalsController {
          * Returns:
          *  -> Does not return anything  since it is only a remote call procedure.      
          * Requires:
-         *  -> proposalId: string
+         *  -> proposalUid: string
          * ->  updates: UpdateRequest[]
          *  -> Logged user
          */   
 
        {
-           path: "/uprtcl/1/proposal/:proposalId",
+           path: "/uprtcl/1/proposal/:proposalUid",
            method: "put",
            handler: [
                checkJwt,
                async (req: Request, res: Response) => {
                 try {
                     await this.proposalService.addUpdatesToProposal(
-                        req.params.proposalId,
-                        req.body,
+                        req.params.proposalUid,
+                        req.body.updates,
                         getUserFromReq(req)
                     );
 
