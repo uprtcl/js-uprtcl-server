@@ -1,5 +1,5 @@
 export enum ProposalState {
-  Open = "OPEN",
+  Open = "OPEN",  
   Cancelled = "CANCELLED",
   Executed = "EXECUTED",
   Declined = "DECLINED"
@@ -77,5 +77,4 @@ export interface NewProposalData {
   toPerspectiveId: string
   fromHeadId: string
   toHeadId: string
-  updates: UpdateRequest[]
 }
