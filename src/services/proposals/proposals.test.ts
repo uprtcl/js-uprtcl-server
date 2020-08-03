@@ -103,14 +103,7 @@ describe('Testing controller, service and repo', () => {
 
       //Commit a new change to the fromPerspective
 
-      const commit3Id = await createCommitAndData('text 4745729', user1.jwt);
-
-      await addPermission(
-        fromPerspectiveId,
-        user1.userId,
-        PermissionType.Write,
-        user1.jwt
-      );      
+      const commit3Id = await createCommitAndData('text 4745729', user1.jwt);   
 
       // Update perspective to the new change
 
@@ -124,14 +117,7 @@ describe('Testing controller, service and repo', () => {
 
       const commit4Id = await createCommitAndData('text 658484', user1.jwt);  
 
-      // Update perspective to the new change
-
-      await addPermission(
-        toPerspectiveId,
-        user1.userId,
-        PermissionType.Write,
-        user1.jwt
-      );      
+      // Update perspective to the new change  
 
       await updatePerspective(
         toPerspectiveId,
@@ -152,14 +138,14 @@ describe('Testing controller, service and repo', () => {
       // Create update requests
 
       const update1 = await createUpdateRequest(fromPerspectiveId, commit2Id, commit3Id);
-
       const update2 = await createUpdateRequest(toPerspectiveId, commit1Id, commit4Id);
-
       const update3 = await createUpdateRequest(thirdPerspectiveId, '', commit5Id);
       
       const updates = await addUpdatesToProposal([update1, update2, update3], proposalId, user1.jwt);
 
-      console.log(updates);
+      const { result } = updates;
+
+      expect(result).toEqual(SUCCESS);
        
     });
 
