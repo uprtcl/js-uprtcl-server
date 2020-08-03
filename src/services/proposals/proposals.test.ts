@@ -9,7 +9,8 @@ import {
   getProposal,
   getProposalsToPerspective,
   createUpdateRequest,
-  addUpdatesToProposal
+  addUpdatesToProposal,
+  declineProposal
 } from './proposals.testsupport';
 
 import {
@@ -18,25 +19,18 @@ import {
   updatePerspective
 } from '../uprtcl/uprtcl.testsupport';
 
-import {
-  addPermission,
-  setPublicPermission,
-} from '../access/access.testsupport';
 
-// TODO: Test permissions
-
-describe('Testing controller, service and repo', () => {
+describe('Testing proposals controller, service and repo', () => {
     expect.extend({ toBeValidCid });
 
     // Mock data
     let user1: any = {};
-    let perspectiveCreator = 'did:method:12345';
-    let proposalCreator = 'did:method:00000';
+    let user2: any = {};
     let commit1Id: string = '';
     let commit2Id: string = '';
     let toPerspectiveId: string = '';
     let fromPerspectiveId: string = '';    
-    let proposalId: string = '';
+    let proposalUid: string = '';
 
 
     /**
@@ -45,11 +39,12 @@ describe('Testing controller, service and repo', () => {
 
     it('should create a proposal', async () => {  
       
-      user1 = await createUser('seed1');      
+      user1 = await createUser('seed1');   
+      user2 = await createUser('seed2');
 
       commit1Id = await createCommitAndData('text 123456', user1.jwt);
       toPerspectiveId = await createPerspective(
-        perspectiveCreator,
+        user1.userId,
         846851,
         user1.jwt,
         commit1Id
@@ -57,20 +52,20 @@ describe('Testing controller, service and repo', () => {
 
       commit2Id = await createCommitAndData('text 12345', user1.jwt);
       fromPerspectiveId = await createPerspective(
-        perspectiveCreator,
+        user1.userId,
         118948,
         user1.jwt,
         commit2Id
       );               
 
-      const proposal = await createProposal(proposalCreator, 
+      const proposal = await createProposal(user2.userId, 
                                             fromPerspectiveId, 
                                             toPerspectiveId,
                                             commit2Id, 
                                             commit1Id,
-                                            user1.jwt);      
+                                            user2.jwt);      
       const { result, elementIds } = JSON.parse(proposal);
-      proposalId = elementIds[0];
+      proposalUid = elementIds[0];
 
       expect(result).toEqual(SUCCESS);          
     });
@@ -81,10 +76,9 @@ describe('Testing controller, service and repo', () => {
 
     it('should get a proposal', async () => {      
       
-      const proposal = await getProposal(proposalId, user1.jwt);      
-      const { result, data } = proposal;      
+      const proposal = await getProposal(proposalUid, user1.jwt);                
 
-      expect(result).toEqual(SUCCESS);                 
+      expect(proposal.result).toEqual(SUCCESS);                 
     });
 
     it('should return not found for non-existent proposalId', async() => {
@@ -129,7 +123,7 @@ describe('Testing controller, service and repo', () => {
 
       const commit5Id = await createCommitAndData('text 999999', user1.jwt);
       const thirdPerspectiveId = await createPerspective(
-        perspectiveCreator,
+        user1.userId,
         79878,
         user1.jwt,
         commit5Id
@@ -141,12 +135,37 @@ describe('Testing controller, service and repo', () => {
       const update2 = await createUpdateRequest(toPerspectiveId, commit1Id, commit4Id);
       const update3 = await createUpdateRequest(thirdPerspectiveId, '', commit5Id);
       
-      const updates = await addUpdatesToProposal([update1, update2, update3], proposalId, user1.jwt);
+      const updates = await addUpdatesToProposal([update1, update2, update3], proposalUid, user1.jwt);    
 
-      const { result } = updates;
-
-      expect(result).toEqual(SUCCESS);
+      expect(updates.result).toEqual(SUCCESS);
        
+    });
+
+    // Test the decline of a proposal
+
+    it('should decline a proposal', async() => {
+      const declinedProposal = await declineProposal(proposalUid, user2.jwt);      
+
+      expect(declinedProposal.result).toEqual(SUCCESS);
+    });
+
+    it('should throw error if not authorized to decline', async() => {
+      const declinedProposal = await declineProposal(proposalUid, user1.jwt);            
+
+      expect(declinedProposal.result).toEqual(ERROR);
+    });
+
+    it('should throw error if duplicated decline action is performed', async() => {
+      const declinedProposal = await declineProposal(proposalUid, user2.jwt);      
+
+      expect(declinedProposal.result).toEqual(ERROR);
+    });
+
+    it('DECLINE: should throw error if proposal not found', async() => {
+      const randomUid = "0x546464";
+      const declinedProposal = await declineProposal(randomUid, user2.jwt);            
+
+      expect(declinedProposal.result).toEqual(ERROR);
     });
 
 
