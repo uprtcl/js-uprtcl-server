@@ -180,7 +180,7 @@ export class ProposalsController {
 
        /**
          * Calls:
-         *  -> cancelProposal() from service
+         *  -> rejectProposal() from service
          * Returns:
          *  -> Does not return anything  since it is only a remote call procedure.       
          * Requires:
@@ -189,20 +189,20 @@ export class ProposalsController {
          */      
 
        {
-           path: "/uprtcl/1/proposal/:proposalId/cancel",
+           path: "/uprtcl/1/proposal/:proposalId/reject",
            method: "put",
            handler: [
                checkJwt,
                async(req: Request, res: Response) => {
                 try {
-                    await this.proposalService.cancelProposal(
+                    await this.proposalService.rejectProposal(
                         req.params.proposalId,
                         getUserFromReq(req)
                     );
 
                     let result: PostResult = {
                         result:  SUCCESS,
-                        message: 'proposal cancelled',
+                        message: 'proposal rejected',
                         elementIds: []
                     }
                     res.status(200).send(result);
