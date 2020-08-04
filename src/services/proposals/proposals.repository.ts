@@ -1,9 +1,12 @@
 import { DGraphService } from "../../db/dgraph.service";
 import { NewProposalData, NewPerspectiveData, ProposalState } from "../uprtcl/types";
+import { AccessRepository } from "../access/access.repository";
+import { PermissionType } from '../access/access.schema';
 import { UserRepository } from "../user/user.repository";
 import { UprtclService } from '../uprtcl/uprtcl.service';
 import { PROPOSALS_SCHEMA_NAME, HEAD_UPDATE_SCHEMA_NAME } from "../proposals/proposals.schema";
 import { Perspective, Proposal, UpdateRequest } from "../uprtcl/types";
+import { NOT_AUTHORIZED_MSG } from "../../utils";
 
 const dgraph = require("dgraph-js");
 require("dotenv").config();
@@ -14,12 +17,19 @@ interface DgProposal {
     fromPerspective: DgPerspective
     toPerspective: DgPerspective
     fromHead: DgHead
-    toHead: DgHead
-    updates?: Array<string>    
+    toHead: DgHead    
+    updates?: Array<DgUpdate>    
+}
+
+interface DgUpdate {
+    perspective: DgPerspective
+    fromPerspectiveId: string
+    oldHeadId: string
+    newHeadId: string
 }
 
 interface DgPerspective {
-    xid: string
+    xid: string    
 }
 
 interface DgCreator {
@@ -33,7 +43,8 @@ interface DgHead {
 export class ProposalsRepository {
     constructor(
         protected db: DGraphService,
-        protected userRepo: UserRepository
+        protected userRepo: UserRepository,
+        protected accessRepo: AccessRepository
     ) {}
    
     async createProposal(proposalData: NewProposalData): Promise <string> {        
@@ -80,9 +91,14 @@ export class ProposalsRepository {
     }
 
     async getProposal(proposalUId: string): Promise<Proposal> {
+
+        // TODO: Send the canAuthorized field. See if the user is able to authorized the proposal he/she is requesting.
+        // TODO: Send updates
         
         await this.db.ready();
 
+
+        // TODO: Adapt to findProposal method
         let query = `query {
             proposal(func: uid(${proposalUId})) {                
                 creator {
@@ -133,6 +149,9 @@ export class ProposalsRepository {
     }
 
     async addUpdatesToProposal(proposalUid: string, updateRequests: Array<UpdateRequest>): Promise<void> {
+
+        // TODO: Check if the one that is adding updates is the proposal's creator.
+
         await this.db.ready();         
 
         const mu = new dgraph.Mutation();
@@ -185,78 +204,137 @@ export class ProposalsRepository {
         
     }
 
-    async getProposalsToPerspective(perspectiveId: string): Promise<string[]> {
-        const proposals = ['0x25' , '0x451'];
-
-        return proposals;
+    async getProposalsToPerspective(perspectiveId: string): Promise<string[]> {        
+        return [''];
     }
 
     async acceptProposal(proposalUid: string): Promise<void> {
-        // let acceptProposal = {
-        //     proposalId: (proposalId == undefined || proposalId == '') ? this.errorProposalId() : proposalId
-        // }
         return;
     } 
 
-    async cancelProposal(proposalUid: string): Promise<void> {
-        return;
+    // This method assumes that a user won't be able to reject a proposal if it doesn't have updates at all.
+    // Can the owner of a toPerspective or from an update perspective be authorized?
+
+    async rejectProposal(proposalUid: string, loggedUserId: string): Promise<void> {
+
+        await this.db.ready();
+
+        const mu = new dgraph.Mutation();
+        const req = new dgraph.Request();
+
+        const dproposal = await this.findProposal(proposalUid, true);
+
+        const { state, updates } = dproposal;        
+
+        if(state != ProposalState.Open) throw new Error(`Can't modify a ${state} proposal`);
+
+        // Check if proposal has updates
+        if(!updates) {
+            throw new Error("Can't reject proposal. No updates added yet.");
+        }               
+
+        // Check if the user is authorized to perform this action.                
+
+        const canAuthorize = await this.canAuthorizeProposal(loggedUserId, updates);
+
+        if(!canAuthorize) {
+            throw new Error(NOT_AUTHORIZED_MSG);
+        }
+
+        // Ready to perform rejection
+        await this.modifyProposalState(proposalUid, ProposalState.Rejected);
     }
     
     async declineProposal(proposalUid: string, loggedUserId: string): Promise<void> {
+
         await this.db.ready();        
 
         const mu = new dgraph.Mutation();
         const req = new dgraph.Request();
 
-        /*
-            Let query = `loggedUser as var(func:eq(did, "${loggedUserId}"))`;
-            let query = `proposal as var(func:uid(${proposalUid}))`;
-            query = query.concat(`\n@filter(uid_in(creator, "0x56"))`);
+        const dproposal = await this.findProposal(proposalUid, false);        
 
-            const nquads = `uid(proposal) <state> "${ProposalState.Declined}" .`;
+        const { creator: { did: creatorId }, state } = dproposal;        
 
-            req.setQuery(`query{${query}}`);
-            mu.setSetNquads(nquads);
-            req.setMutationsList([mu]);
+        if(creatorId != loggedUserId) {
+            throw new Error(NOT_AUTHORIZED_MSG);
+        }        
 
-            const result = await this.db.callRequest(req);                
+        if(state != ProposalState.Open) throw new Error(`Can't modify ${state} proposals`);
 
-            return;
-        */
+        // Ready to perform declination      
+        await this.modifyProposalState(proposalUid, ProposalState.Declined);
+    }
+
+    // Util methods 
+
+    async findProposal(proposalUid: string, updates: boolean): Promise<DgProposal> {
 
         let query = `query {            
             proposal(func: uid(${proposalUid})) {
                 creator {
                     did
                 }
-                state
-            }
-        }`;
+                state`;
 
-        const result = await this.db.client.newTxn().query(query);
-
-        const dproposal: DgProposal = result.getJson().proposal[0];
-
-        if(!dproposal) throw new Error(`Proposal with UID ${proposalUid} is not found`);
-          
-        const { creator: { did: creatorId }, state } = dproposal;        
-
-        if(creatorId != loggedUserId) {
-            throw new Error(`User with id ${loggedUserId}, is not the creator of this proposal`);
+        // If the client needs updates, provide them
+        if(updates) {
+            query = query.concat(`
+                toPerspective {                    
+                    xid
+                }
+                updates {
+                    perspective {                        
+                        xid
+                    }
+                }
+             `)
         }
 
-        if(state == ProposalState.Declined) throw new Error(`Proposal with UID ${proposalUid} has been already declined.`);
+        // Closes the query.
+        query = query.concat(`\n }}`);
         
+        const result = await this.db.client.newTxn().query(query);
 
-        const query1 = `proposal as var(func:uid(${proposalUid}))`;
-        const nquads = `uid(proposal) <state> "${ProposalState.Declined}" .`;
+        const dproposal: DgProposal = result.getJson().proposal[0];                
 
-        req.setQuery(`query{${query1}}`);
-        mu.setSetNquads(nquads);
-        req.setMutationsList([mu]);
+        if(!dproposal) throw new Error(`Proposal with UID ${proposalUid} was not found`);
 
-        return await this.db.callRequest(req);
-    } 
+        return dproposal;
+    }
 
+    async canAuthorizeProposal(loggedUserId: string, proposalUpdates: DgUpdate[]): Promise<Boolean> {
+        const authorizePromises = proposalUpdates.map(async update => {
+            const { perspective: { xid: perspectiveId } } = update;            
 
+            return {
+                canAdmin: await this.accessRepo.can(perspectiveId, loggedUserId, PermissionType.Admin),
+                canWrite: await this.accessRepo.can(perspectiveId, loggedUserId, PermissionType.Write)
+            }
+        });
+
+        const authorizations = await Promise.all(authorizePromises);
+
+        const authorizedUpdates = authorizations.filter(auth => {
+            return auth.canAdmin || auth.canWrite;
+        })                
+
+        return (authorizedUpdates.length == proposalUpdates.length);
+    }
+
+    async modifyProposalState(proposalUid: string, state: ProposalState): Promise<void> {
+        await this.db.ready();        
+
+       const mu = new dgraph.Mutation();
+       const req = new dgraph.Request();
+
+       const query = `proposal as var(func:uid(${proposalUid}))`;
+       const nquads = `uid(proposal) <state> "${state}" .`;
+
+       req.setQuery(`query{${query}}`);
+       mu.setSetNquads(nquads);
+       req.setMutationsList([mu]);
+
+       await this.db.callRequest(req);
+    }
 }
