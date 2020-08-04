@@ -1,6 +1,6 @@
 export enum ProposalState {
   Open = "OPEN",  
-  Cancelled = "CANCELLED",
+  Rejected = "REJECTED",
   Executed = "EXECUTED",
   Declined = "DECLINED"
 }
