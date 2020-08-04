@@ -4,13 +4,16 @@ import { PermissionType } from '../access/access.schema';
 // Test support
 import { createUser } from '../user/user.testsupport';
 
+import { addPermission } from '../access/access.testsupport';
+
 import { 
   createProposal,
   getProposal,
   getProposalsToPerspective,
   createUpdateRequest,
   addUpdatesToProposal,
-  declineProposal
+  declineProposal,
+  rejectProposal
 } from './proposals.testsupport';
 
 import {
@@ -28,9 +31,13 @@ describe('Testing proposals controller, service and repo', () => {
     let user2: any = {};
     let commit1Id: string = '';
     let commit2Id: string = '';
+    let commit3Id: string = '';
+    let commit5Id: string = '';
     let toPerspectiveId: string = '';
-    let fromPerspectiveId: string = '';    
+    let fromPerspectiveId: string = '';  
+    let thirdPerspectiveId: string = '';  
     let proposalUid: string = '';
+    let proposal2Uid: string = '';
 
 
     /**
@@ -63,7 +70,8 @@ describe('Testing proposals controller, service and repo', () => {
                                             toPerspectiveId,
                                             commit2Id, 
                                             commit1Id,
-                                            user2.jwt);      
+                                            user2.jwt);            
+
       const { result, elementIds } = JSON.parse(proposal);
       proposalUid = elementIds[0];
 
@@ -97,7 +105,7 @@ describe('Testing proposals controller, service and repo', () => {
 
       //Commit a new change to the fromPerspective
 
-      const commit3Id = await createCommitAndData('text 4745729', user1.jwt);   
+      commit3Id = await createCommitAndData('text 4745729', user1.jwt);   
 
       // Update perspective to the new change
 
@@ -122,7 +130,7 @@ describe('Testing proposals controller, service and repo', () => {
       // Create a third perspective
 
       const commit5Id = await createCommitAndData('text 999999', user1.jwt);
-      const thirdPerspectiveId = await createPerspective(
+      thirdPerspectiveId = await createPerspective(
         user1.userId,
         79878,
         user1.jwt,
@@ -168,6 +176,108 @@ describe('Testing proposals controller, service and repo', () => {
       expect(declinedProposal.result).toEqual(ERROR);
     });
 
+    // Test a proposal rejection    
+
+    it('should not allow to make a reject operation to non open proposals', async() => {
+     // User1 is the owner of the perspectives
+
+     const rejectedProposal = await rejectProposal(proposalUid, user1.jwt);            
+     expect(rejectedProposal.result).toEqual(ERROR);
+    });
+
+    it('should not allow to reject a proposal with no permissions', async() => {   
+      // User2 created the proposal
+
+      const rejectedProposal = await rejectProposal(proposalUid, user2.jwt);      
+      expect(rejectedProposal.result).toEqual(ERROR);
+    });    
+
+    it('should unauthorized a proposal with no updates', async() => {
+      commit5Id = await createCommitAndData('epic text 555', user1.jwt);
+      const commit6Id = await createCommitAndData('epic text 666', user2.jwt);
+
+      const proposal = await createProposal(user2.userId, 
+                                            thirdPerspectiveId, // fromPerspective
+                                            fromPerspectiveId, // new toPerspective
+                                            commit6Id, 
+                                            commit5Id,
+                                            user2.jwt);            
+
+      const { result, elementIds } = JSON.parse(proposal);
+      proposal2Uid = elementIds[0];
+
+      const rejectedProposal = await rejectProposal(proposal2Uid, user1.jwt);      
+      expect(rejectedProposal.result).toEqual(ERROR);
+    });    
+
+    it('should throw error if permissions are not enough to reject a proposal', async() => {      
+
+      //Commit a new change to the fromPerspective
+
+      const commit7Id = await createCommitAndData('text 777', user1.jwt);   
+
+      // Update perspective to the new change
+
+      await updatePerspective(
+        fromPerspectiveId,
+        { headId: commit7Id },
+        user1.jwt
+      );
+      
+      // Commit a new change to the toPerspective
+
+      const commit8Id = await createCommitAndData('text 888', user1.jwt);  
+
+      // Update perspective to the new change  
+
+      await updatePerspective(
+        thirdPerspectiveId,
+        { headId: commit8Id },
+        user1.jwt
+      ); 
+
+      // Create a fourth perspective
+
+      const commit9Id = await createCommitAndData('text 999', user2.jwt);
+      const fourthPerspectiveId = await createPerspective(
+        user2.userId,
+        999,
+        user2.jwt,
+        commit9Id
+      );   
+
+      const update1 = await createUpdateRequest(fromPerspectiveId, commit3Id, commit8Id);
+      const update2 = await createUpdateRequest(thirdPerspectiveId, commit5Id, commit8Id);
+      const update3 = await createUpdateRequest(fourthPerspectiveId, '', commit9Id);
+      
+      const updates = await addUpdatesToProposal([update1, update2, update3], proposal2Uid, user2.jwt);    
+
+      await addPermission(
+        thirdPerspectiveId,
+        user2.userId,
+        PermissionType.Admin,
+        user1.jwt
+      );
+
+      // Use the new created proposal
+      const rejectedProposal = await rejectProposal(proposal2Uid, user2.jwt);      
+
+      expect(rejectedProposal.result).toEqual(ERROR);
+    });
+
+    it('should reject a proposal', async() => {    
+      await addPermission(
+        fromPerspectiveId,
+        user2.userId,
+        PermissionType.Admin,
+        user1.jwt
+      ); 
+
+      // Use the new created proposal
+      const rejectedProposal = await rejectProposal(proposal2Uid, user2.jwt);      
+
+      expect(rejectedProposal.result).toEqual(SUCCESS);
+    });
 
     /**
      * CRUD get proposals from perspective
@@ -180,7 +290,7 @@ describe('Testing proposals controller, service and repo', () => {
     // });
 
     // /**
-    //  * CRUD accept
+    //  * CRUD execute
     //  */
 
     // it('should call acceptProposal method', async () => {
@@ -195,42 +305,6 @@ describe('Testing proposals controller, service and repo', () => {
     //     .set('Authorization', user1.jwt ? `Bearer ${user1.jwt}` : '');
 
     //   expect(acceptProposal).toHaveBeenCalled(); 
-    // });
-
-    // /**
-    //  * CRUD cancel
-    //  */
-
-    // it('should call cancelProposal method', async () => {
-    //   let cancelProposal: SpyInstace = jest.spyOn(ProposalsService.prototype, 'cancelProposal');
-      
-    //   const router = await createApp();      
-    //   const proposalId = 'randomId';
-
-    //   await request(router)
-    //     .put(`/uprtcl/1/proposal/${proposalId}/cancel`)     
-    //     .send({})
-    //     .set('Authorization', user1.jwt ? `Bearer ${user1.jwt}` : '');
-
-    //   expect(cancelProposal).toHaveBeenCalled(); 
-    // });
-
-    // /**
-    //  * CRUD decline
-    //  */
-
-    // it('should call declineProposal', async () => {
-    //   let declineProposal: SpyInstace = jest.spyOn(ProposalsService.prototype, 'declineProposal');
-      
-    //   const router = await createApp();
-    //   const proposalId = 'randomId';
-
-    //   await request(router)
-    //     .put(`/uprtcl/1/proposal/${proposalId}/decline`)     
-    //     .send({})
-    //     .set('Authorization', user1.jwt ? `Bearer ${user1.jwt}` : '');
-
-    //   expect(declineProposal).toHaveBeenCalled(); 
     // });
 
  });
