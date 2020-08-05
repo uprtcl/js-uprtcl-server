@@ -143,7 +143,7 @@ describe('Testing proposals controller, service and repo', () => {
       const update2 = await createUpdateRequest(toPerspectiveId, commit1Id, commit4Id);
       const update3 = await createUpdateRequest(thirdPerspectiveId, '', commit5Id);
       
-      const updates = await addUpdatesToProposal([update1, update2, update3], proposalUid, user1.jwt);    
+      const updates = await addUpdatesToProposal([update1, update2, update3], proposalUid, user2.jwt);    
 
       expect(updates.result).toEqual(SUCCESS);
        
@@ -273,11 +273,18 @@ describe('Testing proposals controller, service and repo', () => {
         user1.jwt
       ); 
 
-      // Use the new created proposal
       const rejectedProposal = await rejectProposal(proposal2Uid, user2.jwt);      
 
       expect(rejectedProposal.result).toEqual(SUCCESS);
     });
+
+    // Get a proposal with updates
+    it('should get a proposal with updates', async () => {      
+      
+      const proposal = await getProposal(proposalUid, user1.jwt);                
+
+      expect(proposal.result).toEqual(SUCCESS);                 
+    });    
 
     /**
      * CRUD get proposals from perspective
