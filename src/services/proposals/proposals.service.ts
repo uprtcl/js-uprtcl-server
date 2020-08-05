@@ -13,12 +13,12 @@ export class ProposalsService {
         return await this.proposalRepo.createProposal(proposalData);
     };
 
-    async getProposal(proposalId: string): Promise<Proposal> {
-        if(proposalId == undefined || proposalId == '') {
+    async getProposal(proposalUid: string, loggedUserId: string|null): Promise<Proposal> {
+        if(proposalUid == undefined || proposalUid == '') {
             throw new Error(`proposalId is empty`);
         }
 
-        const proposal = await this.proposalRepo.getProposal(proposalId);
+        const proposal = await this.proposalRepo.getProposal(proposalUid, loggedUserId);
 
         return proposal;
     };
@@ -36,19 +36,19 @@ export class ProposalsService {
     async addUpdatesToProposal(proposalUid: string, updates: UpdateRequest[], loggedUserId: string | null): Promise<void> {
         if (loggedUserId === null) throw new Error('Anonymous user. Cant update a proposal');           
 
-        await this.proposalRepo.addUpdatesToProposal(proposalUid, updates);
+        await this.proposalRepo.addUpdatesToProposal(proposalUid, updates, loggedUserId);
     }
 
-    async acceptProposal(proposalId: string, loggedUserId: string | null): Promise<void> {
+    async executeProposal(proposalUid: string, loggedUserId: string | null): Promise<void> {
         if (loggedUserId === null) throw new Error('Anonymous user. Cant accept a proposal');        
 
-        return await this.proposalRepo.acceptProposal(proposalId);
+        return await this.proposalRepo.acceptProposal(proposalUid);
     };
 
-    async cancelProposal(proposalId: string, loggedUserId: string | null): Promise<void> {
+    async rejectProposal(proposalUid: string, loggedUserId: string | null): Promise<void> {
         if (loggedUserId === null) throw new Error('Anonymous user. Cant cancel a proposal');
                 
-        return await this.proposalRepo.cancelProposal(proposalId);
+        return await this.proposalRepo.rejectProposal(proposalUid, loggedUserId);
     };
 
     async declineProposal(proposalId: string, loggedUserId: string | null): Promise<void> {        
