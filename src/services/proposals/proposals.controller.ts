@@ -69,8 +69,8 @@ export class ProposalsController {
                async (req: Request, res: Response) => {                                          
                 try {
                     const proposal = await this.proposalService.getProposal(
-                        req.params.proposalUid
-                    );
+                        req.params.proposalUid,
+                        getUserFromReq(req));
                     
                     let result: GetResult <Proposal> = {
                         result: SUCCESS,
@@ -148,13 +148,13 @@ export class ProposalsController {
          */      
 
        {
-           path: "/uprtcl/1/proposal/:proposalId/accept",
+           path: "/uprtcl/1/proposal/:proposalId/execute",
            method: "put",
            handler: [
                checkJwt,
                async(req: Request, res: Response) => {
                 try {
-                    await this.proposalService.acceptProposal(
+                    await this.proposalService.executeProposal(
                         req.params.proposalId,
                         getUserFromReq(req)
                     );
