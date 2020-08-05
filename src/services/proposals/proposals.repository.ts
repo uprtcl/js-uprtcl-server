@@ -23,9 +23,16 @@ interface DgProposal {
 
 interface DgUpdate {
     perspective: DgPerspective
-    fromPerspectiveId: string
-    oldHeadId: string
-    newHeadId: string
+    oldHead?: DgOldHead
+    newHead: DgNewHead
+}
+
+interface DgOldHead {
+    xid: string
+}
+
+interface DgNewHead {
+    xid: string
 }
 
 interface DgPerspective {
@@ -90,41 +97,12 @@ export class ProposalsRepository {
         return result.getUidsMap().get("proposal");
     }
 
-    async getProposal(proposalUId: string): Promise<Proposal> {
+    async getProposal(proposalUid: string, loggedUserId: string | null): Promise<Proposal> {
 
-        // TODO: Send the canAuthorized field. See if the user is able to authorized the proposal he/she is requesting.
-        // TODO: Send updates
-        
-        await this.db.ready();
+        let canAuthorize:boolean = false;
+        let updatesArr: UpdateRequest[] = [];
 
-
-        // TODO: Adapt to findProposal method
-        let query = `query {
-            proposal(func: uid(${proposalUId})) {                
-                creator {
-                    did
-                }
-                fromPerspective {
-                    xid
-                }
-                toPerspective {
-                    xid
-                }
-                fromHead {
-                    xid
-                }
-                toHead {
-                    xid
-                }
-                state
-            }
-        }`;
-
-        const result = await this.db.client.newTxn().query(query);
-
-        const dproposal: DgProposal = result.getJson().proposal[0];
-
-        if(!dproposal) throw new Error(`Proposal with id ${proposalUId} not found`);        
+        const dproposal = await this.findProposal(proposalUid, true, true);            
 
         const { 
                 creator: { did: creatorId },
@@ -132,25 +110,58 @@ export class ProposalsRepository {
                 toPerspective: { xid: toPerspectiveId },
                 fromHead: { xid: fromHeadId },
                 toHead: { xid: toHeadId },
-                state
-              } = dproposal;                            
+                state,
+                updates
+              } = dproposal;                             
+
+        if(updates) {
+            updates.map(update => {    
+              const {
+                  oldHead,
+                  newHead: {
+                      xid: newHeadId
+                  },
+                  perspective: {
+                      xid: perspectiveId
+                  }
+              } = update || {};
+
+              const updateEl: UpdateRequest = {
+                  oldHeadId: oldHead?.xid,
+                  perspectiveId: perspectiveId,
+                  newHeadId: newHeadId
+              }
+
+              updatesArr.push(updateEl);
+            });
+
+            if(loggedUserId !== null) {
+                canAuthorize = await this.canAuthorizeProposal(loggedUserId, updates);     
+            }    
+        }
 
         const proposal: Proposal = {                    
-            id: proposalUId,
+            id: proposalUid,
             creatorId: creatorId,
             toPerspectiveId: toPerspectiveId,
             fromPerspectiveId: fromPerspectiveId,
             fromHeadId: fromHeadId,
             toHeadId: toHeadId,
-            state: state
+            state: state,
+            updates: updatesArr,
+            canAuthorize: canAuthorize
         }                
 
         return proposal;
     }
 
-    async addUpdatesToProposal(proposalUid: string, updateRequests: Array<UpdateRequest>): Promise<void> {
+    async addUpdatesToProposal(proposalUid: string, updateRequests: Array<UpdateRequest>, loggedUserId:string): Promise<void> {        
+        
+        const dproposal = await this.findProposal(proposalUid, false, false);   
 
-        // TODO: Check if the one that is adding updates is the proposal's creator.
+        const { creator: { did: proposalCreatorId } } = dproposal;
+
+        if(proposalCreatorId !== loggedUserId) throw new Error(NOT_AUTHORIZED_MSG);
 
         await this.db.ready();         
 
@@ -182,6 +193,7 @@ export class ProposalsRepository {
     }
 
     async createHeadUpdate(update: UpdateRequest): Promise<string> {
+
         const mu = new dgraph.Mutation();
         const req = new dgraph.Request();        
         
@@ -208,10 +220,6 @@ export class ProposalsRepository {
         return [''];
     }
 
-    async acceptProposal(proposalUid: string): Promise<void> {
-        return;
-    } 
-
     // This method assumes that a user won't be able to reject a proposal if it doesn't have updates at all.
     // Can the owner of a toPerspective or from an update perspective be authorized?
 
@@ -222,7 +230,7 @@ export class ProposalsRepository {
         const mu = new dgraph.Mutation();
         const req = new dgraph.Request();
 
-        const dproposal = await this.findProposal(proposalUid, true);
+        const dproposal = await this.findProposal(proposalUid, true, false);
 
         const { state, updates } = dproposal;        
 
@@ -252,7 +260,7 @@ export class ProposalsRepository {
         const mu = new dgraph.Mutation();
         const req = new dgraph.Request();
 
-        const dproposal = await this.findProposal(proposalUid, false);        
+        const dproposal = await this.findProposal(proposalUid, false, false);        
 
         const { creator: { did: creatorId }, state } = dproposal;        
 
@@ -266,29 +274,55 @@ export class ProposalsRepository {
         await this.modifyProposalState(proposalUid, ProposalState.Declined);
     }
 
-    // Util methods 
+    async executeProposal(proposalUid: string): Promise<void> {
+        return;
+    } 
 
-    async findProposal(proposalUid: string, updates: boolean): Promise<DgProposal> {
+    // Methods that can be reused 
+
+    async findProposal(proposalUid: string, updates: boolean, perspectives: boolean): Promise<DgProposal> {
 
         let query = `query {            
             proposal(func: uid(${proposalUid})) {
                 creator {
                     did
+                }`;
+
+        query = query.concat(`state`);
+
+        // If the client needs perspectives, provide them
+        if(perspectives) {
+           query = query.concat(`
+               fromPerspective {
+                    xid
                 }
-                state`;
+                toPerspective {
+                    xid
+                }
+                fromHead {
+                    xid
+                }
+                toHead {
+                    xid
+                }
+           `);
+        }
 
         // If the client needs updates, provide them
         if(updates) {
             query = query.concat(`
-                toPerspective {                    
-                    xid
-                }
                 updates {
                     perspective {                        
                         xid
                     }
+                    newHead {
+                        xid
+                    }
+                    oldHead {
+                        xid
+                    }
                 }
-             `)
+            `);
         }
 
         // Closes the query.
@@ -303,7 +337,7 @@ export class ProposalsRepository {
         return dproposal;
     }
 
-    async canAuthorizeProposal(loggedUserId: string, proposalUpdates: DgUpdate[]): Promise<Boolean> {
+    async canAuthorizeProposal(loggedUserId: string, proposalUpdates: DgUpdate[]): Promise<boolean> {
         const authorizePromises = proposalUpdates.map(async update => {
             const { perspective: { xid: perspectiveId } } = update;            
 
