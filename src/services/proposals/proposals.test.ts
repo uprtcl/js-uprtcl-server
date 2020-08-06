@@ -78,9 +78,9 @@ describe('Testing proposals controller, service and repo', () => {
       expect(result).toEqual(SUCCESS);          
     });
 
-    // /**
-    //  * CRUD get
-    //  */
+    /**
+     * CRUD read
+     */
 
     it('should get a proposal', async () => {      
       
@@ -144,7 +144,6 @@ describe('Testing proposals controller, service and repo', () => {
       const update3 = await createUpdateRequest(thirdPerspectiveId, '', commit5Id);
       
       const updates = await addUpdatesToProposal([update1, update2, update3], proposalUid, user2.jwt);    
-
       expect(updates.result).toEqual(SUCCESS);
        
     });
@@ -153,26 +152,22 @@ describe('Testing proposals controller, service and repo', () => {
 
     it('should decline a proposal', async() => {
       const declinedProposal = await declineProposal(proposalUid, user2.jwt);      
-
       expect(declinedProposal.result).toEqual(SUCCESS);
     });
 
     it('should throw error if not authorized to decline', async() => {
       const declinedProposal = await declineProposal(proposalUid, user1.jwt);            
-
       expect(declinedProposal.result).toEqual(ERROR);
     });
 
     it('should throw error if duplicated decline action is performed', async() => {
       const declinedProposal = await declineProposal(proposalUid, user2.jwt);      
-
       expect(declinedProposal.result).toEqual(ERROR);
     });
 
     it('DECLINE: should throw error if proposal not found', async() => {
       const randomUid = "0x546464";
       const declinedProposal = await declineProposal(randomUid, user2.jwt);            
-
       expect(declinedProposal.result).toEqual(ERROR);
     });
 
@@ -261,7 +256,6 @@ describe('Testing proposals controller, service and repo', () => {
 
       // Use the new created proposal
       const rejectedProposal = await rejectProposal(proposal2Uid, user2.jwt);      
-
       expect(rejectedProposal.result).toEqual(ERROR);
     });
 
@@ -274,44 +268,46 @@ describe('Testing proposals controller, service and repo', () => {
       ); 
 
       const rejectedProposal = await rejectProposal(proposal2Uid, user2.jwt);      
-
       expect(rejectedProposal.result).toEqual(SUCCESS);
     });
 
-    // Get a proposal with updates
-    it('should get a proposal with updates', async () => {      
-      
-      const proposal = await getProposal(proposalUid, user1.jwt);                
+    /**
+     * CRUD read
+     */
 
+    // Get a proposal with updates
+    it('should get a proposal with updates', async () => {            
+      const proposal = await getProposal(proposalUid, user1.jwt);                
       expect(proposal.result).toEqual(SUCCESS);                 
     });    
 
     /**
-     * CRUD get proposals from perspective
+     * CRUD read: get proposals from perspective
      */
 
-    // it('should call getProposalsToPerspective method', async () => {
-    //   const proposalIds = await getProposalsToPerspective(fromPerspectiveId, user1.jwt);
+    it('should get proposals pointing to one perspective', async () => {
+      const proposalIds = await getProposalsToPerspective(toPerspectiveId, user1.jwt);     
+      expect(proposalIds.result).toEqual(SUCCESS);
+    });
 
-    //   console.log(proposalIds);
-    // });
+    it('should throw error if no proposals are found for perspective', async () => {
+      const proposalIds = await getProposalsToPerspective(thirdPerspectiveId, user1.jwt);           
+      expect(proposalIds.result).toEqual(ERROR);
+    })
 
-    // /**
-    //  * CRUD execute
-    //  */
+    it('should get more than one proposal per perspective', async() => {
+      // Create a third proposal
+      // User 2 creates the third proposal      
+      const proposal = await createProposal(user2.userId, 
+                                            thirdPerspectiveId, // fromPerspective
+                                            toPerspectiveId, // new toPerspective
+                                            commit3Id, 
+                                            commit5Id,
+                                            user2.jwt);       
+      const { elementIds } = JSON.parse(proposal);
+      const proposal3Uid = elementIds[0]; 
 
-    // it('should call acceptProposal method', async () => {
-    //   let acceptProposal: SpyInstace = jest.spyOn(ProposalsService.prototype, 'acceptProposal');
-      
-    //   const router = await createApp();      
-    //   const proposalId = 'randomId';
-
-    //   await request(router)
-    //     .put(`/uprtcl/1/proposal/${proposalId}/accept`)     
-    //     .send({})
-    //     .set('Authorization', user1.jwt ? `Bearer ${user1.jwt}` : '');
-
-    //   expect(acceptProposal).toHaveBeenCalled(); 
-    // });
-
+      const proposalIds = await getProposalsToPerspective(toPerspectiveId, user1.jwt);      
+      expect(proposalIds.result).toEqual(SUCCESS);
+    });    
  });
