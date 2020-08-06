@@ -12,6 +12,7 @@ const dgraph = require("dgraph-js");
 require("dotenv").config();
 
 interface DgProposal {
+    uid?: string
     creator: DgCreator
     state: ProposalState
     fromPerspective: DgPerspective
@@ -216,8 +217,28 @@ export class ProposalsRepository {
         
     }
 
-    async getProposalsToPerspective(perspectiveId: string): Promise<string[]> {        
-        return [''];
+    async getProposalsToPerspective(perspectiveId: string): Promise<string[]> {             
+        const query = `query {
+            proposals(func: has(toPerspective))
+            @cascade
+            {   uid
+                toPerspective @filter(eq(xid, "${perspectiveId}")) {
+                    xid
+                }
+            }
+        }`;
+
+        const result = await this.db.client.newTxn().query(query);
+
+        const proposals: DgProposal[] = result.getJson().proposals;              
+
+        const ids = proposals.map(proposal => proposal.uid!);        
+
+        if(!ids || ids.length === 0) {
+            throw new Error(`No proposals found for perspective ${perspectiveId}`);
+        }        
+
+        return ids;
     }
 
     // This method assumes that a user won't be able to reject a proposal if it doesn't have updates at all.
@@ -273,10 +294,6 @@ export class ProposalsRepository {
         // Ready to perform declination      
         await this.modifyProposalState(proposalUid, ProposalState.Declined);
     }
-
-    async executeProposal(proposalUid: string): Promise<void> {
-        return;
-    } 
 
     // Methods that can be reused 
 
