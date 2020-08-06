@@ -42,13 +42,13 @@ export const getProposal = async (
 export const getProposalsToPerspective = async (
 	perspectiveId: string,
 	jwt: string
-): Promise<void> => {//<string[]> => {
+): Promise<GetResult<string[]>> => {
 	const router = await createApp();
 	const get = await request(router)
 		.get(`/uprtcl/1/persp/${perspectiveId}/proposals`)
-		.set('Authorization', jwt ? `Bearer ${jwt}` : '');
-
-	console.log(get.text);
+		.set('Authorization', jwt ? `Bearer ${jwt}` : '');    
+	
+	return JSON.parse(get.text);
 };
 
 export const createUpdateRequest = async (
