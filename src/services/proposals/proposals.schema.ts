@@ -6,30 +6,31 @@ export const PROPOSAL_STATE_TYPE = 'ProposalStateType';
 
 export const PROPOSAL_SCHEMA = `
 
-    enum ${PROPOSAL_STATE_TYPE} {
-        Open
-        Closed
-        Executed
-        Cancelled
-        Declined
-    }
+type ${HEAD_UPDATE_SCHEMA_NAME} {
+    perspective: ${PERSPECTIVE_SCHEMA_NAME}
+    newHead: ${COMMIT_SCHEMA_NAME}
+    oldHead: ${COMMIT_SCHEMA_NAME}
+}
 
-    type ${HEAD_UPDATE_SCHEMA_NAME} {
-        perspective: ${PERSPECTIVE_SCHEMA_NAME}
-        newHead: ${COMMIT_SCHEMA_NAME}
-        oldHead: ${COMMIT_SCHEMA_NAME}
-    }
+type ${PROPOSALS_SCHEMA_NAME} {
+	creator: uid
+    toPerspective: ${PERSPECTIVE_SCHEMA_NAME}
+    fromPerspective: ${PERSPECTIVE_SCHEMA_NAME}
+    toHead: ${COMMIT_SCHEMA_NAME}
+    fromHead: ${COMMIT_SCHEMA_NAME}
+    updates: [${HEAD_UPDATE_SCHEMA_NAME}]
+    state: string!
+}
 
-    type ${PROPOSALS_SCHEMA_NAME} {
-        toPrespective: ${PERSPECTIVE_SCHEMA_NAME}
-        fromPerspective: ${PERSPECTIVE_SCHEMA_NAME}
-        updates: [${HEAD_UPDATE_SCHEMA_NAME}]
-        state: ${PROPOSAL_STATE_TYPE}
-    }
+perspective: uid .
+newHead: uid .
+oldHead: uid .
+creator: uid .
+toPerspective: uid .
+fromPerspective: uid .
+toHead: uid .
+fromHead: uid .
+updates: [uid] .
+state: string @index(exact) .
 
-    perspective: uid .
-    head: uid .
-    toPerspective: uid .
-    fromPrespective: uid .
-    updates: [uid] .
 `;
