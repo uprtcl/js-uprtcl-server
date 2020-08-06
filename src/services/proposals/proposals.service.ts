@@ -39,12 +39,6 @@ export class ProposalsService {
         await this.proposalRepo.addUpdatesToProposal(proposalUid, updates, loggedUserId);
     }
 
-    async executeProposal(proposalUid: string, loggedUserId: string | null): Promise<void> {
-        if (loggedUserId === null) throw new Error('Anonymous user. Cant accept a proposal');        
-
-        return await this.proposalRepo.acceptProposal(proposalUid);
-    };
-
     async rejectProposal(proposalUid: string, loggedUserId: string | null): Promise<void> {
         if (loggedUserId === null) throw new Error('Anonymous user. Cant cancel a proposal');
                 
