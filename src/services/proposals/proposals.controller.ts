@@ -139,47 +139,6 @@ export class ProposalsController {
 
        /**
          * Calls:
-         *  -> acceptProposal() from service
-         * Returns:
-         *  -> Does not return anything  since it is only a remote call procedure.       
-         * Requires:
-         *  -> proposalId: string
-         *  -> Logged user
-         */      
-
-       {
-           path: "/uprtcl/1/proposal/:proposalId/execute",
-           method: "put",
-           handler: [
-               checkJwt,
-               async(req: Request, res: Response) => {
-                try {
-                    await this.proposalService.executeProposal(
-                        req.params.proposalId,
-                        getUserFromReq(req)
-                    );
-
-                    let result: PostResult = {
-                        result:  SUCCESS,
-                        message: 'proposal accepted',
-                        elementIds: []
-                    }
-                    res.status(200).send(result);
-                     
-                } catch(error) {
-                    let result: PostResult = {
-                        result:  ERROR,
-                        message: error.message,
-                        elementIds: []
-                    }
-                    res.status(400).send(result);
-                }                       
-               }
-           ]
-       },
-
-       /**
-         * Calls:
          *  -> rejectProposal() from service
          * Returns:
          *  -> Does not return anything  since it is only a remote call procedure.       
@@ -270,7 +229,7 @@ export class ProposalsController {
        */ 
 
       {
-        path: "/uprctl/1/persp/:perspectiveId/proposals",
+        path: "/uprtcl/1/persp/:perspectiveId/proposals",
         method: "get",
         handler: [
           checkJwt,
