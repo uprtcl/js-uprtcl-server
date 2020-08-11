@@ -221,6 +221,7 @@ export class ProposalsRepository {
         const query = `query {
             proposals(func: has(toPerspective))
             @cascade
+            @filter(eq(state, "OPEN") OR eq(state, "EXECUTED"))
             {   uid
                 toPerspective @filter(eq(xid, "${perspectiveId}")) {
                     xid

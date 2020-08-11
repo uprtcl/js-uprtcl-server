@@ -283,9 +283,10 @@ describe('Testing proposals controller, service and repo', () => {
      * CRUD read: get proposals from perspective
      */
 
-    it('should get proposals pointing to one perspective', async () => {
-      const proposalIds = await getProposalsToPerspective(toPerspectiveId, user1.jwt);     
-      expect(proposalIds.result).toEqual(SUCCESS);
+    it('should filter OPEN and EXECUTED proposals pointing to one perspective', async () => {
+      const proposalIds = await getProposalsToPerspective(toPerspectiveId, user1.jwt);  
+      // Will not find an open proposal and will return not found error.
+      expect(proposalIds.result).toEqual(ERROR);
     });
 
     it('should throw error if no proposals are found for perspective', async () => {
@@ -293,18 +294,16 @@ describe('Testing proposals controller, service and repo', () => {
       expect(proposalIds.result).toEqual(ERROR);
     })
 
-    it('should get more than one proposal per perspective', async() => {
+    it('should get more than one "OPEN" or "EXECUTED" proposal per perspective', async() => {
       // Create a third proposal
       // User 2 creates the third proposal      
-      const proposal = await createProposal(thirdPerspectiveId, // fromPerspective
-                                            toPerspectiveId, // new toPerspective
-                                            commit3Id, 
-                                            commit5Id,
-                                            user2.jwt);       
-      const { elementIds } = JSON.parse(proposal);
-      const proposal3Uid = elementIds[0]; 
+      await createProposal(thirdPerspectiveId, // fromPerspective
+                          toPerspectiveId, // new toPerspective
+                          commit3Id, 
+                          commit5Id,
+                          user2.jwt);                   
 
-      const proposalIds = await getProposalsToPerspective(toPerspectiveId, user1.jwt);      
+      const proposalIds = await getProposalsToPerspective(toPerspectiveId, user1.jwt);           
       expect(proposalIds.result).toEqual(SUCCESS);
     });    
  });
