@@ -55,25 +55,33 @@ export class ProposalsRepository {
         protected accessRepo: AccessRepository
     ) {}
    
-    async createProposal(proposalData: NewProposalData): Promise <string> {              
+    async createProposal(proposalData: NewProposalData): Promise <string> {        
         await this.db.ready();
 
         const mu = new dgraph.Mutation();
         const req = new dgraph.Request();
+        
+        /** make sure creatorId exist */
+        await this.userRepo.upsertProfile(proposalData.creatorId);
+
+        // Gets creator
+        let query = `profile as var(func: eq(did, "${proposalData.creatorId.toLowerCase()}"))`;
 
         // Gets perspectives
-        let query = `\ntoPerspective as var(func: eq(xid, ${proposalData.toPerspectiveId})){
+        query = query.concat(`\ntoPerspective as var(func: eq(xid, ${proposalData.toPerspectiveId})){
                                 head {
                                     toHead as uid
                                 }
-                            }`;
+                            }`);
         query = query.concat(`\nfromPerspective as var(func: eq(xid, ${proposalData.fromPerspectiveId})){
                                 head {
                                     fromHead as uid
                                 }
                             }`);
         
-        let nquads = `_:proposal <toPerspective> uid(toPerspective) .`;
+        let nquads = `_:proposal <creator> uid(profile) .`;
+        
+        nquads = nquads.concat(`\n_:proposal <toPerspective> uid(toPerspective) .`);
         nquads = nquads.concat(`\n_:proposal <fromPerspective> uid(fromPerspective) .`);        
         nquads = nquads.concat(`\n_:proposal <toHead> uid(toHead) .`);
         nquads = nquads.concat(`\n_:proposal <fromHead> uid(fromHead) .`);
