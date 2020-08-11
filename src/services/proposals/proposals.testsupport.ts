@@ -4,7 +4,6 @@ import { PostResult, GetResult } from '../../utils';
 import { Proposal, UpdateRequest } from '../uprtcl/types';
 
 export const createProposal = async (
-	creatorId: string,
 	fromPerspectiveId: string,
 	toPerspectiveId: string,
 	fromHeadId: string,
@@ -15,7 +14,6 @@ export const createProposal = async (
 	const post = await request(router)
 		.post('/uprtcl/1/proposal')
 		.send({
-			"creatorId": creatorId,
 			"fromPerspectiveId": fromPerspectiveId,
 			"toPerspectiveId": toPerspectiveId,
 			"fromHeadId": fromHeadId,
