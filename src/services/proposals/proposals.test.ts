@@ -65,8 +65,7 @@ describe('Testing proposals controller, service and repo', () => {
         commit2Id
       );               
 
-      const proposal = await createProposal(user2.userId, 
-                                            fromPerspectiveId, 
+      const proposal = await createProposal(fromPerspectiveId, 
                                             toPerspectiveId,
                                             commit2Id, 
                                             commit1Id,
@@ -191,8 +190,7 @@ describe('Testing proposals controller, service and repo', () => {
       commit5Id = await createCommitAndData('epic text 555', user1.jwt);
       const commit6Id = await createCommitAndData('epic text 666', user2.jwt);
 
-      const proposal = await createProposal(user2.userId, 
-                                            thirdPerspectiveId, // fromPerspective
+      const proposal = await createProposal(thirdPerspectiveId, // fromPerspective
                                             fromPerspectiveId, // new toPerspective
                                             commit6Id, 
                                             commit5Id,
@@ -298,8 +296,7 @@ describe('Testing proposals controller, service and repo', () => {
     it('should get more than one proposal per perspective', async() => {
       // Create a third proposal
       // User 2 creates the third proposal      
-      const proposal = await createProposal(user2.userId, 
-                                            thirdPerspectiveId, // fromPerspective
+      const proposal = await createProposal(thirdPerspectiveId, // fromPerspective
                                             toPerspectiveId, // new toPerspective
                                             commit3Id, 
                                             commit5Id,
