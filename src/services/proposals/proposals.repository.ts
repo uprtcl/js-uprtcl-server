@@ -55,17 +55,17 @@ export class ProposalsRepository {
         protected accessRepo: AccessRepository
     ) {}
    
-    async createProposal(proposalData: NewProposalData): Promise <string> {        
+    async createProposal(proposalData: NewProposalData, loggedUserId: string): Promise <string> {        
         await this.db.ready();
 
         const mu = new dgraph.Mutation();
         const req = new dgraph.Request();
         
         /** make sure creatorId exist */
-        await this.userRepo.upsertProfile(proposalData.creatorId);
+        await this.userRepo.upsertProfile(loggedUserId);
 
         // Gets creator
-        let query = `profile as var(func: eq(did, "${proposalData.creatorId.toLowerCase()}"))`;
+        let query = `profile as var(func: eq(did, "${loggedUserId.toLowerCase()}"))`;
 
         // Gets perspectives
         query = query.concat(`\ntoPerspective as var(func: eq(xid, ${proposalData.toPerspectiveId})){

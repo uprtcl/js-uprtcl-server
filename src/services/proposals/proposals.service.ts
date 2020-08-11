@@ -10,7 +10,7 @@ export class ProposalsService {
     async createProposal(proposalData: NewProposalData, loggedUserId: string | null): Promise<string> {
         if (loggedUserId === null) throw new Error('Anonymous user. Cant create a proposal');
                 
-        return await this.proposalRepo.createProposal(proposalData);
+        return await this.proposalRepo.createProposal(proposalData, loggedUserId);
     };
 
     async getProposal(proposalUid: string, loggedUserId: string|null): Promise<Proposal> {
