@@ -1,5 +1,5 @@
 import { DGraphService } from "../../db/dgraph.service";
-import { PermissionConfig, AccessRepository, AccessConfig } from "./access.repository";
+import { PermissionConfig, AccessRepository, AccessConfig, AccessConfigInherited } from "./access.repository";
 import { PermissionType } from "./access.schema";
 import { NOT_AUTHORIZED_MSG } from "../../utils";
 require('dotenv').config();
@@ -74,6 +74,27 @@ export class AccessService {
 
   async getAccessConfig(elementId: string, userId: string): Promise<AccessConfig> {
     return this.accessRepo.getAccessConfigOfElement(elementId, userId);
+  }
+
+  async getAccessConfigEffective(elementId: string, userId: string): Promise<AccessConfigInherited> {
+    const accessConfig = await this.getAccessConfig(elementId, '')
+    
+    let permissionsElement: string = elementId;
+    if (accessConfig.delegate) {
+      if (!accessConfig.finDelegatedTo) throw new Error(`undefined delegateTo but accessConfig delegate of ${elementId} is true`);
+      permissionsElement = accessConfig.finDelegatedTo;
+    }
+
+    const customPermissions = await this.getPermissionsConfigOfElement(elementId, userId);
+    const effectivePermissions = await this.getPermissionsConfigOfElement(permissionsElement, userId);
+    
+    return {
+      delegate: accessConfig.delegate,
+      delegateTo: accessConfig.delegateTo,
+      finDelegatedTo: accessConfig.finDelegatedTo,
+      customPermissions: customPermissions,
+      effectivePermissions: effectivePermissions,
+    }
   }
 
   async getPermissionsConfigOfElement(elementId: string, userId: string) {
