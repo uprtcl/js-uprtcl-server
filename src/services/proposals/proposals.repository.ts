@@ -291,6 +291,14 @@ export class ProposalsRepository {
 
     // Methods that can be reused 
 
+    /**
+     * Gets updates ready to be added to the proposal.
+     * @param updates - The incoming updates.
+     * @param dgproposal - The proposal in the dgraph query language to which the DB needs to point.
+     * @param nquads - The mutations coming from the parent process.
+     * @param query - The query coming from the parent process.
+     */
+
     async setUpdates(updates: UpdateRequest[], dgproposal: string, nquads: string, query:string) {
         const updatePromises = updates.map(async (updateRequest, i) => {
             // Create HeadUpdates
@@ -309,6 +317,13 @@ export class ProposalsRepository {
             nquads, query
         };
     }
+
+    /**
+     * Find a proposal
+     * @param {string} proposalUid - The proposal uid that needs to be returned.
+     * @param {boolean} updates - True if you need the updates of the proposal.
+     * @param {boolean} perspectives - True if you need the perspectives of the proposal.
+     */
 
     async findProposal(proposalUid: string, updates: boolean, perspectives: boolean): Promise<DgProposal> {
 
