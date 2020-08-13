@@ -288,13 +288,19 @@ describe('Testing proposals controller, service and repo', () => {
 
     it('should filter OPEN and EXECUTED proposals pointing to one perspective', async () => {
       const proposalIds = await getProposalsToPerspective(toPerspectiveId, user1.jwt);  
-      // Will not find an open or executed proposal and will return not found error.
-      expect(proposalIds.result).toEqual(ERROR);
+
+      // Will not find an open or executed proposal and will return not found error.      
+      const { data, result } = proposalIds;      
+      expect(data).toHaveLength(0);
+      expect(result).toEqual(SUCCESS);
     });
 
-    it('should throw error if no proposals are found for perspective', async () => {
+    it('should return empty data if no proposals are found for perspective', async () => {
       const proposalIds = await getProposalsToPerspective(thirdPerspectiveId, user1.jwt);           
-      expect(proposalIds.result).toEqual(ERROR);
+
+      const { data, result } = proposalIds;      
+      expect(data).toHaveLength(0);
+      expect(result).toEqual(SUCCESS);
     })
 
     it('should get one "OPEN" or "EXECUTED" proposal per perspective', async() => {

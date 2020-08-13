@@ -240,7 +240,7 @@ export class ProposalsRepository {
         const ids = proposals.map(proposal => proposal.uid!);        
 
         if(!ids || ids.length === 0) {
-            throw new Error(`No "OPEN" or "EXECUTED" proposals found for perspective ${perspectiveId}`);
+           return []
         }        
 
         return ids;
