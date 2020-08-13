@@ -77,4 +77,5 @@ export interface NewProposalData {
   toPerspectiveId: string
   fromHeadId: string
   toHeadId: string
+  updates: Array<UpdateRequest>
 }
