@@ -7,6 +7,7 @@ export const PROPOSAL_STATE_TYPE = 'ProposalStateType';
 export const PROPOSAL_SCHEMA = `
 
 type ${HEAD_UPDATE_SCHEMA_NAME} {
+    fromPerspective: ${PERSPECTIVE_SCHEMA_NAME}
     perspective: ${PERSPECTIVE_SCHEMA_NAME}
     newHead: ${COMMIT_SCHEMA_NAME}
     oldHead: ${COMMIT_SCHEMA_NAME}
