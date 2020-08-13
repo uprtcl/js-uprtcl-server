@@ -113,7 +113,7 @@ export class ProposalsController {
                 try {
                     await this.proposalService.addUpdatesToProposal(
                         req.params.proposalUid,
-                        req.body.updates,
+                        req.body,
                         getUserFromReq(req)
                     );
 
