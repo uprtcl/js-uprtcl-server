@@ -13,7 +13,8 @@ import {
   createUpdateRequest,
   addUpdatesToProposal,
   declineProposal,
-  rejectProposal
+  rejectProposal,
+  acceptProposal
 } from './proposals.testsupport';
 
 import {
@@ -38,6 +39,7 @@ describe('Testing proposals controller, service and repo', () => {
     let thirdPerspectiveId: string = '';  
     let proposalUid: string = '';
     let proposal2Uid: string = '';
+    let proposal3Uid: string = '';
 
 
     /**
@@ -298,7 +300,7 @@ describe('Testing proposals controller, service and repo', () => {
     it('should get one "OPEN" or "EXECUTED" proposal per perspective', async() => {
       // Create a third proposal
       // User 2 creates the third proposal      
-      await createProposal(thirdPerspectiveId, // fromPerspective
+      proposal3Uid = await createProposal(thirdPerspectiveId, // fromPerspective
                           toPerspectiveId, // new toPerspective
                           commit3Id, 
                           commit5Id,
@@ -309,4 +311,14 @@ describe('Testing proposals controller, service and repo', () => {
       
       expect(proposalIds.result).toEqual(SUCCESS);
     });    
+
+    it('should unauthorize the user when accepting an "OPEN" proposal', async () => {
+      const accept = await acceptProposal(proposalUid, user2.jwt);
+      expect(accept.result).toEqual(ERROR);
+    });
+
+    it('should accept the "OPEN" proposal', async () => {
+      const accept = await acceptProposal(proposalUid, user1.jwt);
+      expect(accept.result).toEqual(SUCCESS);
+    });
  });

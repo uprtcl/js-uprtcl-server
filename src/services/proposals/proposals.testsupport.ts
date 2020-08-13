@@ -102,3 +102,15 @@ export const rejectProposal = async (
 
 	return JSON.parse(put.text);
 };
+
+export const acceptProposal = async(
+	proposalUid: string,
+	jwt: string
+): Promise<PostResult> => {
+	const router = await createApp();
+	const put = await request(router)
+		 .put(`/uprtcl/1/proposal/${proposalUid}/accept`)
+		 .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
+	return JSON.parse(put.text);
+};
