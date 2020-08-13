@@ -69,6 +69,7 @@ describe('Testing proposals controller, service and repo', () => {
                                             toPerspectiveId,
                                             commit2Id, 
                                             commit1Id,
+                                            [],
                                             user2.jwt);            
 
       const { result, elementIds } = JSON.parse(proposal);
@@ -138,13 +139,12 @@ describe('Testing proposals controller, service and repo', () => {
            
       // Create update requests
 
-      const update1 = await createUpdateRequest(fromPerspectiveId, commit2Id, commit3Id);
-      const update2 = await createUpdateRequest(toPerspectiveId, commit1Id, commit4Id);
-      const update3 = await createUpdateRequest(thirdPerspectiveId, '', commit5Id);
+      const update1 = await createUpdateRequest(fromPerspectiveId, fromPerspectiveId, commit2Id, commit3Id);
+      const update2 = await createUpdateRequest(fromPerspectiveId, toPerspectiveId, commit1Id, commit4Id);
+      const update3 = await createUpdateRequest(fromPerspectiveId, thirdPerspectiveId, '', commit5Id);
       
       const updates = await addUpdatesToProposal([update1, update2, update3], proposalUid, user2.jwt);    
-      expect(updates.result).toEqual(SUCCESS);
-       
+      expect(updates.result).toEqual(SUCCESS);       
     });
 
     // Test the decline of a proposal
@@ -194,9 +194,10 @@ describe('Testing proposals controller, service and repo', () => {
                                             fromPerspectiveId, // new toPerspective
                                             commit6Id, 
                                             commit5Id,
+                                            [],
                                             user2.jwt);            
 
-      const { result, elementIds } = JSON.parse(proposal);
+      const { elementIds } = JSON.parse(proposal);
       proposal2Uid = elementIds[0];
 
       const rejectedProposal = await rejectProposal(proposal2Uid, user1.jwt);      
@@ -239,9 +240,9 @@ describe('Testing proposals controller, service and repo', () => {
         commit9Id
       );   
 
-      const update1 = await createUpdateRequest(fromPerspectiveId, commit3Id, commit8Id);
-      const update2 = await createUpdateRequest(thirdPerspectiveId, commit5Id, commit8Id);
-      const update3 = await createUpdateRequest(fourthPerspectiveId, '', commit9Id);
+      const update1 = await createUpdateRequest(thirdPerspectiveId, fromPerspectiveId, commit3Id, commit7Id);
+      const update2 = await createUpdateRequest(thirdPerspectiveId, thirdPerspectiveId, commit5Id, commit8Id);
+      const update3 = await createUpdateRequest(thirdPerspectiveId, fourthPerspectiveId, '', commit9Id);
       
       const updates = await addUpdatesToProposal([update1, update2, update3], proposal2Uid, user2.jwt);    
 
@@ -275,17 +276,17 @@ describe('Testing proposals controller, service and repo', () => {
 
     // Get a proposal with updates
     it('should get a proposal with updates', async () => {            
-      const proposal = await getProposal(proposalUid, user1.jwt);                
+      const proposal = await getProposal(proposalUid, user1.jwt);                      
       expect(proposal.result).toEqual(SUCCESS);                 
     });    
 
-    /**
-     * CRUD read: get proposals from perspective
-     */
+    // /**
+    //  * CRUD read: get proposals from perspective
+    //  */
 
     it('should filter OPEN and EXECUTED proposals pointing to one perspective', async () => {
       const proposalIds = await getProposalsToPerspective(toPerspectiveId, user1.jwt);  
-      // Will not find an open proposal and will return not found error.
+      // Will not find an open or executed proposal and will return not found error.
       expect(proposalIds.result).toEqual(ERROR);
     });
 
@@ -294,16 +295,18 @@ describe('Testing proposals controller, service and repo', () => {
       expect(proposalIds.result).toEqual(ERROR);
     })
 
-    it('should get more than one "OPEN" or "EXECUTED" proposal per perspective', async() => {
+    it('should get one "OPEN" or "EXECUTED" proposal per perspective', async() => {
       // Create a third proposal
       // User 2 creates the third proposal      
       await createProposal(thirdPerspectiveId, // fromPerspective
                           toPerspectiveId, // new toPerspective
                           commit3Id, 
                           commit5Id,
+                          [],
                           user2.jwt);                   
 
-      const proposalIds = await getProposalsToPerspective(toPerspectiveId, user1.jwt);           
+      const proposalIds = await getProposalsToPerspective(toPerspectiveId, user1.jwt);                       
+      
       expect(proposalIds.result).toEqual(SUCCESS);
     });    
  });

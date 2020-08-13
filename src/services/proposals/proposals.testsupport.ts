@@ -8,6 +8,7 @@ export const createProposal = async (
 	toPerspectiveId: string,
 	fromHeadId: string,
 	toHeadId: string,
+	updates: UpdateRequest[],
 	jwt: string
 ): Promise<string> => {
 	const router = await createApp();
@@ -17,11 +18,11 @@ export const createProposal = async (
 			"fromPerspectiveId": fromPerspectiveId,
 			"toPerspectiveId": toPerspectiveId,
 			"fromHeadId": fromHeadId,
-			"toHeadId": toHeadId
+			"toHeadId": toHeadId,
+			"updates": updates
 		}).set('Authorization', jwt ? `Bearer ${jwt}` : '');
 	
-	let result: any = post.text;  	
-
+	let result: any = post.text;  		
   	return result;
 };
 
@@ -50,11 +51,13 @@ export const getProposalsToPerspective = async (
 };
 
 export const createUpdateRequest = async (
+	fromPerspectiveId: string,
 	perspectiveId: string,
 	oldHeadId: string,
 	newHeadId: string
 ): Promise<UpdateRequest> => {
 	const update: UpdateRequest = {
+		fromPerspectiveId: fromPerspectiveId,
 		oldHeadId: (oldHeadId !== '') ? oldHeadId : undefined,
 		perspectiveId: perspectiveId,
 		newHeadId: newHeadId
@@ -71,9 +74,8 @@ export const addUpdatesToProposal = async (
 	const router = await createApp();
 	const put = await request(router)
 		 .put(`/uprtcl/1/proposal/${proposalUid}`)
-		 .send({ "updates": updates })
+		 .send(updates)
 		 .set('Authorization', jwt ? `Bearer ${jwt}` : '');
-
 	return JSON.parse(put.text);
 };
 
