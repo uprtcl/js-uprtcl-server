@@ -79,3 +79,19 @@ export interface NewProposalData {
   toHeadId: string
   updates: Array<UpdateRequest>
 }
+
+// Dgraph incoming data types
+export interface DgUpdate {
+  fromPerspective: xid
+  perspective: xid
+  oldHead?: xid
+  newHead: xid
+}
+
+export interface xid {
+  xid: string
+}
+
+export interface did {
+  did: string
+}
