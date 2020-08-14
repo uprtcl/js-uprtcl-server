@@ -1,7 +1,5 @@
 import { DGraphService } from "../../db/dgraph.service";
-import { NewProposalData, ProposalState } from "../uprtcl/types";
-import { AccessRepository } from "../access/access.repository";
-import { PermissionType } from '../access/access.schema';
+import { NewProposalData, ProposalState, xid, did, DgUpdate } from "../uprtcl/types";
 import { UserRepository } from "../user/user.repository";
 import { PROPOSALS_SCHEMA_NAME, HEAD_UPDATE_SCHEMA_NAME } from "../proposals/proposals.schema";
 import { Proposal, UpdateRequest } from "../uprtcl/types";
@@ -12,47 +10,19 @@ require("dotenv").config();
 
 interface DgProposal {
     uid?: string
-    creator: DgCreator
+    creator: did
     state: ProposalState
-    fromPerspective: DgPerspective
-    toPerspective: DgPerspective
-    fromHead: DgHead
-    toHead: DgHead    
+    fromPerspective: xid
+    toPerspective: xid
+    fromHead: xid
+    toHead: xid    
     updates?: Array<DgUpdate>    
-}
-
-interface DgUpdate {
-    fromPerspective: DgPerspective
-    perspective: DgPerspective
-    oldHead?: DgOldHead
-    newHead: DgNewHead
-}
-
-interface DgOldHead {
-    xid: string
-}
-
-interface DgNewHead {
-    xid: string
-}
-
-interface DgPerspective {
-    xid: string    
-}
-
-interface DgCreator {
-    did: string
-}
-
-interface DgHead {
-    xid: string
 }
 
 export class ProposalsRepository {
     constructor(
         protected db: DGraphService,
-        protected userRepo: UserRepository,
-        protected accessRepo: AccessRepository
+        protected userRepo: UserRepository
     ) {}
    
     async createProposal(proposalData: NewProposalData, loggedUserId: string): Promise <string> {        
@@ -100,68 +70,6 @@ export class ProposalsRepository {
         const result = await this.db.callRequest(req);                
 
         return result.getUidsMap().get("proposal");
-    }
-
-    async getProposal(proposalUid: string, loggedUserId: string | null): Promise<Proposal> {
-
-        let canAuthorize:boolean = false;
-        let updatesArr: UpdateRequest[] = [];
-
-        const dproposal = await this.findProposal(proposalUid, true, true);                    
-
-        const { 
-                creator: { did: creatorId },
-                fromPerspective: { xid: fromPerspectiveId },
-                toPerspective: { xid: toPerspectiveId },
-                fromHead: { xid: fromHeadId },
-                toHead: { xid: toHeadId },
-                state,
-                updates
-              } = dproposal;        
-
-        if(updates) {
-            updates.map(update => {    
-              const {
-                  oldHead,
-                  newHead: {
-                      xid: newHeadId
-                  },
-                  perspective: {
-                      xid: perspectiveId
-                  },
-                  fromPerspective: {
-                      xid: fromPerspectiveId
-                  }
-              } = update || {};
-
-              const updateEl: UpdateRequest = {
-                  fromPerspectiveId: fromPerspectiveId,
-                  oldHeadId: oldHead?.xid,
-                  perspectiveId: perspectiveId,
-                  newHeadId: newHeadId
-              }
-
-              updatesArr.push(updateEl);
-            });
-
-            if(loggedUserId !== null) {
-                canAuthorize = await this.canAuthorizeProposal(loggedUserId, updates);     
-            }    
-        }
-
-        const proposal: Proposal = {                    
-            id: proposalUid,
-            creatorId: creatorId,
-            toPerspectiveId: toPerspectiveId,
-            fromPerspectiveId: fromPerspectiveId,
-            fromHeadId: fromHeadId,
-            toHeadId: toHeadId,
-            state: state,
-            updates: updatesArr,
-            canAuthorize: canAuthorize
-        }                
-
-        return proposal;
     }
 
     async addUpdatesToProposal(proposalUid: string, updateRequests: Array<UpdateRequest>, loggedUserId:string): Promise<void> {                
@@ -246,46 +154,15 @@ export class ProposalsRepository {
         return ids;
     }
 
-    // This method assumes that a user won't be able to reject a proposal if it doesn't have updates at all.
-    // Can the owner of a toPerspective or from an update perspective be authorized?
-
-    async rejectProposal(proposalUid: string, loggedUserId: string): Promise<void> {    
-        const dproposal = await this.findProposal(proposalUid, true, false);
-
-        const { state, updates } = dproposal;        
-
-        if(state != ProposalState.Open) throw new Error(`Can't modify a ${state} proposal`);
-
-        // Check if proposal has updates
-        if(!updates) {
-            throw new Error("Can't reject proposal. No updates added yet.");
-        }               
-
-        // Check if the user is authorized to perform this action.                
-
-        const canAuthorize = await this.canAuthorizeProposal(loggedUserId, updates);
-
-        if(!canAuthorize) {
-            throw new Error(NOT_AUTHORIZED_MSG);
-        }
-
-        // Ready to perform rejection
+    async rejectProposal(
+        proposalUid: string
+    ): Promise<void> {                       
         await this.modifyProposalState(proposalUid, ProposalState.Rejected);
     }
     
-    async declineProposal(proposalUid: string, loggedUserId: string): Promise<void> {      
-
-        const dproposal = await this.findProposal(proposalUid, false, false);        
-
-        const { creator: { did: creatorId }, state } = dproposal;        
-
-        if(creatorId != loggedUserId) {
-            throw new Error(NOT_AUTHORIZED_MSG);
-        }        
-
-        if(state != ProposalState.Open) throw new Error(`Can't modify ${state} proposals`);
-
-        // Ready to perform declination      
+    async declineProposal(
+        proposalUid: string
+    ): Promise<void> {              
         await this.modifyProposalState(proposalUid, ProposalState.Declined);
     }
 
@@ -383,25 +260,6 @@ export class ProposalsRepository {
         if(!dproposal) throw new Error(`Proposal with UID ${proposalUid} was not found`);
 
         return dproposal;
-    }
-
-    async canAuthorizeProposal(loggedUserId: string, proposalUpdates: DgUpdate[]): Promise<boolean> {
-        const authorizePromises = proposalUpdates.map(async update => {
-            const { perspective: { xid: perspectiveId } } = update;            
-
-            return {
-                canAdmin: await this.accessRepo.can(perspectiveId, loggedUserId, PermissionType.Admin),
-                canWrite: await this.accessRepo.can(perspectiveId, loggedUserId, PermissionType.Write)
-            }
-        });
-
-        const authorizations = await Promise.all(authorizePromises);
-
-        const authorizedUpdates = authorizations.filter(auth => {
-            return auth.canAdmin || auth.canWrite;
-        })                
-
-        return (authorizedUpdates.length == proposalUpdates.length);
     }
 
     async modifyProposalState(proposalUid: string, state: ProposalState): Promise<void> {
