@@ -31,6 +31,8 @@ export interface Proposal {
   fromHeadId?: string
   updates?: Array<UpdateRequest>
   state: ProposalState
+  executed: boolean
+  authorized: boolean
   canAuthorize?: boolean
 }
 

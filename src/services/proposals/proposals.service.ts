@@ -77,13 +77,15 @@ export class ProposalsService {
         }
 
         const proposal: Proposal = {                    
-            id: proposalUid,
+            id: proposalUid,            
             creatorId: creatorId,
             toPerspectiveId: toPerspectiveId,
             fromPerspectiveId: fromPerspectiveId,
             fromHeadId: fromHeadId,
             toHeadId: toHeadId,
             state: state,
+            authorized: state === ProposalState.Executed ? true : false,
+            executed: state === ProposalState.Executed ? true : false,
             updates: updatesArr,
             canAuthorize: canAuthorize
         }                        
