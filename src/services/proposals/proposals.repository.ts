@@ -25,7 +25,10 @@ export class ProposalsRepository {
         protected userRepo: UserRepository
     ) {}
    
-    async createProposal(proposalData: NewProposalData, loggedUserId: string): Promise <string> {        
+    async createProposal(
+        proposalData: NewProposalData, 
+        loggedUserId: string
+    ): Promise <string> {        
         await this.db.ready();
 
         const mu = new dgraph.Mutation();
@@ -72,7 +75,11 @@ export class ProposalsRepository {
         return result.getUidsMap().get("proposal");
     }
 
-    async addUpdatesToProposal(proposalUid: string, updateRequests: Array<UpdateRequest>, loggedUserId:string): Promise<void> {                
+    async addUpdatesToProposal(
+        proposalUid: string, 
+        updateRequests: Array<UpdateRequest>, 
+        loggedUserId:string
+    ): Promise<void> {                
         const dproposal = await this.findProposal(proposalUid, false, false);   
 
         const { creator: { did: proposalCreatorId } } = dproposal;
@@ -154,18 +161,6 @@ export class ProposalsRepository {
         return ids;
     }
 
-    async rejectProposal(
-        proposalUid: string
-    ): Promise<void> {                       
-        await this.modifyProposalState(proposalUid, ProposalState.Rejected);
-    }
-    
-    async declineProposal(
-        proposalUid: string
-    ): Promise<void> {              
-        await this.modifyProposalState(proposalUid, ProposalState.Declined);
-    }
-
     // Methods that can be reused 
 
     /**
@@ -176,7 +171,12 @@ export class ProposalsRepository {
      * @param query - The query coming from the parent process.
      */
 
-    async setUpdates(updates: UpdateRequest[], dgproposal: string, nquads: string, query:string) {
+    async setUpdates(
+        updates: UpdateRequest[], 
+        dgproposal: string, 
+        nquads: string, 
+        query:string
+    ) {
         const updatePromises = updates.map(async (updateRequest, i) => {
             // Create HeadUpdates
             const updateId = await this.createHeadUpdate(updateRequest);
@@ -202,7 +202,11 @@ export class ProposalsRepository {
      * @param {boolean} perspectives - True if you need the perspectives of the proposal.
      */
 
-    async findProposal(proposalUid: string, updates: boolean, perspectives: boolean): Promise<DgProposal> {
+    async findProposal(
+        proposalUid: string, 
+        updates: boolean, 
+        perspectives: boolean
+    ): Promise<DgProposal> {
 
         let query = `query {            
             proposal(func: uid(${proposalUid})) {
@@ -262,7 +266,10 @@ export class ProposalsRepository {
         return dproposal;
     }
 
-    async modifyProposalState(proposalUid: string, state: ProposalState): Promise<void> {
+    async modifyProposalState(
+        proposalUid: string, 
+        state: ProposalState
+    ): Promise<void> {
         await this.db.ready();        
 
        const mu = new dgraph.Mutation();

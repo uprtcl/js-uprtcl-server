@@ -141,7 +141,7 @@ export class ProposalsService {
             throw new Error(NOT_AUTHORIZED_MSG);
         }        
                 
-        return await this.proposalRepo.rejectProposal(proposalUid);
+        return await this.proposalRepo.modifyProposalState(proposalUid, ProposalState.Rejected);
     };
 
     async declineProposal(
@@ -160,7 +160,7 @@ export class ProposalsService {
 
         if(state != ProposalState.Open) throw new Error(`Can't modify ${state} proposals`);
 
-        return await this.proposalRepo.declineProposal(proposalUid);
+        return await this.proposalRepo.modifyProposalState(proposalUid, ProposalState.Declined);
     };
 
     async acceptProposal(
