@@ -368,7 +368,7 @@ export class UprtclRepository {
 
     if (details.context) {
       condition = condition.concat(
-        `${condition !== '' ? ' AND ' : ''}eq(context, ${details.context})`
+        `${condition !== '' ? ' AND ' : ''}eq(context, "${details.context}")`
       );
     }
 
