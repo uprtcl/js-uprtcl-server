@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { checkJwt } from "../../middleware/jwtCheck";
 import { AccessService } from "./access.service";
 import { getUserFromReq, SUCCESS, ERROR, PostResult, GetResult } from "../../utils";
-import { AccessConfig, PermissionConfig } from "./access.repository";
+import { AccessConfigInherited } from "./access.repository";
 
 export class AccessController {
 
@@ -109,14 +109,14 @@ export class AccessController {
               userId: getUserFromReq(req)};
 
             try {
-              const permissions = await this.accessService.getPermissionsConfigOfElement(
+              const permissions = await this.accessService.getAccessConfigEffective(
                 inputs.elementId,
                 inputs.userId);
   
               console.log('[ACCESS CONTROLLER] getPermissionsConfigOfElement', 
                 JSON.stringify(inputs));
   
-              let result: GetResult<PermissionConfig> = {
+              let result: GetResult<AccessConfigInherited> = {
                 result: SUCCESS,
                 message: '',
                 data: permissions

@@ -90,8 +90,8 @@ export class AccessService {
     
     return {
       delegate: accessConfig.delegate,
-      delegateTo: accessConfig.delegateTo,
-      finDelegatedTo: accessConfig.finDelegatedTo,
+      delegateTo: accessConfig.delegateTo || null,
+      finDelegatedTo: accessConfig.finDelegatedTo || null,
       customPermissions: customPermissions,
       effectivePermissions: effectivePermissions,
     }
