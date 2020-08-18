@@ -46,19 +46,19 @@ export class AccessService {
     let accessConfig: AccessConfig;
     if (delegateTo) {
       if (userId == null) throw new Error('cant inherit permissions if user is not logged in')
-      const delegateAccessConfig = await this.getAccessConfig(delegateTo, userId);
-      /** keep the final delegate updated */
-      const finDelegatedTo = delegateAccessConfig.delegate ? delegateAccessConfig.finDelegatedTo : delegateTo;
+      const delegateAccessConfig = await this.getAccessConfig(delegateTo, userId);      
       accessConfig = {
         delegate: true,
         delegateTo,
-        finDelegatedTo,
+        finDelegatedTo: delegateTo,
         permissionsUid: delegateAccessConfig.permissionsUid        
       }
     } else {
       let dftPermUid = await this.createDefaultPermissions(userId);
       accessConfig = {
         delegate: false,
+        delegateTo: elementId,
+        finDelegatedTo: elementId,
         permissionsUid: dftPermUid
       }
     }
@@ -112,36 +112,31 @@ export class AccessService {
     let newFinDelegatedTo: string | null;
     let newPermissionsUid: string | undefined;
 
-    if (newAccessConfig.delegate) {
+    /** protection for undefined delegateTo and finDelegatedTo */
+    if (!newAccessConfig.delegateTo) throw new Error('delegateTo not defined');
+
+    newDelegateTo = newAccessConfig.delegateTo;
+
+    let delegateToAccessConfig = await this.getAccessConfig(newAccessConfig.delegateTo, userId);
+
+    if (delegateToAccessConfig.delegate) {
+      /** if delegateTo is, in turn, delegated, jump to the final delegated element */
+
       /** protection for undefined delegateTo and finDelegatedTo */
-      if (!newAccessConfig.delegateTo) throw new Error('delegateTo not defined');
+      if (!delegateToAccessConfig.delegateTo) throw new Error('delegateTo not found');
+      if (!delegateToAccessConfig.finDelegatedTo) throw new Error('finDelegatedTo not found');
 
-      newDelegateTo = newAccessConfig.delegateTo;
+      newFinDelegatedTo = delegateToAccessConfig.finDelegatedTo;
+      let finDelegatedToAccessConfig =
+        await this.getAccessConfig(delegateToAccessConfig.finDelegatedTo, userId);
 
-      let delegateToAccessConfig = await this.getAccessConfig(newAccessConfig.delegateTo, userId);
-
-      if (delegateToAccessConfig.delegate) {
-        /** if delegateTo is, in turn, delegated, jump to the final delegated element */
-
-        /** protection for undefined delegateTo and finDelegatedTo */
-        if (!delegateToAccessConfig.delegateTo) throw new Error('delegateTo not found');
-        if (!delegateToAccessConfig.finDelegatedTo) throw new Error('finDelegatedTo not found');
-
-        newFinDelegatedTo = delegateToAccessConfig.finDelegatedTo;
-        let finDelegatedToAccessConfig =
-          await this.getAccessConfig(delegateToAccessConfig.finDelegatedTo, userId);
-
-        newPermissionsUid = finDelegatedToAccessConfig.permissionsUid;
-      } else {
-        /** if delegateTo is custom, set it as the final delegated and as the permissions */
-        newFinDelegatedTo = newAccessConfig.delegateTo;
-        newPermissionsUid = delegateToAccessConfig.permissionsUid;
-      }
+      newPermissionsUid = finDelegatedToAccessConfig.permissionsUid;
     } else {
-      newDelegateTo = null;
-      newFinDelegatedTo = null;
-      newPermissionsUid = newAccessConfig.permissionsUid;
+      /** if delegateTo is custom, set it as the final delegated and as the permissions */
+      newFinDelegatedTo = newAccessConfig.delegateTo;
+      newPermissionsUid = delegateToAccessConfig.permissionsUid;
     }
+    
 
     let newAccessConfigProc: AccessConfig = {
       delegate: newAccessConfig.delegate,
@@ -178,12 +173,12 @@ export class AccessService {
 
     let permissionsElement: string = elementId;
 
-    const accessConfig = await this.getAccessConfig(elementId, '')
-    if (accessConfig.delegate) {
-      if (!accessConfig.finDelegatedTo) throw new Error(`undefined delegateTo but accessConfig delegate of ${elementId} is true`);
-      permissionsElement = accessConfig.finDelegatedTo;
-    }
-
+    const accessConfig = await this.getAccessConfig(elementId, '');
+    
+    if(!accessConfig.finDelegatedTo) throw new Error("Inconsistency error, `finDelegatedTo` can't be undefined.");
+    
+    permissionsElement = accessConfig!.finDelegatedTo;
+    
     if (await this.accessRepo.isPublic(permissionsElement, type)) {
       return true;
     }
