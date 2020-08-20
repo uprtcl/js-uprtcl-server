@@ -23,6 +23,28 @@ export const delegatePermissionsTo = async (
 
   expect(put.status).toEqual(200);
 
+  console.log(put.text);
+
+  return JSON.parse(put.text);
+};
+
+export const setDelegateToFalse = async (
+  elementId: string,
+  jwt: string
+): Promise<PostResult> => {
+  const router = await createApp();
+  const accessConfig: AccessConfig = {
+    delegate: false,
+    delegateTo: elementId
+  }
+
+  const put = await request(router)
+    .put(`/uprtcl/1/accessConfig/${elementId}`)
+    .send(accessConfig)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');      
+
+  console.log(put.text);
+
   return JSON.parse(put.text);
 };
 

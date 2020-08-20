@@ -40,6 +40,17 @@ export const createPerspective = async (
     .send({ perspective: secured, details: { headId }, parentId: parentId })
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
+          
+    console.log("");
+    console.log("");
+    console.log("");
+    console.log("");
+    console.log(post.text);
+    console.log("");
+    console.log("");
+    console.log("");
+    console.log("");
+
   let result: any = JSON.parse(post.text).elementIds[0];
   ((expect(result) as unknown) as ExtendedMatchers).toBeValidCid();
 

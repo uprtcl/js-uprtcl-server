@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { checkJwt } from "../../middleware/jwtCheck";
 import { AccessService } from "./access.service";
 import { getUserFromReq, SUCCESS, ERROR, PostResult, GetResult } from "../../utils";
-import { AccessConfig, PermissionConfig } from "./access.repository";
+import { PermissionConfig } from "./access.repository";
 
 export class AccessController {
 
@@ -23,11 +23,15 @@ export class AccessController {
               accessConfig: req.body,
               userId: getUserFromReq(req)};
 
+            const { delegateTo, permissionsUid } = inputs.accessConfig;
+
             try {
               await this.accessService.updateAccessConfig(
                 inputs.elementId,
-                inputs.accessConfig,
-                inputs.userId);
+                delegateTo,
+                permissionsUid,
+                inputs.userId
+              );
   
               console.log('[ACCESS CONTROLLER] updateAccessConfig', 
                 JSON.stringify(inputs));
