@@ -232,6 +232,38 @@ export class AccessController {
 
               res.status(200).send(result);
             }
+          },
+        ]
+      },
+
+      {
+        path: "/uprtcl/1/accessConfig/:elementId/finDelegatedTo",
+        method: "get",
+        handler: [
+          checkJwt,
+          async(req: Request, res: Response) => {
+            try {
+              const finalDelegatedTo = await this.accessService.getRecurseFinDelegatedTo(
+                req.params.elementId,
+                getUserFromReq(req)
+              );
+
+              let result: GetResult<string> = {
+                result: SUCCESS,
+                message: "found finDelegatedTo recursivity",
+                data: finalDelegatedTo
+              };
+
+              return res.status(200).send(result);
+            } catch (error) {
+              let result: PostResult = {
+                result: ERROR,
+                message: error.message,
+                elementIds: []
+              }
+
+              res.status(200).send(result);
+            }
           }
         ]
       }
