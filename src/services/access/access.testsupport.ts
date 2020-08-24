@@ -1,6 +1,6 @@
 import request from 'supertest';
 
-import { PostResult } from '../../utils';
+import { PostResult, GetResult } from '../../utils';
 import { AccessConfig } from './access.repository';
 import { createApp } from '../../server';
 import { PermissionType } from './access.schema';
@@ -21,11 +21,22 @@ export const delegatePermissionsTo = async (
     .send(accessConfig)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
-  expect(put.status).toEqual(200);
-
-  console.log(put.text);
+  expect(put.status).toEqual(200);  
 
   return JSON.parse(put.text);
+};
+
+export const getRecurseFinDelegatedTo = async (
+  elementId: string,
+  jwt: string
+): Promise<GetResult<string>> => {
+  const router = await createApp();
+  
+  const get = await request(router)
+    .get(`/uprtcl/1/accessConfig/${elementId}/finDelegatedTo`)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
+  return JSON.parse(get.text);
 };
 
 export const setDelegateToFalse = async (
@@ -35,7 +46,7 @@ export const setDelegateToFalse = async (
   const router = await createApp();
   const accessConfig: AccessConfig = {
     delegate: false,
-    delegateTo: elementId
+    delegateTo: undefined
   }
 
   const put = await request(router)
