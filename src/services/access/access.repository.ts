@@ -5,6 +5,7 @@ import {
   PermissionType,
   ACCESS_CONFIG_SCHEMA_NAME,
 } from './access.schema';
+import { format } from 'path';
 
 const dgraph = require('dgraph-js');
 
@@ -269,7 +270,6 @@ export class AccessRepository {
       }
     }
     `;
-
     let result = await this.db.client.newTxn().query(`query{${query}}`);
     const json = result.getJson();
     console.log(
@@ -293,7 +293,10 @@ export class AccessRepository {
       finDelegatedTo: daccessConfig.finDelegatedTo
         ? daccessConfig.finDelegatedTo.xid
         : undefined,
-      permissionsUid: daccessConfig.permissions.uid,
+      permissionsUid: 
+        daccessConfig.permissions !== undefined 
+        ? daccessConfig.permissions.uid
+        : undefined
     };
   }
 
@@ -457,23 +460,19 @@ export class AccessRepository {
       );
     }
 
-    if (delegateTo !== undefined) {
+    let finDelegatedTo: string;
+
+    if (delegate) {
       query = query.concat(
         `\ndelegateTo as var(func: eq(xid, "${delegateTo}"))`
       );
       nquads = nquads.concat(
         `\n<${accessConfigUid}> <delegateTo> uid(delegateTo) .`
       ); 
-    }
 
-    /* add logic to compute and keep finDelegateTo of this element consistent and 
-       also of all the elements that where inheriting from this element */
+/* add logic to compute and keep finDelegateTo of this element consistent and 
+    also of all the elements that where inheriting from this element */
 
-    let finDelegatedTo: string;
-
-    if (!delegate) {
-      finDelegatedTo = elementId;
-    } else {
       const delegateToAccessConfig = await this.getAccessConfigOfElement(
         delegateTo as string
       );
@@ -483,6 +482,8 @@ export class AccessRepository {
       } 
 
       finDelegatedTo = delegateToAccessConfig.finDelegatedTo;
+    } else {      
+      finDelegatedTo = elementId;
     }
 
     query = query.concat(
@@ -492,23 +493,17 @@ export class AccessRepository {
       `\n<${accessConfigUid}> <finDelegatedTo> uid(finDelegatedTo) .`
     );
 
-    // TODO: What happens with the elements that have delegateTo === elementId?
-    // seems that the finDelegatedTo of them needs to be updated too.
     query = query.concat(
-      //`\ndelegatingFromAccessConfigs as var(func: eq(~delegateTo, "${elementId}")) @recursive ?`
-      `\ndelegatingFromAccessConfigs as var(func: has(delegateTo))
-          @cascade
-          {            
-            delegateTo @filter(eq(xid, ${elementId}))
-          }
-      `
-    );
+      `\n q(func: eq(xid, "${elementId}")) 
+          @recurse
+          {
+            perspective: ~accessConfig
+            a as accessConfig: ~delegateTo
+            uid
+          }`);    
 
-    // TODO: this should be all the recursive delegateTo of elementId, and not only the first level.
-
-    // how to set the finDelegatedTo of all the accessConfigs of all the delegatingFrom array to finDelegateTo?
     nquads = nquads.concat(
-      `\nuid(delegatingFromAccessConfigs) <finDelegatedTo> uid(finDelegatedTo) .`
+      `\nuid(a) <finDelegatedTo> uid(finDelegatedTo) .`
     );
 
     if (query !== '') req.setQuery(`query{${query}}`);
@@ -705,5 +700,29 @@ export class AccessRepository {
       { ndelquads },
       result.getUidsMap().toArray()
     );
+  }
+
+  async getRecurseFinDelegatedTo(elementId: string): Promise<string> {
+    await this.db.ready();
+
+    const query = `
+      query(func: eq(xid, ${elementId}))
+      @recurse {
+        perspective: ~accessConfig
+        accessConfig: ~delegateTo        
+        final as finDelegatedTo        
+      }
+
+      final(func: uid(final)) {
+        xid
+      } 
+    `;
+
+    let result = await this.db.client.newTxn().query(`query{${query}}`);  
+    const json = result.getJson();
+
+    const { final } = json;
+
+    return final[0].xid;
   }
 }
