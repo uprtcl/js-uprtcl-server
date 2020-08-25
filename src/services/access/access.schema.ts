@@ -29,6 +29,7 @@ type ${ACCESS_CONFIG_SCHEMA_NAME} {
 canRead: [uid] .
 canWrite: [uid] .
 canAdmin: [uid] .
+accessConfig: uid @reverse .
 permissions: uid .
 publicRead: bool @index(bool) .
 publicWrite: bool @index(bool) .
