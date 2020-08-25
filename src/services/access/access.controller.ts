@@ -254,7 +254,7 @@ export class AccessController {
                 data: finalDelegatedTo
               };
 
-              return res.status(200).send(result);
+              res.status(200).send(result);
             } catch (error) {
               let result: PostResult = {
                 result: ERROR,
