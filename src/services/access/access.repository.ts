@@ -293,10 +293,7 @@ export class AccessRepository {
       finDelegatedTo: daccessConfig.finDelegatedTo
         ? daccessConfig.finDelegatedTo.xid
         : undefined,
-      permissionsUid: 
-        daccessConfig.permissions !== undefined 
-        ? daccessConfig.permissions.uid
-        : undefined
+      permissionsUid: daccessConfig.permissions.uid
     };
   }
 
@@ -702,7 +699,7 @@ export class AccessRepository {
     );
   }
 
-  async getRecurseFinDelegatedTo(elementId: string): Promise<string> {
+  async finDelegatedAccessFrom(elementId: string): Promise<string> {
     await this.db.ready();
 
     const query = `
