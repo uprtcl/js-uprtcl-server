@@ -154,11 +154,7 @@ export class ProposalsRepository {
 
         const ids = proposals.map(proposal => proposal.uid!);        
 
-        if(!ids || ids.length === 0) {
-           return []
-        }        
-
-        return ids;
+        return (ids || ids.length != 0) ? ids : [];
     }
 
     // Methods that can be reused 
