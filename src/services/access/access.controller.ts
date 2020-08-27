@@ -13,27 +13,30 @@ export class AccessController {
     return [
       
       {
-        path: "/uprtcl/1/accessConfig/:elementId",
+        path: "/uprtcl/1/permissions/:elementId/delegate",
         method: "put",
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
             let inputs: any = {
               elementId: req.params.elementId, 
-              accessConfig: req.body,
-              userId: getUserFromReq(req)};
+              delegate: req.query.delegate,
+              delegateTo: req.query.delegateTo,
+              userId: getUserFromReq(req)};                                        
 
-            const { delegateTo, permissionsUid } = inputs.accessConfig;
-
-            try {
-              await this.accessService.updateAccessConfig(
+            try {              
+              await this.accessService.toggleDelegate(
                 inputs.elementId,
-                delegateTo,
-                permissionsUid,
+                (inputs.delegate === 'false') ? 
+                  false : 
+                (inputs.delegate === 'true') ? 
+                  true : false,             
+                (inputs.delegateTo === '' || inputs.delegateTo === 'undefined') ? 
+                  undefined : inputs.delegateTo,
                 inputs.userId
               );
   
-              console.log('[ACCESS CONTROLLER] updateAccessConfig', 
+              console.log('[ACCESS CONTROLLER] toggleDelegateTo', 
                 JSON.stringify(inputs));
   
               let result: PostResult = {
@@ -44,6 +47,7 @@ export class AccessController {
   
               res.status(200).send(result);
             } catch (error) {
+              console.log(error);
               console.log('[ACCESS CONTROLLER] ERROR updateAccessConfig', 
                 JSON.stringify(inputs));
   
@@ -58,50 +62,7 @@ export class AccessController {
           }
         ]
       },
-
-      {
-        path: "/uprtcl/1/permissions/:elementId",
-        method: "put",
-        handler: [
-          checkJwt,
-          async (req: Request, res: Response) => {
-            let inputs: any = {
-              elementId: req.params.elementId, 
-              permissions: req.body,
-              userId: getUserFromReq(req)};
-
-            try {
-              await this.accessService.updatePermissions(
-                inputs.elementId,
-                inputs.permissions,
-                inputs.userId);
-  
-              console.log('[ACCESS CONTROLLER] updatePermissions', 
-                JSON.stringify(inputs));
-  
-              let result: PostResult = {
-                result: SUCCESS,
-                message: 'accessConfig updated',
-                elementIds: []
-              }
-  
-              res.status(200).send(result);
-            } catch (error) {
-              console.log('[ACCESS CONTROLLER] ERROR updatePermissions', 
-                JSON.stringify(inputs));
-  
-              let result: PostResult = {
-                result: ERROR,
-                message: error.message,
-                elementIds: []
-              }
-  
-              res.status(200).send(result);
-            }            
-          }
-        ]
-      },
-
+      
       {
         path: "/uprtcl/1/permissions/:elementId",
         method: "get",
