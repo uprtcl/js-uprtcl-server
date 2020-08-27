@@ -5,7 +5,6 @@ import {
   PermissionType,
   ACCESS_CONFIG_SCHEMA_NAME,
 } from './access.schema';
-import { format } from 'path';
 
 const dgraph = require('dgraph-js');
 
@@ -405,79 +404,48 @@ export class AccessRepository {
     return result.getUidsMap().toArray()[0][1];
   }
 
-  async updateAccessConfig(
+  async toggleDelegate(
     elementId: string,
-    delegateTo: string | undefined,
-    permissionsUid: string
+    delegateTo: string | undefined,        
   ): Promise<void> {
     await this.db.ready();
 
     /** get the accessConfig Uid */
-    const query0 = `
+    let query = `
       element(func: eq(xid, ${elementId})) {
-        accessConfig {
-          uid
-        }
+        config as accessConfig
       }`;
-
-    const res = await this.db.client.newTxn().query(`query{${query0}}`);
-    let json = res.getJson();
-    if (json.element[0] === undefined)
-      throw new Error(
-        `undefined accessConfig in updateAccessConfig() for element ${elementId}`
-      );
-
-    const accessConfigUid = json.element[0].accessConfig.uid;
-
-    /** delete the permissions
-     * TODO: dont know why it complains if I dont do this */
-    const delMu = new dgraph.Mutation();
-    let delNquads = `<${accessConfigUid}> <permissions> * .`;
-    delMu.setDelNquads(delNquads);
-
-    const delReq = new dgraph.Request();
-    delReq.setCommitNow(true);
-    delReq.setMutationsList([delMu]);
-
-    await this.db.client.newTxn().doRequest(delReq);
-
+      
     /** now update the the accessConfig */
     const mu = new dgraph.Mutation();
-    const req = new dgraph.Request();
-
-    let query: string = '';
+    const req = new dgraph.Request();    
 
     const delegate = delegateTo !== undefined;
 
-    let nquads = `<${accessConfigUid}> <delegate> "${delegate}" .`;
-
-    if (permissionsUid) {
-      nquads = nquads.concat(
-        `\n<${accessConfigUid}> <permissions> <${permissionsUid}> .`
-      );
-    }
+    let nquads = `uid(config) <delegate> "${delegate}" .`;
 
     let finDelegatedTo: string;
 
     if (delegate) {
-      query = query.concat(
-        `\ndelegateTo as var(func: eq(xid, "${delegateTo}"))`
-      );
-      nquads = nquads.concat(
-        `\n<${accessConfigUid}> <delegateTo> uid(delegateTo) .`
-      ); 
+      if(!delegateTo) {
+        throw new Error('Undefined delegateTo');
+      }
 
-/* add logic to compute and keep finDelegateTo of this element consistent and 
-    also of all the elements that where inheriting from this element */
-
-      const delegateToAccessConfig = await this.getAccessConfigOfElement(
-        delegateTo as string
-      );
+      const delegateToAccessConfig = await this.getAccessConfigOfElement(delegateTo);
 
       if(delegateToAccessConfig.finDelegatedTo === undefined) {
         throw new Error(`property finDelegatedTo is undefined for element ${delegateTo}`);
       } 
 
+      query = query.concat(
+        `\ndelegateTo as var(func: eq(xid, "${delegateTo}"))`
+      );
+      nquads = nquads.concat(
+        `\nuid(config) <delegateTo> uid(delegateTo) .`
+      ); 
+
+/* add logic to compute and keep finDelegateTo of this element consistent and 
+    also of all the elements that where inheriting from this element */
       finDelegatedTo = delegateToAccessConfig.finDelegatedTo;
     } else {      
       finDelegatedTo = elementId;
@@ -487,7 +455,7 @@ export class AccessRepository {
       `\nfinDelegatedTo as var(func: eq(xid, "${finDelegatedTo}"))`
     );
     nquads = nquads.concat(
-      `\n<${accessConfigUid}> <finDelegatedTo> uid(finDelegatedTo) .`
+      `\nuid(config) <finDelegatedTo> uid(finDelegatedTo) .`
     );
 
     query = query.concat(
@@ -567,24 +535,6 @@ export class AccessRepository {
       { query },
       { nquads },
       result.getUidsMap().toArray()
-    );
-  }
-
-  async getFinallyDelegatedFrom(elementId: string) {
-    let query = `elements(
-      func: eq(~finDelegatedTo, "${elementId}") {
-        xid
-      }
-    )`;
-
-    let result = await this.db.client.newTxn().query(`query{${query}}`);
-    console.log(
-      '[DGRAPH] getFinallyDelegatedFrom',
-      { elementId },
-      result.getJson()
-    );
-    return [elementId].concat(
-      result.getJson().elements.map((dpersp: any) => dpersp.xid)
     );
   }
 
@@ -697,6 +647,15 @@ export class AccessRepository {
       { ndelquads },
       result.getUidsMap().toArray()
     );
+  }
+
+  async clonePermissions(elementId: string, finDelegatedTo: string): Promise<void> {
+    const finDelegatedToAccessConfig = await this.getAccessConfigOfElement(finDelegatedTo);
+
+    if(!finDelegatedToAccessConfig.permissionsUid) 
+      throw new Error (`Can not clone permissions. Permissions are missed for element ${finDelegatedTo}`);
+
+    await this.setAccessConfigOf(elementId, finDelegatedToAccessConfig.permissionsUid);
   }
 
   async finDelegatedAccessFrom(elementId: string): Promise<string> {
