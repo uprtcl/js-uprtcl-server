@@ -541,8 +541,8 @@ export class AccessRepository {
   async getDelegatedFrom(elementId: string): Promise<string[]> {
     let query = `
     elements(func: eq(xid, "${elementId}")) {
-      ~delegateTo {
-        ~accessConfig {
+      accessConfig: ~delegateTo {
+        perspective: ~accessConfig {
           xid
         }
       }
@@ -551,15 +551,10 @@ export class AccessRepository {
 
     let result = await this.db.client.newTxn().query(`query{${query}}`);
     let json = result.getJson();
-    console.log(
-      '[DGRAPH] getFinallyDelegatedFrom',
-      { elementId },
-      JSON.stringify(json)
-    );
 
     return json.elements.length > 0
-      ? json.elements['~delegateTo'].map(
-          (accessConfig: any) => accessConfig['~accessConfig'].xid
+      ? json.elements[0].accessConfig.map((accessConfig: any) => 
+          accessConfig.perspective[0].xid
         )
       : [];
   }
@@ -658,27 +653,27 @@ export class AccessRepository {
     await this.setAccessConfigOf(elementId, finDelegatedToAccessConfig.permissionsUid);
   }
 
-  async finDelegatedAccessFrom(elementId: string): Promise<string> {
-    await this.db.ready();
+  // async finDelegatedAccessFrom(elementId: string): Promise<string> {
+  //   await this.db.ready();
 
-    const query = `
-      query(func: eq(xid, ${elementId}))
-      @recurse {
-        perspective: ~accessConfig
-        accessConfig: ~delegateTo        
-        final as finDelegatedTo        
-      }
+  //   const query = `
+  //     query(func: eq(xid, ${elementId}))
+  //     @recurse {
+  //       perspective: ~accessConfig
+  //       accessConfig: ~delegateTo        
+  //       final as finDelegatedTo        
+  //     }
 
-      final(func: uid(final)) {
-        xid
-      } 
-    `;
+  //     final(func: uid(final)) {
+  //       xid
+  //     } 
+  //   `;
 
-    let result = await this.db.client.newTxn().query(`query{${query}}`);  
-    const json = result.getJson();
+  //   let result = await this.db.client.newTxn().query(`query{${query}}`);  
+  //   const json = result.getJson();
 
-    const { final } = json;
+  //   const { final } = json;
 
-    return final[0].xid;
-  }
+  //   return final[0].xid;
+  // }
 }
