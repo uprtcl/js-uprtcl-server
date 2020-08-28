@@ -1,3 +1,10 @@
+export enum ProposalState {
+  Open = "OPEN",  
+  Rejected = "REJECTED",
+  Executed = "EXECUTED",
+  Declined = "DECLINED"
+}
+
 export interface PerspectiveDetails {
   name?: string
   context?: string | undefined
@@ -13,6 +20,27 @@ export interface Perspective {
 
 export const getAuthority = (perspective: Perspective): string => {
   return `${perspective.remote}:${perspective.path}`
+}
+
+export interface Proposal {
+  id: string
+  creatorId?: string
+  toPerspectiveId?: string
+  fromPerspectiveId: string
+  toHeadId?: string
+  fromHeadId?: string
+  updates?: Array<UpdateRequest>
+  state: ProposalState
+  executed: boolean
+  authorized: boolean
+  canAuthorize?: boolean
+}
+
+export interface UpdateRequest {
+  fromPerspectiveId?: string
+  oldHeadId?: string
+  perspectiveId: string
+  newHeadId: string
 }
 
 export interface Commit {
@@ -43,4 +71,29 @@ export interface NewPerspectiveData {
   perspective: Secured<Perspective>
   details?: PerspectiveDetails
   parentId?: string
+}
+
+export interface NewProposalData {
+  creatorId: string,
+  fromPerspectiveId: string
+  toPerspectiveId: string
+  fromHeadId: string
+  toHeadId: string
+  updates: Array<UpdateRequest>
+}
+
+// Dgraph incoming data types
+export interface DgUpdate {
+  fromPerspective: xid
+  perspective: xid
+  oldHead?: xid
+  newHead: xid
+}
+
+export interface xid {
+  xid: string
+}
+
+export interface did {
+  did: string
 }

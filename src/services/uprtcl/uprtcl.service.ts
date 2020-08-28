@@ -4,6 +4,7 @@ import {
   PerspectiveDetails,
   Secured,
   NewPerspectiveData,
+  DgUpdate,
 } from './types';
 import { DGraphService } from '../../db/dgraph.service';
 import { AccessService } from '../access/access.service';
@@ -177,5 +178,15 @@ export class UprtclService {
     console.log('[UPRTCL-SERVICE] getCommit', { commitId });
     let commit = await this.uprtclRepo.getCommit(commitId);
     return commit;
+  }
+
+  async canAuthorizeProposal(
+    proposalUpdates: DgUpdate[],
+    loggedUserId: string
+  ): Promise<boolean> {
+
+    if (loggedUserId === null) throw new Error("Anonymous user. Can't authorize a proposal");           
+
+    return this.access.canAuthorizeProposal(proposalUpdates, loggedUserId);
   }
 }

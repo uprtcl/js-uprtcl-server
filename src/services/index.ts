@@ -14,6 +14,9 @@ import { KnownSourcesController } from './knownsources/knownsources.controller';
 import { DataService } from './data/data.service';
 import { DataController } from './data/data.controller';
 import { KnownSourcesService } from './knownsources/knownsources.service';
+import { ProposalsController } from "./proposals/proposals.controller";
+import { ProposalsService } from "./proposals/proposals.service";
+import { ProposalsRepository } from "./proposals/proposals.repository";
 
 export const getRoutes = async () => {
   /** poors man dependency injection */
@@ -44,6 +47,10 @@ export const getRoutes = async () => {
   const userService = new UserService(dbService, userRepo);
   const userController = new UserController(userService);
 
+  const proposalsRepo = new ProposalsRepository(dbService, userRepo);
+  const proposalsService = new ProposalsService(proposalsRepo, uprtclService);
+  const proposalsController = new ProposalsController(proposalsService);
+
   const knownSourcesService = new KnownSourcesService(
     dbService,
     knownSourcesRepo,
@@ -60,5 +67,7 @@ export const getRoutes = async () => {
     ...userController.routes(),
     ...accessController.routes(),
     ...knownSourcesController.routes(),
+    ...proposalsController.routes()
   ];
 };
+

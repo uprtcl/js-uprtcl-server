@@ -3,7 +3,7 @@ import { checksPlaceholder } from "../../middleware/checks";
 import { UprtclService } from "./uprtcl.service";
 import { checkJwt } from "../../middleware/jwtCheck";
 import { getUserFromReq, GetResult, SUCCESS, PostResult, ERROR } from "../../utils";
-import { Secured, Perspective, PerspectiveDetails, Commit } from "./types";
+import { Secured, Perspective, PerspectiveDetails, Commit, Proposal } from "./types";
 
 declare global {
   namespace Express {
