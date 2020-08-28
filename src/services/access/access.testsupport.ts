@@ -1,24 +1,28 @@
 import request from 'supertest';
 
-import { PostResult, GetResult } from '../../utils';
-import { AccessConfig } from './access.repository';
+import { PostResult } from '../../utils';
 import { createApp } from '../../server';
 import { PermissionType } from './access.schema';
+import { AccessRepository } from "./access.repository";
+import { UserRepository } from "../user/user.repository";
+import { DGraphService } from "../../db/dgraph.service";
+
+const db = new DGraphService("localhost:9080");
+const userRepo = new UserRepository(db);
+const accessRepo = new AccessRepository(db, userRepo);
 
 export const delegatePermissionsTo = async (
   elementId: string,
-  delegateTo: string,
+  delegate: boolean,
+  delegateTo: string | undefined,
   jwt: string
 ): Promise<PostResult> => {
   const router = await createApp();
-  const accessConfig: AccessConfig = {
-    delegate: true,
-    delegateTo: delegateTo,
-  };
-
+  const url = `/uprtcl/1/permissions/${elementId}/delegate/?delegate=${delegate}&delegateTo=${delegateTo}`;
+  
   const put = await request(router)
-    .put(`/uprtcl/1/accessConfig/${elementId}`)
-    .send(accessConfig)
+    .put(url)
+    .send()
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   expect(put.status).toEqual(200);  
@@ -26,37 +30,17 @@ export const delegatePermissionsTo = async (
   return JSON.parse(put.text);
 };
 
-export const getRecurseFinDelegatedTo = async (
-  elementId: string,
-  jwt: string
-): Promise<GetResult<string>> => {
-  const router = await createApp();
-  
-  const get = await request(router)
-    .get(`/uprtcl/1/accessConfig/${elementId}/finDelegatedTo`)
-    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+export const finDelegatedChildNodes = async (elementId: string) => {
+  const childNodes = await accessRepo.getDelegatedFrom(elementId);
 
-  return JSON.parse(get.text);
-};
+  const accessConfigs = childNodes.map(async (child) => {
+    const accessConfig = await accessRepo.getAccessConfigOfElement(child);
+    return accessConfig.finDelegatedTo;
+  });
 
-export const setDelegateToFalse = async (
-  elementId: string,
-  jwt: string
-): Promise<PostResult> => {
-  const router = await createApp();
-  const accessConfig: AccessConfig = {
-    delegate: false,
-    delegateTo: undefined
-  }
-
-  const put = await request(router)
-    .put(`/uprtcl/1/accessConfig/${elementId}`)
-    .send(accessConfig)
-    .set('Authorization', jwt ? `Bearer ${jwt}` : '');      
-
-  console.log(put.text);
-
-  return JSON.parse(put.text);
+  return await Promise.all(
+    accessConfigs
+  );
 };
 
 export const addPermission = async (

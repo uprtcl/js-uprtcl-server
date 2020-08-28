@@ -1,36 +1,36 @@
 import { toBeValidCid, ERROR, SUCCESS } from '../../utils';
-import { delegatePermissionsTo, setDelegateToFalse } from './access.testsupport';
+import {     
+    delegatePermissionsTo,
+    finDelegatedChildNodes
+} from './access.testsupport';
 import { createUser } from '../user/user.testsupport';
-import { createCommitAndData, createPerspective } from '../uprtcl/uprtcl.testsupport';
+import { createCommitAndData, 
+         createPerspective         
+       } from '../uprtcl/uprtcl.testsupport';
 
-describe('Testing access controller, service and repo', () => {
+describe('should update all finDelegateTo of all children', () => {
     expect.extend({ toBeValidCid });  
     
-    const creatorId = 'did:method:12345';
-    const creatorId2 = 'did:method:123456';
+    const creatorId = 'did:method:12345';    
 
     let user1:any = {};
-    let user2:any = {};
 
     let perspectiveA = '';
     let perspectiveB = '';
-    let perspectiveC1 = '';
-    let perspectiveC2 = '';
-    let perspectiveD1 = '';
+    let perspectiveC1 = '';        
 
-    it('changes `delegate` property to true in accessConfig', async () => {
-        user1 = await createUser('seed1');
-        user2 = await createUser('seed2');
+    it('create perspectives with its parentIds', async () => {
+        user1 = await createUser('seed1');        
 
         const commitA = await createCommitAndData('perspective A', user1.jwt);
         perspectiveA = await createPerspective(
             creatorId,
-            564564,
+            454545,
             user1.jwt,
             commitA
         );
 
-        const commitB = await createCommitAndData('text 123456', user1.jwt);
+        const commitB = await createCommitAndData('perspective B', user1.jwt);
         perspectiveB = await createPerspective(
             creatorId,
             846851,
@@ -39,68 +39,67 @@ describe('Testing access controller, service and repo', () => {
             perspectiveA
         );
 
-        const commitC1 = await createCommitAndData('text 12345', user1.jwt);
+        const commitC1 = await createCommitAndData('perspective C1', user1.jwt);
         perspectiveC1 = await createPerspective(
-            creatorId2,
+            creatorId,
             458765,
             user1.jwt,
             commitC1,
             perspectiveB
         ); 
 
-        const commitC2 = await createCommitAndData('text Test tester', user1.jwt);
-        perspectiveC2 = await createPerspective(
-            creatorId2,
+        const commitC2 = await createCommitAndData('perspective C2', user1.jwt);
+        const perspectiveC2 = await createPerspective(
+            creatorId,
             123456,
             user1.jwt,
             commitC2,
             perspectiveB
         ); 
 
-        const commitD1 = await createCommitAndData('tstert5465', user1.jwt);
-        perspectiveD1 = await createPerspective(
-            creatorId2,
+        const commitD1 = await createCommitAndData('perspective D1', user1.jwt);
+        const perspectiveD1 = await createPerspective(
+            creatorId,
             789456,
             user1.jwt,
             commitD1,
             perspectiveC1
         ); 
 
+        // Checks all finDelegatedTo of perspectiveB children.
+        let childrenB = await finDelegatedChildNodes(perspectiveB);                        
 
-        
-        // finalDelegateTo of B is C        
+        expect(Array.from(new Set(childrenB))).toHaveLength(1);
+        expect(Array.from(new Set(childrenB))).toEqual([perspectiveA]);
 
-        // Set perspective C delegate to true and set toDelegate perspective D
+        // Removes perspectiveA from parentId of perspectiveB
+        const delegateToB = await delegatePermissionsTo(
+            perspectiveB, 
+            false, 
+            undefined,
+            user1.jwt
+        );
+        expect(delegateToB.result).toEqual(SUCCESS);
 
-        // const delegateC = await delegatePermissionsTo(
-        //     perspectiveC,
-        //     perspectiveD,
-        //     user1.jwt
-        // );
+        // Checks all finDelegatedTo of perspectiveB children.
+        childrenB = await finDelegatedChildNodes(perspectiveB);                        
 
-        // finalDelegateTo of C is D
+        expect(Array.from(new Set(childrenB))).toHaveLength(1);
+        expect(Array.from(new Set(childrenB))).toEqual([perspectiveB]);
 
-        // finalDelegate changes
-        // finalDelegate of B is D
-        // finalDelegate of A is D
+        // Returns perspectiveA as parentId of perspectiveB
+        const delegateToA = await delegatePermissionsTo(
+            perspectiveB,
+            true, 
+            perspectiveA, 
+            user1.jwt
+        );        
 
-        // expect(delegateC.result).toEqual(SUCCESS);
+        expect(delegateToA.result).toEqual(SUCCESS);        
 
-        // shouldn't an xid be unique?
-        // New query modified (not a valid scalar)
-    });
+        childrenB = await finDelegatedChildNodes(perspectiveB);                        
 
-    // it('changes `delegate` property to false in accessConfig', async () => {
-    //     // Changes perspective A to false
-
-    //     const removeDelegateA = await setDelegateToFalse(
-    //         perspectiveA,
-    //         user2.jwt
-    //     );
-
-    //     expect(removeDelegateA.result).toEqual(SUCCESS);
-
-    //     // Expect to receive finalDelegateTo of perspective A (its same ID)
-    //     console.log(removeDelegateA);
-    // });
+        expect(Array.from(new Set(childrenB))).toHaveLength(1);
+        expect(Array.from(new Set(childrenB))).toEqual([perspectiveA]);
+    });    
 });
