@@ -8,7 +8,7 @@ import { createCommitAndData,
          createPerspective         
        } from '../uprtcl/uprtcl.testsupport';
 
-describe('should update all finDelegateTo of all children', () => {
+describe('create perspectives with its parentIds', () => {
     expect.extend({ toBeValidCid });  
     
     const creatorId = 'did:method:12345';    
@@ -18,8 +18,8 @@ describe('should update all finDelegateTo of all children', () => {
     let perspectiveA = '';
     let perspectiveB = '';
     let perspectiveC1 = '';        
-
-    it('create perspectives with its parentIds', async () => {
+   
+    it('should update all finDelegatedTo of all children', async () => {
         user1 = await createUser('seed1');        
 
         const commitA = await createCommitAndData('perspective A', user1.jwt);

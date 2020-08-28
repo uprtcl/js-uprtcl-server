@@ -5,7 +5,8 @@ import {
   AccessConfig,
 } from './access.repository';
 import { PermissionType } from './access.schema';
-import { NOT_AUTHORIZED_MSG } from '../../utils';
+import { NOT_AUTHORIZED_MSG } from "../../utils";
+import { DgUpdate } from "../uprtcl/types";
 require('dotenv').config();
 
 export class AccessService {
@@ -210,4 +211,28 @@ export class AccessService {
 
     return this.accessRepo.addPermission(elementId, type, toUserId);
   }
+
+  async canAuthorizeProposal(
+    proposalUpdates: DgUpdate[],
+    userId: string
+  ): Promise<boolean> {
+    const authorizePromises = proposalUpdates.map(async update => {
+      const { perspective: { xid: perspectiveId } } = update;
+
+      return {
+        canAdmin: await this.accessRepo.can(perspectiveId, userId, PermissionType.Admin),
+        canWrite: await this.accessRepo.can(perspectiveId, userId, PermissionType.Write)
+      }
+    });
+
+    const authorizations = await Promise.all(authorizePromises);
+
+    const authorizedUpdates = authorizations.filter(auth => {
+      return auth.canAdmin || auth.canWrite;
+    });
+
+    return (authorizedUpdates.length == proposalUpdates.length);
+  }
+
 }
+
