@@ -210,11 +210,4 @@ export class AccessService {
 
     return this.accessRepo.addPermission(elementId, type, toUserId);
   }
-
-  // getDelegatingFrom
-  async getDelegatedFrom(
-    elementId: string    
-  ): Promise<string> {
-    return this.accessRepo.finDelegatedAccessFrom(elementId);
-  }
 }
