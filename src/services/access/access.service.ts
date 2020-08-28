@@ -247,5 +247,19 @@ export class AccessService {
     return this.accessRepo.addPermission(elementId, type, toUserId);
   }
 
+  async deletePermission(
+    elementId: string,
+    toUserId: string,
+    userId: string | null): Promise<void> {
+
+    if (userId == null) throw new Error('logged user not found');
+
+    if (!await this.accessRepo.can(elementId, userId, PermissionType.Admin)) {
+      throw new Error(NOT_AUTHORIZED_MSG);
+    }
+
+    return this.accessRepo.deletePermission(elementId, toUserId);
+  }
+
 }
 

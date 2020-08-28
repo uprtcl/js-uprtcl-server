@@ -188,6 +188,49 @@ export class AccessController {
       },
 
       {
+        path: "/uprtcl/1/permissions/:elementId/single/:userId",
+        method: "delete",
+        handler: [
+          checkJwt,
+          async (req: Request, res: Response) => {
+            let inputs: any = {
+              elementId: req.params.elementId, 
+              toUserId: req.params.userId,
+              userId: getUserFromReq(req)};
+
+            try {
+              await this.accessService.deletePermission(
+                inputs.elementId,
+                inputs.toUserId,
+                inputs.userId);
+
+              let result: PostResult = {
+                result: SUCCESS,
+                message: 'permission deleted',
+                elementIds: []
+              }
+
+              console.log('[ACCESS CONTROLLER] deletePermission', 
+                JSON.stringify(inputs));
+  
+              res.status(200).send(result);
+            } catch (error) {
+              console.log('[ACCESS CONTROLLER] ERROR deletePermission', 
+                JSON.stringify(inputs), {error});
+
+              let result: PostResult = {
+                result: ERROR,
+                message: error.message,
+                elementIds: []
+              }
+
+              res.status(200).send(result);
+            }
+          }
+        ]
+      },
+
+      {
         path: "/uprtcl/1/permissions/:elementId/public",
         method: "put",
         handler: [
