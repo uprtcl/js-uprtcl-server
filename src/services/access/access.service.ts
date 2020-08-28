@@ -3,6 +3,7 @@ import {
   PermissionConfig,
   AccessRepository,
   AccessConfig,
+  AccessConfigInherited,
 } from './access.repository';
 import { PermissionType } from './access.schema';
 import { NOT_AUTHORIZED_MSG } from "../../utils";
@@ -91,6 +92,27 @@ export class AccessService {
     elementId: string
   ): Promise<AccessConfig> {
     return this.accessRepo.getAccessConfigOfElement(elementId);
+  }
+
+  async getAccessConfigEffective(elementId: string, userId: string): Promise<AccessConfigInherited> {
+    const accessConfig = await this.getAccessConfig(elementId)
+    
+    let permissionsElement: string = elementId;
+    if (accessConfig.delegate) {
+      if (!accessConfig.finDelegatedTo) throw new Error(`undefined delegateTo but accessConfig delegate of ${elementId} is true`);
+      permissionsElement = accessConfig.finDelegatedTo;
+    }
+
+    const customPermissions = await this.getPermissionsConfigOfElement(elementId, userId);
+    const effectivePermissions = await this.getPermissionsConfigOfElement(permissionsElement, userId);
+    
+    return {
+      delegate: accessConfig.delegate,
+      delegateTo: accessConfig.delegateTo || null,
+      finDelegatedTo: accessConfig.finDelegatedTo || null,
+      customPermissions: customPermissions,
+      effectivePermissions: effectivePermissions,
+    }
   }
 
   async getPermissionsConfigOfElement(elementId: string, userId: string) {
@@ -232,6 +254,20 @@ export class AccessService {
     });
 
     return (authorizedUpdates.length == proposalUpdates.length);
+  }
+
+  async deletePermission(
+    elementId: string,
+    toUserId: string,
+    userId: string | null): Promise<void> {
+
+    if (userId == null) throw new Error('logged user not found');
+
+    if (!await this.accessRepo.can(elementId, userId, PermissionType.Admin)) {
+      throw new Error(NOT_AUTHORIZED_MSG);
+    }
+
+    return this.accessRepo.deletePermission(elementId, toUserId);
   }
 
 }

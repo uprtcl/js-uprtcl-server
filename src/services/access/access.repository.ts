@@ -24,6 +24,14 @@ export interface AccessConfig {
   permissionsUid?: string
 }
 
+export interface AccessConfigInherited {
+  delegate: boolean,
+  delegateTo?: string | null,
+  finDelegatedTo?: string | null,
+  effectivePermissions: PermissionConfig,
+  customPermissions?: PermissionConfig
+}
+
 export class AccessRepository {
   constructor(
     protected db: DGraphService,

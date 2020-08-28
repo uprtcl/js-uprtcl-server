@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { checkJwt } from "../../middleware/jwtCheck";
 import { AccessService } from "./access.service";
 import { getUserFromReq, SUCCESS, ERROR, PostResult, GetResult } from "../../utils";
-import { PermissionConfig } from "./access.repository";
+import { AccessConfigInherited } from "./access.repository";
 
 export class AccessController {
 
@@ -74,14 +74,14 @@ export class AccessController {
               userId: getUserFromReq(req)};
 
             try {
-              const permissions = await this.accessService.getPermissionsConfigOfElement(
+              const permissions = await this.accessService.getAccessConfigEffective(
                 inputs.elementId,
                 inputs.userId);
   
               console.log('[ACCESS CONTROLLER] getPermissionsConfigOfElement', 
                 JSON.stringify(inputs));
   
-              let result: GetResult<PermissionConfig> = {
+              let result: GetResult<AccessConfigInherited> = {
                 result: SUCCESS,
                 message: '',
                 data: permissions
@@ -138,6 +138,49 @@ export class AccessController {
               res.status(200).send(result);
             } catch (error) {
               console.log('[ACCESS CONTROLLER] ERROR addPermission', 
+                JSON.stringify(inputs), {error});
+
+              let result: PostResult = {
+                result: ERROR,
+                message: error.message,
+                elementIds: []
+              }
+
+              res.status(200).send(result);
+            }
+          }
+        ]
+      },
+
+      {
+        path: "/uprtcl/1/permissions/:elementId/single/:userId",
+        method: "delete",
+        handler: [
+          checkJwt,
+          async (req: Request, res: Response) => {
+            let inputs: any = {
+              elementId: req.params.elementId, 
+              toUserId: req.params.userId,
+              userId: getUserFromReq(req)};
+
+            try {
+              await this.accessService.deletePermission(
+                inputs.elementId,
+                inputs.toUserId,
+                inputs.userId);
+
+              let result: PostResult = {
+                result: SUCCESS,
+                message: 'permission deleted',
+                elementIds: []
+              }
+
+              console.log('[ACCESS CONTROLLER] deletePermission', 
+                JSON.stringify(inputs));
+  
+              res.status(200).send(result);
+            } catch (error) {
+              console.log('[ACCESS CONTROLLER] ERROR deletePermission', 
                 JSON.stringify(inputs), {error});
 
               let result: PostResult = {
