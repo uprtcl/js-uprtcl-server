@@ -118,8 +118,13 @@ export class AccessRepository {
     const req = new dgraph.Request();
 
     /** commit object might exist because of parallel update head call */
-    let query = `\naccessConfig as var(func: eq(xid, ${elementId}))`;
-    let nquads = `uid(accessConfig) <permissions> "${permUid}" .`;
+    let query = `\nq(func: eq(xid, ${elementId})){
+                    a as accessConfig
+                  }
+
+                  permissions as var(func: uid("${permUid}"))
+                  `;
+    let nquads = `uid(a) <permissions> uid(permissions) .`;
 
     req.setQuery(`query{${query}}`);
     mu.setSetNquads(nquads);
@@ -658,30 +663,6 @@ export class AccessRepository {
     if(!finDelegatedToAccessConfig.permissionsUid) 
       throw new Error (`Can not clone permissions. Permissions are missed for element ${finDelegatedTo}`);
 
-    await this.setAccessConfigOf(elementId, finDelegatedToAccessConfig.permissionsUid);
+    await this.setPermissionsConfigOf(elementId, finDelegatedToAccessConfig.permissionsUid);
   }
-
-  // async finDelegatedAccessFrom(elementId: string): Promise<string> {
-  //   await this.db.ready();
-
-  //   const query = `
-  //     query(func: eq(xid, ${elementId}))
-  //     @recurse {
-  //       perspective: ~accessConfig
-  //       accessConfig: ~delegateTo        
-  //       final as finDelegatedTo        
-  //     }
-
-  //     final(func: uid(final)) {
-  //       xid
-  //     } 
-  //   `;
-
-  //   let result = await this.db.client.newTxn().query(`query{${query}}`);  
-  //   const json = result.getJson();
-
-  //   const { final } = json;
-
-  //   return final[0].xid;
-  // }
 }
