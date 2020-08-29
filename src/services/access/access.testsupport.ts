@@ -43,6 +43,26 @@ export const finDelegatedChildNodes = async (elementId: string) => {
   );
 };
 
+export const getSecondLayerFinDelegatedTo = async (elementId: string) => {
+  const elementIdAccessConfig = await accessRepo.getAccessConfigOfElement(
+                                  elementId
+                                );
+  
+  if(!elementIdAccessConfig.delegateTo) throw new Error("delegateTo not found");
+
+  const delegateToAccessConfig = await accessRepo.getAccessConfigOfElement(
+                                  elementIdAccessConfig.delegateTo
+                                 );
+                                
+  if(!delegateToAccessConfig.finDelegatedTo) throw new Error("finDelegatedTo not found");
+
+  return delegateToAccessConfig.finDelegatedTo;
+};
+
+export const getAccessConfigOfElement = async (elementId: string) => {
+  return await accessRepo.getAccessConfigOfElement(elementId);
+};
+
 export const addPermission = async (
   elementId: string,
   userToAddId: string,

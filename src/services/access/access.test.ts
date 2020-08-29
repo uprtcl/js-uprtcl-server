@@ -1,12 +1,15 @@
-import { toBeValidCid, ERROR, SUCCESS } from '../../utils';
+import { toBeValidCid, SUCCESS } from '../../utils';
 import {     
     delegatePermissionsTo,
-    finDelegatedChildNodes
+    finDelegatedChildNodes,
+    getSecondLayerFinDelegatedTo,
+    getAccessConfigOfElement
 } from './access.testsupport';
 import { createUser } from '../user/user.testsupport';
-import { createCommitAndData, 
-         createPerspective         
-       } from '../uprtcl/uprtcl.testsupport';
+import {
+    createCommitAndData, 
+    createPerspective
+} from '../uprtcl/uprtcl.testsupport';
 
 describe('create perspectives with its parentIds', () => {
     expect.extend({ toBeValidCid });  
@@ -19,7 +22,7 @@ describe('create perspectives with its parentIds', () => {
     let perspectiveB = '';
     let perspectiveC1 = '';        
    
-    it('should update all finDelegatedTo of all children', async () => {
+    it('should update all finDelegatedTo of all children and clone permissions', async () => {
         user1 = await createUser('seed1');        
 
         const commitA = await createCommitAndData('perspective A', user1.jwt);
@@ -72,14 +75,55 @@ describe('create perspectives with its parentIds', () => {
         expect(Array.from(new Set(childrenB))).toHaveLength(1);
         expect(Array.from(new Set(childrenB))).toEqual([perspectiveA]);
 
-        // Removes perspectiveA from parentId of perspectiveB
+        /* 
+           Check if permissions were properly cloned.
+           In order to do that, check permissions of the 
+           finDelegatedTo of the delegato element of 
+           perspectiveB which is perspectiveA 
+        */
+
+        const finDelegatedTo = await getSecondLayerFinDelegatedTo(perspectiveB);
+        
+        // Which result should be the perspectiveA
+        expect(finDelegatedTo).toEqual(perspectiveA);             
+
+        /*
+            Permissions after passing from 
+            true to false must be equals to 
+            the permissions of the finDelegateTo of
+            the delegateTo of the current element.
+            {
+                currentElement: {
+                    accessConfig: {
+                        delegateTo: {
+                            accessConfig: {
+                                finDelegatedTo: {
+                                    permissions: {
+                                        uid
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        */
+
+        // Then, get the permissions of the above obtained element
+        const perspPermissions = await getAccessConfigOfElement(finDelegatedTo);          
+                
+        // From true to false
         const delegateToB = await delegatePermissionsTo(
             perspectiveB, 
             false, 
             undefined,
             user1.jwt
         );
-        expect(delegateToB.result).toEqual(SUCCESS);
+        expect(delegateToB.result).toEqual(SUCCESS);    
+
+        const perspBElementPermissions = await getAccessConfigOfElement(perspectiveB);     
+
+        expect(perspBElementPermissions.permissionsUid).toEqual(perspPermissions.permissionsUid);
 
         // Checks all finDelegatedTo of perspectiveB children.
         childrenB = await finDelegatedChildNodes(perspectiveB);                        
@@ -87,7 +131,7 @@ describe('create perspectives with its parentIds', () => {
         expect(Array.from(new Set(childrenB))).toHaveLength(1);
         expect(Array.from(new Set(childrenB))).toEqual([perspectiveB]);
 
-        // Returns perspectiveA as parentId of perspectiveB
+        // From false to true
         const delegateToA = await delegatePermissionsTo(
             perspectiveB,
             true, 
@@ -98,8 +142,33 @@ describe('create perspectives with its parentIds', () => {
         expect(delegateToA.result).toEqual(SUCCESS);        
 
         childrenB = await finDelegatedChildNodes(perspectiveB);                        
-
+        
+        // Checks child nodes
         expect(Array.from(new Set(childrenB))).toHaveLength(1);
         expect(Array.from(new Set(childrenB))).toEqual([perspectiveA]);
+
+        //------------------------------
+
+        // Different scenario of true to false and cloning.    
+       const finDelegatedToD1 = await getSecondLayerFinDelegatedTo(perspectiveD1);
+        
+       // Which result should be the perspectiveA
+       expect(finDelegatedToD1).toEqual(perspectiveA);             
+
+       // Then, get the permissions of the above obtained element
+       const rsD1Permissions = await getAccessConfigOfElement(finDelegatedToD1);          
+                
+       // From true to false
+       const delegaToD1 = await delegatePermissionsTo(
+           perspectiveD1, 
+           false, 
+           undefined,
+           user1.jwt
+       );
+       expect(delegaToD1.result).toEqual(SUCCESS);    
+
+       const D1Permissions = await getAccessConfigOfElement(perspectiveD1);     
+
+       expect(D1Permissions.permissionsUid).toEqual(rsD1Permissions.permissionsUid);
     });    
 });

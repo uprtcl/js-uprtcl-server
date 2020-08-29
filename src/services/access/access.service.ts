@@ -155,7 +155,11 @@ export class AccessService {
 
       // Verifies that the elementId brings with itself the `delegateTo` property to continue.
       if(!elementIdAccessConfig.delegateTo) 
-        throw new Error(`Can not clone permissions from undefined delegateTo property of the element ${elementId}`);
+        throw new Error(`
+          Can not clone permissions from undefined
+          delegateTo property of the element 
+          ${elementId}
+        `);
 
       // Gets the accessConfig of the elementId `delegateTo` property.
       const delegateToAccessConfig = await this.accessRepo.getAccessConfigOfElement(
@@ -164,10 +168,17 @@ export class AccessService {
 
       // Verifies that the delegateTo element brings with itself the `finalDelegatedTo` property.      
       if(!delegateToAccessConfig.finDelegatedTo)
-        throw new Error(`Can not clone permissions. Undefined finDelegated for ID ${elementIdAccessConfig.delegateTo}`);      
+        throw new Error(`
+          Can not clone permissions. 
+          Undefined finDelegated for ID 
+          ${elementIdAccessConfig.delegateTo}
+        `);      
 
-      // Clone permissions from the `finalDelegatedTo` element obtained to the `elementId` element.
-      await this.accessRepo.clonePermissions(elementId, delegateToAccessConfig.finDelegatedTo);
+      // Clone permissions from the `finalDelegatedTo` element obtained to the accessConfig  of the `elementId` element.
+      await this.accessRepo.clonePermissions(
+        elementId, 
+        delegateToAccessConfig.finDelegatedTo
+      );
     }
 
     await this.accessRepo.toggleDelegate(
