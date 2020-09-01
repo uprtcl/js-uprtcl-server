@@ -579,6 +579,9 @@ export class AccessRepository {
   ): Promise<void> {
     await this.db.ready();
 
+    /** make sure creatorId exist */
+    await this.userRepo.upsertProfile(toUserId);
+
     let ndelquads: string = '';
     let query = `
     var(func: eq(xid, ${elementId})) {
