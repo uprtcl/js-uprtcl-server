@@ -11,7 +11,7 @@ import {
     createPerspective
 } from '../uprtcl/uprtcl.testsupport';
 
-describe('create perspectives with its parentIds', () => {
+describe('delegate behavior', () => {
     expect.extend({ toBeValidCid });  
     
     const creatorId = 'did:method:12345';    
