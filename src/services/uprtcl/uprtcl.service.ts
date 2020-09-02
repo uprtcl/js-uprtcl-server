@@ -100,11 +100,8 @@ export class UprtclService {
     }
 
     if (perspectiveData.details) {
-      await this.updatePerspective(
-        perspId,
-        perspectiveData.details,
-        loggedUserId
-      );
+      /** Bypass update perspective ACL because this is perspective inception */
+      await this.uprtclRepo.updatePerspective(perspId, perspectiveData.details);
     }
 
     return perspId;
@@ -184,8 +181,8 @@ export class UprtclService {
     proposalUpdates: DgUpdate[],
     loggedUserId: string
   ): Promise<boolean> {
-
-    if (loggedUserId === null) throw new Error("Anonymous user. Can't authorize a proposal");           
+    if (loggedUserId === null)
+      throw new Error("Anonymous user. Can't authorize a proposal");
 
     return this.access.canAuthorizeProposal(proposalUpdates, loggedUserId);
   }

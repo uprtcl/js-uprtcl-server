@@ -81,6 +81,8 @@
       "json",
       "node"
     ],
-    "modulePathIgnorePatterns": ["dist"]
+    "modulePathIgnorePatterns": [
+      "dist"
+    ]
   }
 }
