@@ -32,6 +32,12 @@ export interface AccessConfigInherited {
   customPermissions?: PermissionConfig
 }
 
+export interface UserPermissions {
+  canRead: boolean,
+  canWrite: boolean,
+  canAdmin: boolean
+}
+
 export class AccessRepository {
   constructor(
     protected db: DGraphService,

@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { checkJwt } from "../../middleware/jwtCheck";
 import { AccessService } from "./access.service";
 import { getUserFromReq, SUCCESS, ERROR, PostResult, GetResult } from "../../utils";
-import { AccessConfigInherited } from "./access.repository";
+import { AccessConfigInherited, UserPermissions } from "./access.repository";
 
 export class AccessController {
 
@@ -64,6 +64,50 @@ export class AccessController {
       },
       
       {
+        path: "/uprtcl/1/permissions/:elementId/can",
+        method: "get",
+        handler: [
+          checkJwt,
+          async (req: Request, res: Response) => {
+            let inputs: any = {
+              elementId: req.params.elementId, 
+              userId: getUserFromReq(req)};
+
+            try {
+              const permissions = await this.accessService.getUserPermissions(
+                inputs.elementId,
+                inputs.userId);
+  
+              console.log('[ACCESS CONTROLLER] getUserPermissions', 
+                JSON.stringify(inputs));
+  
+              let result: GetResult<UserPermissions> = {
+                result: SUCCESS,
+                message: '',
+                data: permissions
+              }
+
+              console.log('[ACCESS CONTROLLER] getUserPermissions', 
+                { inputs: JSON.stringify(inputs), result: JSON.stringify(result) });
+  
+              res.status(200).send(result);
+            } catch (error) {
+              console.log('[ACCESS CONTROLLER] ERROR getUserPermissions', 
+                JSON.stringify(inputs));
+  
+              let result: PostResult = {
+                result: ERROR,
+                message: error.message,
+                elementIds: []
+              }
+  
+              res.status(200).send(result);
+            }            
+          }
+        ]
+      },
+
+      {
         path: "/uprtcl/1/permissions/:elementId",
         method: "get",
         handler: [
@@ -78,7 +122,7 @@ export class AccessController {
                 inputs.elementId,
                 inputs.userId);
   
-              console.log('[ACCESS CONTROLLER] getPermissionsConfigOfElement', 
+              console.log('[ACCESS CONTROLLER] getAccessConfigEffective', 
                 JSON.stringify(inputs));
   
               let result: GetResult<AccessConfigInherited> = {
@@ -87,12 +131,12 @@ export class AccessController {
                 data: permissions
               }
 
-              console.log('[ACCESS CONTROLLER] getPermissionsConfigOfElement', 
+              console.log('[ACCESS CONTROLLER] getAccessConfigEffective', 
                 { inputs: JSON.stringify(inputs), result: JSON.stringify(result) });
   
               res.status(200).send(result);
             } catch (error) {
-              console.log('[ACCESS CONTROLLER] ERROR getPermissionsConfigOfElement', 
+              console.log('[ACCESS CONTROLLER] ERROR getAccessConfigEffective', 
                 JSON.stringify(inputs));
   
               let result: PostResult = {

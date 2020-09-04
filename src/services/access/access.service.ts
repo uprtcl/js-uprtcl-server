@@ -4,6 +4,7 @@ import {
   AccessRepository,
   AccessConfig,
   AccessConfigInherited,
+  UserPermissions,
 } from './access.repository';
 import { PermissionType } from './access.schema';
 import { NOT_AUTHORIZED_MSG } from "../../utils";
@@ -107,8 +108,8 @@ export class AccessService {
       permissionsElement = accessConfig.finDelegatedTo;
     }
 
-    const customPermissions = await this.getPermissionsConfigOfElement(elementId, userId);
-    const effectivePermissions = await this.getPermissionsConfigOfElement(permissionsElement, userId);
+    const customPermissions = await this.getPermissionsConfigOfElement(elementId);
+    const effectivePermissions = await this.getPermissionsConfigOfElement(permissionsElement);
     
     return {
       delegate: accessConfig.delegate,
@@ -119,7 +120,36 @@ export class AccessService {
     }
   }
 
-  async getPermissionsConfigOfElement(elementId: string, userId: string) {
+  async getUserPermissions(elementId: string, userId: string): Promise<UserPermissions> {
+    let canRead: boolean = false;
+    let canWrite: boolean = false;
+    let canAdmin: boolean = false;
+
+    if(await this.accessRepo.can(elementId, userId, PermissionType.Admin)) {
+      canRead = true;
+      canWrite = true;
+      canAdmin = true;
+    }
+
+    else if(await this.accessRepo.can(elementId, userId, PermissionType.Write)) {
+      canRead = true;
+      canWrite = true;
+    }
+
+    else if(await this.accessRepo.can(elementId, userId, PermissionType.Read)) {
+      canRead = true;
+    }
+
+    const userPermissions: UserPermissions = {
+      canRead,
+      canWrite,
+      canAdmin,
+    }
+
+    return userPermissions;
+  }
+
+  async getPermissionsConfigOfElement(elementId: string) {
     const { permissionsUid } = await this.accessRepo.getAccessConfigOfElement(
       elementId
     );
