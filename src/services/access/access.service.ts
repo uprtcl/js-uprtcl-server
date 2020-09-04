@@ -95,6 +95,10 @@ export class AccessService {
   }
 
   async getAccessConfigEffective(elementId: string, userId: string): Promise<AccessConfigInherited> {
+    if (!await this.accessRepo.can(elementId, userId, PermissionType.Admin)) {
+      throw new Error(NOT_AUTHORIZED_MSG);
+    }
+    
     const accessConfig = await this.getAccessConfig(elementId)
     
     let permissionsElement: string = elementId;
