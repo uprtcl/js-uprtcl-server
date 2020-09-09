@@ -101,7 +101,7 @@ export class UprtclService {
 
     if (perspectiveData.details) {
       /** Bypass update perspective ACL because this is perspective inception */
-      await this.uprtclRepo.updatePerspective(perspId, perspectiveData.details);
+      await this.updatePerspective(perspId, perspectiveData.details, loggedUserId);
     }
 
     return perspId;
@@ -125,7 +125,34 @@ export class UprtclService {
       ))
     )
       throw new Error(NOT_AUTHORIZED_MSG);
-    await this.uprtclRepo.updatePerspective(perspectiveId, details);
+
+    const oldData = await this.getPerspectiveDetails(perspectiveId, loggedUserId);
+    let addedChildren: Array<string> = [];
+    let removedChildren: Array<string> = [];
+
+    if(oldData.headId !== undefined && details.headId) {      
+      const currentChildren = await this.uprtclRepo.getChildren(oldData.headId);
+      const updatedChildren = await this.uprtclRepo.getChildren(details.headId);      
+
+      let difference = currentChildren
+                       .filter(oldChild => !updatedChildren.includes(oldChild))
+                       .concat(updatedChildren.filter(newChild => !currentChildren.includes(newChild)));
+
+      difference.map(child => {
+        if(currentChildren.includes(child)) {
+          removedChildren.push(child);
+        }
+
+        if(updatedChildren.includes(child)) {
+          addedChildren.push(child);
+        }
+      })                          
+    }
+
+    await this.uprtclRepo.updatePerspective(perspectiveId, details, {
+      addedChildren: addedChildren,
+      removedChildren: removedChildren
+    });
   }
 
   async deletePerspective(
