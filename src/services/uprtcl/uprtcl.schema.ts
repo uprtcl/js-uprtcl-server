@@ -52,7 +52,7 @@ creator: uid .
 creators: [uid] .
 data: uid .
 proof: uid .
-ecosystem: uid .
+ecosystem: [uid] .
 deleted: bool @index(bool) . 
 
 `;
