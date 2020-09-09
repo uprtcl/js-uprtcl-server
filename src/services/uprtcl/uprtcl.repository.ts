@@ -9,8 +9,8 @@ import {
   Commit,
   Secured,
   Proof,
-  getAuthority,
-  ecosystem,
+  getAuthority,  
+  EcosystemUpdates,
 } from './types';
 import {
   PERSPECTIVE_SCHEMA_NAME,
@@ -211,7 +211,7 @@ export class UprtclRepository {
   async updatePerspective(
     perspectiveId: string,
     details: PerspectiveDetails,
-    ecosystem: ecosystem
+    ecosystem: EcosystemUpdates
   ): Promise<void> {
     await this.db.ready();
 
@@ -255,7 +255,7 @@ export class UprtclRepository {
         `\nuid(perspective) <context> "${details.context}" .`
       );
 
-    //Updates the ecosystem
+    // Updates the ecosystem
     ecosystem.addedChildren.map((addedChild, i) => {
       query = query.concat(`\nadd_ecosystem${i} as var(func: eq(xid, ${addedChild}))`);
       nquads = nquads.concat(`\nuid(perspective) <ecosystem> uid(add_ecosystem${i}) .`);
@@ -477,29 +477,6 @@ export class UprtclRepository {
     };
   }
 
-  async getChildren(headId: string): Promise<string[]> {        
-    const query = `query {
-      element(func: eq(xid, "${headId}")) {                      
-        data {
-          jsonString
-        }            
-      }
-    }`;
-  
-    const txn = await this.db.client.newTxn().query(query);
-    const result = txn.getJson().element;    
-
-    if(result.length === 0) {
-      return [];
-    }
-
-    const { data: { jsonString } } = result[0];
-    const content = JSON.parse(jsonString);    
-
-    return (content.links) ? content.links :
-           (content.pages) ? content.pages : [];    
-  }
-
   async getCommit(commitId: string): Promise<Secured<Commit>> {
     await this.db.ready();
     const query = `query {
@@ -535,7 +512,9 @@ export class UprtclRepository {
     if (!dcommit.stored) new Error(`Commit with id ${commitId} not found`);
 
     const commit: Commit = {
-      creatorsIds: dcommit.creators.map((creator: any) => creator.did),
+      creatorsIds: dcommit.creators
+        ? dcommit.creators.map((creator: any) => creator.did)
+        : [],
       dataId: dcommit.data.xid,
       timestamp: dcommit.timextamp,
       message: dcommit.message,
