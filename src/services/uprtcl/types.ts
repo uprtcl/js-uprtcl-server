@@ -18,6 +18,11 @@ export interface Perspective {
   timestamp: number
 }
 
+export interface ecosystem {
+  addedChildren: Array<string>,
+  removedChildren: Array<string>
+}
+
 export const getAuthority = (perspective: Perspective): string => {
   return `${perspective.remote}:${perspective.path}`
 }
