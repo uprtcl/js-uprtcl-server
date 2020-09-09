@@ -10,6 +10,7 @@ import {
   Secured,
   Proof,
   getAuthority,
+  ecosystem,
 } from './types';
 import {
   PERSPECTIVE_SCHEMA_NAME,
@@ -209,7 +210,8 @@ export class UprtclRepository {
 
   async updatePerspective(
     perspectiveId: string,
-    details: PerspectiveDetails
+    details: PerspectiveDetails,
+    ecosystem: ecosystem
   ): Promise<void> {
     await this.db.ready();
 
@@ -236,9 +238,10 @@ export class UprtclRepository {
     if (details.headId !== undefined)
       query = query.concat(`\nhead as var(func: eq(xid, "${details.headId}"))`);
 
-    req.setQuery(`query{${query}}`);
     let nquads = '';
     nquads = nquads.concat(`\nuid(perspective) <xid> "${perspectiveId}" .`);
+
+    let delNquads = '';
 
     if (details.headId !== undefined) {
       /** set xid in case the perspective did not existed */
@@ -252,10 +255,24 @@ export class UprtclRepository {
         `\nuid(perspective) <context> "${details.context}" .`
       );
 
+    //Updates the ecosystem
+    ecosystem.addedChildren.map((addedChild, i) => {
+      query = query.concat(`\nadd_ecosystem${i} as var(func: eq(xid, ${addedChild}))`);
+      nquads = nquads.concat(`\nuid(perspective) <ecosystem> uid(add_ecosystem${i}) .`);
+    });
+
+    ecosystem.removedChildren.map(async (removedChild, i) => {
+      query = query.concat(`\ndel_ecosystem${i} as var(func: eq(xid, ${removedChild}))`);
+      delNquads = delNquads.concat(`\nuid(perspective) <ecosystem> uid(del_ecosystem${i}) .`);
+    });
+
+    req.setQuery(`query{${query}}`);
     mu.setSetNquads(nquads);
+    mu.setDelNquads(delNquads);
     req.setMutationsList([mu]);
 
     let result = await this.db.callRequest(req);
+
     console.log(
       '[DGRAPH] updatePerspective',
       { query },
@@ -458,6 +475,29 @@ export class UprtclRepository {
       context: details.context,
       headId: details.head.xid,
     };
+  }
+
+  async getChildren(headId: string): Promise<string[]> {        
+    const query = `query {
+      element(func: eq(xid, "${headId}")) {                      
+        data {
+          jsonString
+        }            
+      }
+    }`;
+  
+    const txn = await this.db.client.newTxn().query(query);
+    const result = txn.getJson().element;    
+
+    if(result.length === 0) {
+      return [];
+    }
+
+    const { data: { jsonString } } = result[0];
+    const content = JSON.parse(jsonString);    
+
+    return (content.links) ? content.links :
+           (content.pages) ? content.pages : [];    
   }
 
   async getCommit(commitId: string): Promise<Secured<Commit>> {
