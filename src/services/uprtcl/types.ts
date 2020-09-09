@@ -18,7 +18,7 @@ export interface Perspective {
   timestamp: number
 }
 
-export interface ecosystem {
+export interface EcosystemUpdates {
   addedChildren: Array<string>,
   removedChildren: Array<string>
 }
