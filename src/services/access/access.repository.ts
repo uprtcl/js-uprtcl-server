@@ -195,6 +195,8 @@ export class AccessRepository {
           canAdmin @filter(eq(did, "${userId.toLowerCase()}")) {
             count(uid)
           }
+          publicWrite
+          publicRead
         }
       }
     }`;
@@ -209,38 +211,24 @@ export class AccessRepository {
         );
       }
       
-      /** apply the logic canAdmin > canWrite > canRead */
-      if(json.element[0].accessConfig.permissions.canAdmin
-        && json.element[0].accessConfig.permissions.canAdmin[0].count > 0) {
-        return {
-          canRead: true,
-          canWrite: true,
-          canAdmin: true
-        }
-      }
-  
-      if(json.element[0].accessConfig.permissions.canWrite
-        && json.element[0].accessConfig.permissions.canWrite[0].count > 0) {
-        return {
-          canRead: true,
-          canWrite: true,
-          canAdmin: false
-        }
-      }
-      if(json.element[0].accessConfig.permissions.canRead
-        && json.element[0].accessConfig.permissions.canRead[0].count > 0) {
-        return {
-          canRead: true,
-          canWrite: false,
-          canAdmin: false
-        }
-      }
+      const canReadUser:boolean = json.element[0].accessConfig.permissions.canRead !== undefined
+        && json.element[0].accessConfig.permissions.canRead[0].count > 0;
       
-      /** if no permissions assigned, the user does not have permissions */
+      const canWriteUser:boolean = json.element[0].accessConfig.permissions.canWrite !== undefined
+        && json.element[0].accessConfig.permissions.canWrite[0].count > 0;
+      
+      const canAdminUser:boolean = json.element[0].accessConfig.permissions.canAdmin !== undefined
+        && json.element[0].accessConfig.permissions.canAdmin[0].count > 0;
+      
+      const publicReadUser:boolean = json.element[0].accessConfig.permissions.publicRead;
+      
+      const publicWriteUser:boolean = json.element[0].accessConfig.permissions.publicWrite;
+      
+      /** apply the logic canAdmin > canWrite > canRead */
       return {
-        canRead: false,
-        canWrite: false,
-        canAdmin: false
+        canRead: publicReadUser || publicWriteUser || canReadUser || canWriteUser || canAdminUser,
+        canWrite: publicWriteUser || canWriteUser || canAdminUser,
+        canAdmin: canAdminUser
       };
 
     } else {

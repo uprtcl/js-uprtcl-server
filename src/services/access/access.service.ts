@@ -212,17 +212,6 @@ export class AccessService {
       permissionsElement = accessConfig.finDelegatedTo;
     }
 
-    if (await this.accessRepo.isPublic(permissionsElement, type)) {
-      return true;
-    }
-
-    if (
-      type === PermissionType.Read
-      && await this.accessRepo.isPublic(permissionsElement, PermissionType.Write)
-    ) {
-      return true;
-    }
-
     if (userId != null) {
       return this.accessRepo.can(permissionsElement, userId, type);
     }
