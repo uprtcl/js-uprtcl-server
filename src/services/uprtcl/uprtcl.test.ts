@@ -6,6 +6,8 @@ import {
   findPerspectives,
   deletePerspective,
   createCommitAndData,
+  addPagesOrLinks,
+  getEcosystem
 } from './uprtcl.testsupport';
 import { createUser } from '../user/user.testsupport';
 import {
@@ -17,7 +19,7 @@ import { PermissionType } from '../access/access.schema';
 describe('routes', () => {
   expect.extend({ toBeValidCid });
 
-  test('CRUD private perspectives', async (done) => {
+  test('CRUD private perspectives', async () => {
     const creatorId = 'did:method:12345';
     const name = 'test';
     const context = 'wikipedia.barack_obama';
@@ -25,7 +27,7 @@ describe('routes', () => {
     const user1 = await createUser('seed1');
     const user2 = await createUser('seed2');
 
-    const commit1Id = await createCommitAndData('text 123456', user1.jwt);
+    const commit1Id = await createCommitAndData('text 123456', false, user1.jwt);
     const perspectiveId = await createPerspective(
       creatorId,
       846851,
@@ -41,7 +43,7 @@ describe('routes', () => {
     expect(result2.data.headId).toEqual(commit1Id);
 
     /** set head */
-    const commit2Id = await createCommitAndData('text 98765', user1.jwt);
+    const commit2Id = await createCommitAndData('text 98765', false, user1.jwt);
 
     let result5 = await updatePerspective(
       perspectiveId,
@@ -106,7 +108,7 @@ describe('routes', () => {
     expect(result28.data.headId).toEqual(commit2Id);
 
     /** update head */
-    const commit3Id = await createCommitAndData('text 4745729', user1.jwt);
+    const commit3Id = await createCommitAndData('text 4745729', false, user1.jwt);
 
     let result7 = await updatePerspective(
       perspectiveId,
@@ -162,7 +164,7 @@ describe('routes', () => {
     expect(result31.data.name).toEqual(name);
 
     /** set public write */
-    const commit4Id = await createCommitAndData('text 47ssas45729', user1.jwt);
+    const commit4Id = await createCommitAndData('text 47ssas45729', false, user1.jwt);
 
     let result14 = await updatePerspective(
       perspectiveId,
@@ -190,7 +192,222 @@ describe('routes', () => {
     let result32 = await getPerspectiveDetails(perspectiveId, '');
     expect(result32.data.headId).toEqual(commit4Id);
 
-    /** remove public permissions */
+    /** update ecosystem */
+    // Add links or pages to a perspective
+
+      // Create perspective head with empty space      
+      const commitIdBase = await createCommitAndData('base space', true, user1.jwt);
+      const mainPerspective = await createPerspective(
+        creatorId,
+        556874,
+        user1.jwt,
+        commitIdBase
+      );
+
+      // Create page1 
+      const page1Commit = await createCommitAndData('new page', false, user1.jwt);
+      const page1Perspective = await createPerspective(
+        creatorId,
+        879456,
+        user1.jwt,
+        page1Commit
+      );
+      
+      // Add parent Id to the new data head
+      const newDataCommit1 = await addPagesOrLinks(
+        [page1Perspective], 
+        true, 
+        [commitIdBase],
+        user1.jwt
+      );
+
+      // Update perspective head with new data, linking new page.
+      const updatedPerspective1 = await updatePerspective(
+        mainPerspective,
+        {
+          headId: newDataCommit1,
+          context: context,
+          name: name
+        },
+        user1.jwt
+      );      
+
+      // Add one more page
+      const page2Commit = await createCommitAndData('new page', false, user1.jwt);
+      const page2Perspective = await createPerspective(
+        creatorId,
+        333548,
+        user1.jwt,
+        page2Commit
+      );
+
+      const newDataCommit2 = await addPagesOrLinks(
+        [page1Perspective, page2Perspective], 
+        true, 
+        [newDataCommit1],
+        user1.jwt
+      );
+
+      const updatedPerspective2 = await updatePerspective(
+        mainPerspective,
+        {
+          headId: newDataCommit2,
+          context: context,
+          name: name
+        },
+        user1.jwt
+      );      
+      // ----- Finished adding the additional page. ------ //      
+
+      // Add a link to page 1
+      const link1Commit = await createCommitAndData('new link', false, user1.jwt);
+      const link1Perspecitve = await createPerspective(
+        creatorId,
+        998745,
+        user1.jwt,
+        link1Commit
+      );
+
+      const newDataCommit3 = await addPagesOrLinks(
+        [link1Perspecitve],
+        false,
+        [page1Commit],
+        user1.jwt
+      );
+
+      const updatedPerspective3 = await updatePerspective(
+        page1Perspective,
+        {
+          headId: newDataCommit3,
+          context: context,
+          name:name
+        },
+        user1.jwt
+      );
+      // ----- Finsihed adding an aditional link to page1 ------ //
+
+      // Add 2 links to page 2
+      const link2Commit = await createCommitAndData('new link', false, user1.jwt);
+      const link2Perspective = await createPerspective(
+        creatorId,
+        132564,
+        user1.jwt,
+        link2Commit
+      );
+
+      const newDataCommit4 = await addPagesOrLinks(
+        [link2Perspective],
+        false,
+        [page2Commit],
+        user1.jwt
+      );
+
+      const updatedPerspective4 = await updatePerspective(
+        page2Perspective,
+        {
+          headId: newDataCommit4,
+          context: context,
+          name: name
+        },
+        user1.jwt
+      )
+
+      const link3Commit = await createCommitAndData('new link', false, user1.jwt);
+      const link3Perspective = await createPerspective(
+        creatorId,
+        884565,
+        user1.jwt,
+        link3Commit
+      );
+
+      const newDataCommit5 = await addPagesOrLinks(
+        [link2Perspective, link3Perspective],
+        false,
+        [newDataCommit4],
+        user1.jwt
+      );
+
+      const updatedPerspective5 = await updatePerspective(
+        page2Perspective,
+        {
+          headId: newDataCommit5,
+          context: context,
+          name: name
+        },
+        user1.jwt
+      );
+      // ----- Finished adding 2 additional links to page 2 ---- //
+
+      // Add another page to update main perspective
+      const page3Commit = await createCommitAndData('new page', false, user1.jwt);
+      const page3Perspective = await createPerspective(
+        creatorId,
+        445648,
+        user1.jwt,
+        page3Commit
+      );
+      
+      // Add parent Id to the new data head
+      const newDataCommit6 = await addPagesOrLinks(
+        [page1Perspective, page2Perspective, page3Perspective], 
+        true, 
+        [newDataCommit2],
+        user1.jwt
+      );
+
+      // Update perspective head with new data, linking new page.
+      const updatedPerspective6 = await updatePerspective(
+        mainPerspective,
+        {
+          headId: newDataCommit6,
+          context: context,
+          name: name
+        },
+        user1.jwt
+      );      
+
+      // Should point to itself
+      const eco = await getEcosystem(mainPerspective);
+      expect(eco[0]).toEqual(mainPerspective);
+
+      // Should have all element IDs in the returning array
+      expect(eco).toEqual([
+        mainPerspective,
+        page1Perspective,
+        page2Perspective,
+        link1Perspecitve,
+        link2Perspective,
+        link3Perspective,
+        page3Perspective
+      ]);
+
+      // Should delete a famility if an intermediate parent node is deleted            
+      const newDataCommit7 = await addPagesOrLinks(
+        [page1Perspective, page3Perspective], 
+        true, 
+        [newDataCommit6],
+        user1.jwt
+      );
+      
+      const updatedPerspective7 = await updatePerspective(
+        mainPerspective,
+        {
+          headId: newDataCommit7,
+          context: context,
+          name: name
+        },
+        user1.jwt
+      );      
+
+      const eco1 = await getEcosystem(mainPerspective);
+      expect(eco1).toEqual([
+        mainPerspective,
+        page1Perspective,
+        link1Perspecitve,
+        page3Perspective
+      ]);
+
+    // /** remove public permissions */
     let result20 = await setPublicPermission(
       perspectiveId,
       PermissionType.Write,
@@ -244,7 +461,6 @@ describe('routes', () => {
     let result42 = await deletePerspective(perspectiveId, user1.jwt);
     expect(result42.result).toEqual(SUCCESS);
 
-    done();
   });
 
   test('CRUD private perspective inherited', async (done) => {
@@ -253,7 +469,7 @@ describe('routes', () => {
     let user1 = await createUser('seed3');
     let user2 = await createUser('seed4');
 
-    const commit1Id = await createCommitAndData('text 1234cddc56', user1.jwt);
+    const commit1Id = await createCommitAndData('text 1234cddc56', false, user1.jwt);
     let perspectiveId1 = await createPerspective(
       creatorId,
       542154,
@@ -261,7 +477,7 @@ describe('routes', () => {
       commit1Id
     );
 
-    const commit2Id = await createCommitAndData('text 1234cddc56', user1.jwt);
+    const commit2Id = await createCommitAndData('text 1234cddc56', false, user1.jwt);
     let perspectiveId2 = await createPerspective(
       creatorId,
       789498,
