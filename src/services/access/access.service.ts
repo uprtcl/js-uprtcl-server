@@ -121,32 +121,7 @@ export class AccessService {
   }
 
   async getUserPermissions(elementId: string, userId: string): Promise<UserPermissions> {
-    let canRead: boolean = false;
-    let canWrite: boolean = false;
-    let canAdmin: boolean = false;
-
-    if(await this.accessRepo.can(elementId, userId, PermissionType.Admin)) {
-      canRead = true;
-      canWrite = true;
-      canAdmin = true;
-    }
-
-    else if(await this.accessRepo.can(elementId, userId, PermissionType.Write)) {
-      canRead = true;
-      canWrite = true;
-    }
-
-    else if(await this.accessRepo.can(elementId, userId, PermissionType.Read)) {
-      canRead = true;
-    }
-
-    const userPermissions: UserPermissions = {
-      canRead,
-      canWrite,
-      canAdmin,
-    }
-
-    return userPermissions;
+    return this.accessRepo.getUserPermissions(elementId, userId);
   }
 
   async getPermissionsConfigOfElement(elementId: string) {
@@ -235,10 +210,6 @@ export class AccessService {
           `undefined delegateTo but accessConfig delegate of ${elementId} is true`
         );
       permissionsElement = accessConfig.finDelegatedTo;
-    }
-
-    if (await this.accessRepo.isPublic(permissionsElement, type)) {
-      return true;
     }
 
     if (userId != null) {

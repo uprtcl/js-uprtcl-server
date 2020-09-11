@@ -151,6 +151,37 @@ export class AccessRepository {
     userId: string,
     type: PermissionType
   ): Promise<boolean> {
+
+    let can: boolean = false;
+    const permissions = await this.getUserPermissions(elementId, userId);
+
+    switch(type) {
+      case PermissionType.Read:
+        can = permissions.canRead;
+        break;
+
+      case PermissionType.Write:
+        can = permissions.canWrite;
+        break;
+
+      case PermissionType.Admin:
+        can = permissions.canAdmin;
+        break;
+    }
+
+    console.log(
+      `[DGRAPH] isRole ${type}`,
+      { elementId, userId },
+      { can }
+    );
+
+    return can;
+  }
+
+  async getUserPermissions(
+    elementId: string,
+    userId: string,
+  ): Promise<UserPermissions> {
     let query = `
     element(func: eq(xid, "${elementId}")) {
       accessConfig {
@@ -164,65 +195,51 @@ export class AccessRepository {
           canAdmin @filter(eq(did, "${userId.toLowerCase()}")) {
             count(uid)
           }
+          publicWrite
+          publicRead
         }
       }
     }`;
 
     let result = await this.db.client.newTxn().query(`query{${query}}`);
     let json = result.getJson();
-    let can: boolean;
 
     if (json.element.length > 0) {
-      /** apply the logic canAdmin > canWrite > canRead */
-      if (json.element[0] === undefined)
+      if (json.element[0] === undefined) {
         throw new Error(
-          `undefined accessConfig in can() for element ${elementId}`
+          `undefined accessConfig in getUserPermissions() for element ${elementId}`
         );
-      switch (type) {
-        case PermissionType.Read:
-          can =
-            (json.element[0].accessConfig.permissions.canRead
-              ? json.element[0].accessConfig.permissions.canRead[0].count > 0
-              : false) ||
-            (json.element[0].accessConfig.permissions.canWrite
-              ? json.element[0].accessConfig.permissions.canWrite[0].count > 0
-              : false) ||
-            (json.element[0].accessConfig.permissions.canAdmin
-              ? json.element[0].accessConfig.permissions.canAdmin[0].count > 0
-              : false);
-          break;
-
-        case PermissionType.Write:
-          can =
-            (json.element[0].accessConfig.permissions.canWrite
-              ? json.element[0].accessConfig.permissions.canWrite[0].count > 0
-              : false) ||
-            (json.element[0].accessConfig.permissions.canAdmin
-              ? json.element[0].accessConfig.permissions.canAdmin[0].count > 0
-              : false);
-          break;
-
-        case PermissionType.Admin:
-          can = json.element[0].accessConfig.permissions.canAdmin
-            ? json.element[0].accessConfig.permissions.canAdmin[0].count > 0
-            : false;
-          break;
-
-        default:
-          can = false;
       }
+      
+      const canReadUser:boolean = json.element[0].accessConfig.permissions.canRead !== undefined
+        && json.element[0].accessConfig.permissions.canRead[0].count > 0;
+      
+      const canWriteUser:boolean = json.element[0].accessConfig.permissions.canWrite !== undefined
+        && json.element[0].accessConfig.permissions.canWrite[0].count > 0;
+      
+      const canAdminUser:boolean = json.element[0].accessConfig.permissions.canAdmin !== undefined
+        && json.element[0].accessConfig.permissions.canAdmin[0].count > 0;
+      
+      const publicReadUser:boolean = json.element[0].accessConfig.permissions.publicRead;
+      
+      const publicWriteUser:boolean = json.element[0].accessConfig.permissions.publicWrite;
+      
+      /** apply the logic canAdmin > canWrite > canRead */
+      return {
+        canRead: publicReadUser || publicWriteUser || canReadUser || canWriteUser || canAdminUser,
+        canWrite: publicWriteUser || canWriteUser || canAdminUser,
+        canAdmin: canAdminUser
+      };
+
     } else {
       /** if not found, the user does not have permissions */
-      can = false;
+      return {
+        canRead: false,
+        canWrite: false,
+        canAdmin: false
+      };
     }
 
-    console.log(
-      `[DGRAPH] isRole ${type}`,
-      { elementId, userId },
-      JSON.stringify(json),
-      { can }
-    );
-    return can;
   }
 
   /** only accessible to an admin */
