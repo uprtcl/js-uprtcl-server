@@ -232,9 +232,12 @@ export class UprtclRepository {
 
     /**  */
     const mu = new dgraph.Mutation();
+    const condMutation = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    let query = `perspective as var(func: eq(xid, "${perspectiveId}"))`;
+    let query = `perspective as var(func: eq(xid, "${perspectiveId}")) {
+      ecos as ecosystem
+    }`;
     if (details.headId !== undefined)
       query = query.concat(`\nhead as var(func: eq(xid, "${details.headId}"))`);
 
@@ -255,23 +258,40 @@ export class UprtclRepository {
         `\nuid(perspective) <context> "${details.context}" .`
       );
 
-    // Updates the ecosystem
+    // Collects the ecosystem
     ecosystem.addedChildren.map((addedChild, i) => {
       query = query.concat(`\nadd_ecosystem${i} as var(func: eq(xid, ${addedChild}))`);
       nquads = nquads.concat(`\nuid(perspective) <ecosystem> uid(add_ecosystem${i}) .`);
     });
 
-    ecosystem.removedChildren.map(async (removedChild, i) => {
-      query = query.concat(`\ndel_ecosystem${i} as var(func: eq(xid, ${removedChild}))`);
-      delNquads = delNquads.concat(`\nuid(perspective) <ecosystem> uid(del_ecosystem${i}) .`);
+    // Removes elements from the ecosystem
+    ecosystem.removedChildren.map((removedChild, i) => {            
+      query = query.concat(`\n
+        q(func: eq(xid, ${removedChild}))
+        @recurse{
+          eco${i} as ecosystem
+          xid
+        }
+      `)
+      delNquads = delNquads.concat(`\nuid(perspective) <ecosystem> uid(eco${i}) .`)
     });
 
     req.setQuery(`query{${query}}`);
-    mu.setSetNquads(nquads);
+    mu.setSetNquads(nquads);        
     mu.setDelNquads(delNquads);
-    req.setMutationsList([mu]);
+
+    // Points to itself
+    condMutation.setCond(`@if(eq(len(ecos), 0))`);
+    condMutation.setSetNquads(`
+      uid(perspective) <ecosystem> uid(perspective) .
+    `);
+
+    req.setMutationsList([mu, condMutation]);
 
     let result = await this.db.callRequest(req);
+
+    // Makes a final update to the ecosystem
+    await this.updateEcosystem(perspectiveId);
 
     console.log(
       '[DGRAPH] updatePerspective',
@@ -279,6 +299,29 @@ export class UprtclRepository {
       { nquads },
       result.getUidsMap().toArray()
     );
+  }
+
+  async updateEcosystem(perspectiveId: string): Promise<void> {
+    await this.db.ready();
+
+    const mu = new dgraph.Mutation();
+    const req = new dgraph.Request();    
+
+    const query = `query {
+      perspective as var(func: eq(xid, ${perspectiveId})) 
+      @recurse{
+        eco as ecosystem
+        xid
+      }
+    }`;
+
+    const nquads = `uid(perspective) <ecosystem> uid(eco) .`;
+
+    req.setQuery(query);
+    mu.setSetNquads(nquads);
+    req.setMutationsList([mu]);
+
+    await this.db.callRequest(req);
   }
 
   async setDeletedPerspective(
