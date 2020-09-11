@@ -324,6 +324,21 @@ export class UprtclRepository {
     await this.db.callRequest(req);
   }
 
+  async getEcosystem(perspectiveId: string): Promise<Array<string>> {
+    await this.db.ready();
+    const query = `query {
+      perspective(func: eq(xid, ${perspectiveId})) {
+        ecosystem {
+          xid
+        }
+      }
+    }`;
+
+    const result = await this.db.client.newTxn().query(query);
+
+    return result.getJson().perspective[0].ecosystem.map((persp:any) => persp.xid);
+  }
+
   async setDeletedPerspective(
     perspectiveId: string,
     deleted: boolean
