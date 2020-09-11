@@ -25,7 +25,7 @@ describe('delegate behavior', () => {
     it('should update all finDelegatedTo of all children and clone permissions', async () => {
         user1 = await createUser('seed1');        
 
-        const commitA = await createCommitAndData('perspective A', user1.jwt);
+        const commitA = await createCommitAndData('perspective A', false, user1.jwt);
         perspectiveA = await createPerspective(
             creatorId,
             454545,
@@ -33,7 +33,7 @@ describe('delegate behavior', () => {
             commitA
         );
 
-        const commitB = await createCommitAndData('perspective B', user1.jwt);
+        const commitB = await createCommitAndData('perspective B', false, user1.jwt);
         perspectiveB = await createPerspective(
             creatorId,
             846851,
@@ -42,7 +42,7 @@ describe('delegate behavior', () => {
             perspectiveA
         );
 
-        const commitC1 = await createCommitAndData('perspective C1', user1.jwt);
+        const commitC1 = await createCommitAndData('perspective C1', false, user1.jwt);
         perspectiveC1 = await createPerspective(
             creatorId,
             458765,
@@ -51,7 +51,7 @@ describe('delegate behavior', () => {
             perspectiveB
         ); 
 
-        const commitC2 = await createCommitAndData('perspective C2', user1.jwt);
+        const commitC2 = await createCommitAndData('perspective C2', false, user1.jwt);
         const perspectiveC2 = await createPerspective(
             creatorId,
             123456,
@@ -60,7 +60,7 @@ describe('delegate behavior', () => {
             perspectiveB
         ); 
 
-        const commitD1 = await createCommitAndData('perspective D1', user1.jwt);
+        const commitD1 = await createCommitAndData('perspective D1', false, user1.jwt);
         const perspectiveD1 = await createPerspective(
             creatorId,
             789456,

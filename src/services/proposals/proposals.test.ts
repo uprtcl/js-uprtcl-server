@@ -51,7 +51,7 @@ describe('Testing proposals controller, service and repo', () => {
       user1 = await createUser('seed1');   
       user2 = await createUser('seed2');
 
-      commit1Id = await createCommitAndData('text 123456', user1.jwt);
+      commit1Id = await createCommitAndData('text 123456', false, user1.jwt);
       toPerspectiveId = await createPerspective(
         user1.userId,
         846851,
@@ -59,7 +59,7 @@ describe('Testing proposals controller, service and repo', () => {
         commit1Id
       );     
 
-      commit2Id = await createCommitAndData('text 12345', user1.jwt);
+      commit2Id = await createCommitAndData('text 12345', false ,user1.jwt);
       fromPerspectiveId = await createPerspective(
         user1.userId,
         118948,
@@ -107,7 +107,7 @@ describe('Testing proposals controller, service and repo', () => {
 
       //Commit a new change to the fromPerspective
 
-      commit3Id = await createCommitAndData('text 4745729', user1.jwt);   
+      commit3Id = await createCommitAndData('text 4745729', false, user1.jwt);   
 
       // Update perspective to the new change
 
@@ -119,7 +119,7 @@ describe('Testing proposals controller, service and repo', () => {
       
       // Commit a new change to the toPerspective
 
-      const commit4Id = await createCommitAndData('text 658484', user1.jwt);  
+      const commit4Id = await createCommitAndData('text 658484', false, user1.jwt);  
 
       // Update perspective to the new change  
 
@@ -131,7 +131,7 @@ describe('Testing proposals controller, service and repo', () => {
 
       // Create a third perspective
 
-      const commit5Id = await createCommitAndData('text 999999', user1.jwt);
+      const commit5Id = await createCommitAndData('text 999999', false, user1.jwt);
       thirdPerspectiveId = await createPerspective(
         user1.userId,
         79878,
@@ -189,8 +189,8 @@ describe('Testing proposals controller, service and repo', () => {
     });    
 
     it('should unauthorized a proposal with no updates', async() => {
-      commit5Id = await createCommitAndData('epic text 555', user1.jwt);
-      const commit6Id = await createCommitAndData('epic text 666', user2.jwt);
+      commit5Id = await createCommitAndData('epic text 555', false, user1.jwt);
+      const commit6Id = await createCommitAndData('epic text 666', false, user2.jwt);
 
       const proposal = await createProposal(thirdPerspectiveId, // fromPerspective
                                             fromPerspectiveId, // new toPerspective
@@ -210,7 +210,7 @@ describe('Testing proposals controller, service and repo', () => {
 
       //Commit a new change to the fromPerspective
 
-      const commit7Id = await createCommitAndData('text 777', user1.jwt);   
+      const commit7Id = await createCommitAndData('text 777',false,  user1.jwt);   
 
       // Update perspective to the new change
 
@@ -222,7 +222,7 @@ describe('Testing proposals controller, service and repo', () => {
       
       // Commit a new change to the toPerspective
 
-      const commit8Id = await createCommitAndData('text 888', user1.jwt);  
+      const commit8Id = await createCommitAndData('text 888', false, user1.jwt);  
 
       // Update perspective to the new change  
 
@@ -234,7 +234,7 @@ describe('Testing proposals controller, service and repo', () => {
 
       // Create a fourth perspective
 
-      const commit9Id = await createCommitAndData('text 999', user2.jwt);
+      const commit9Id = await createCommitAndData('text 999', false, user2.jwt);
       const fourthPerspectiveId = await createPerspective(
         user2.userId,
         999,
