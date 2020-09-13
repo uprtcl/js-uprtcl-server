@@ -368,6 +368,7 @@ describe('routes', () => {
 
       // Should point to itself
       const eco = await getEcosystem(mainPerspective);
+
       expect(eco[0]).toEqual(mainPerspective);
 
       // Should have all element IDs in the returning array
@@ -400,6 +401,7 @@ describe('routes', () => {
       );      
 
       const eco1 = await getEcosystem(mainPerspective);
+
       expect(eco1).toEqual([
         mainPerspective,
         page1Perspective,
@@ -407,7 +409,43 @@ describe('routes', () => {
         page3Perspective
       ]);
 
-    // /** remove public permissions */
+      // Should add a new child to link3Perspective
+      const grandSonCommit = await createCommitAndData('grandson link', false, user1.jwt);
+      const grandsonPerspective = await createPerspective(
+        creatorId,
+        442132,
+        user1.jwt,
+        grandSonCommit
+      );
+
+      const newDataCommit8 = await addPagesOrLinks(
+        [link1Perspecitve, grandsonPerspective],
+        false,
+        [link1Commit],
+        user1.jwt
+      );
+
+      const updatedPerspective8 = await updatePerspective(
+        link1Perspecitve,
+        {
+          headId: newDataCommit8,
+          context: context,
+          name: name
+        },
+        user1.jwt
+      );
+
+      const eco2 = await getEcosystem(mainPerspective);
+
+      expect(eco2).toEqual([
+        mainPerspective,
+        page1Perspective,
+        link1Perspecitve,        
+        page3Perspective,
+        grandsonPerspective
+      ]);
+
+    /** remove public permissions */
     let result20 = await setPublicPermission(
       perspectiveId,
       PermissionType.Write,
