@@ -6,10 +6,14 @@ import { PermissionType } from './access.schema';
 import { AccessRepository } from "./access.repository";
 import { UserRepository } from "../user/user.repository";
 import { DGraphService } from "../../db/dgraph.service";
+import { UprtclRepository } from '../uprtcl/uprtcl.repository';
+import { DataRepository } from '../data/data.repository';
 
 const db = new DGraphService("localhost:9080");
 const userRepo = new UserRepository(db);
 const accessRepo = new AccessRepository(db, userRepo);
+const dataRepo = new DataRepository(db, userRepo);
+export const uprtclRepo = new UprtclRepository(db, userRepo, dataRepo);
 
 export const delegatePermissionsTo = async (
   elementId: string,

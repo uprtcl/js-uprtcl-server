@@ -9,6 +9,7 @@ import {
 } from '../providers';
 import { createData } from '../data/support.data';
 import { DocNodeType } from '../data/types';
+import { uprtclRepo } from '../access/access.testsupport';
 
 export const createPerspective = async (
   creatorId: string,
@@ -98,23 +99,62 @@ export const createCommit = async (
   return result;
 };
 
-export const createCommitAndData = async (
-  text: string,
+export const getEcosystem = async(perspectiveId: string): Promise<Array<string>> => {
+  return await uprtclRepo.getEcosystem(perspectiveId);
+};
+
+export const addPagesOrLinks =  async (
+  addedContent: Array<string>,
+  pages: boolean,
+  parents: Array<string>,
   jwt: string
 ): Promise<string> => {
   const creatorId = 'did:method:12345';
   const timestamp = Math.round(Math.random() * 100000);
 
-  const par1Id = await createData(
-    { text: text, type: DocNodeType.paragraph, links: [] },
+  let data = {};
+
+  if(pages) {
+    data = { title: '', type: DocNodeType.title, pages: addedContent }
+  } else {
+    data = { text: '', type: DocNodeType.paragraph, links: addedContent }
+  }
+
+  const dataId = await createData(data, jwt);
+  let commitId = await createCommit(
+    [creatorId],
+    timestamp,
+    'sample message',
+    parents,
+    dataId,
     jwt
   );
+  return commitId;
+}
+
+export const createCommitAndData = async (
+  content: string,
+  page: boolean,
+  jwt: string
+): Promise<string> => {
+  const creatorId = 'did:method:12345';
+  const timestamp = Math.round(Math.random() * 100000);
+
+  let data = {};
+
+  if(page) {
+    data = { title: content, type: DocNodeType.title, pages: [] }
+  } else {
+    data = { text: content, type: DocNodeType.paragraph, links: [] }
+  }
+
+  const dataId = await createData(data, jwt);
   let commitId = await createCommit(
     [creatorId],
     timestamp,
     'sample message',
     [],
-    par1Id,
+    dataId,
     jwt
   );
   return commitId;

@@ -11,12 +11,14 @@ import { AccessService } from '../access/access.service';
 import { UprtclRepository } from './uprtcl.repository';
 import { PermissionType } from '../access/access.schema';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
+import { DataService } from '../data/data.service';
 
 export class UprtclService {
   constructor(
     protected db: DGraphService,
     protected uprtclRepo: UprtclRepository,
-    protected access: AccessService
+    protected access: AccessService,
+    protected dataService: DataService
   ) {}
 
   private async createPerspective(
@@ -101,7 +103,7 @@ export class UprtclService {
 
     if (perspectiveData.details) {
       /** Bypass update perspective ACL because this is perspective inception */
-      await this.uprtclRepo.updatePerspective(perspId, perspectiveData.details);
+      await this.updatePerspective(perspId, perspectiveData.details, loggedUserId);
     }
 
     return perspId;
@@ -125,7 +127,42 @@ export class UprtclService {
       ))
     )
       throw new Error(NOT_AUTHORIZED_MSG);
-    await this.uprtclRepo.updatePerspective(perspectiveId, details);
+
+    const oldDetails = await this.getPerspectiveDetails(perspectiveId, loggedUserId);
+    let addedChildren: Array<string> = [];
+    let removedChildren: Array<string> = [];
+
+    if((oldDetails.headId && oldDetails.headId !== '') && details.headId) {   
+      const oldDataId = (await this.getCommit(oldDetails.headId, loggedUserId))
+                        .object.payload.dataId;
+      const newDataId = (await this.getCommit(details.headId, loggedUserId))
+                        .object.payload.dataId;
+
+      const oldData = (await this.dataService.getData(oldDataId)).object;
+      const newData = (await this.dataService.getData(newDataId)).object;
+
+      const currentChildren: Array<string> = oldData.pages ? oldData.pages : oldData.links;
+      const updatedChildren: Array<string> = newData.pages ? newData.pages : newData.links;
+
+      const difference = currentChildren
+                       .filter((oldChild: string) => !updatedChildren.includes(oldChild))
+                       .concat(updatedChildren.filter((newChild: string) => !currentChildren.includes(newChild)));
+
+      difference.map(child => {
+        if(currentChildren.includes(child)) {
+          removedChildren.push(child);
+        }
+
+        if(updatedChildren.includes(child)) {
+          addedChildren.push(child);
+        }
+      })                          
+    }
+    
+    await this.uprtclRepo.updatePerspective(perspectiveId, details, {
+      addedChildren: addedChildren,
+      removedChildren: removedChildren
+    });
   }
 
   async deletePerspective(

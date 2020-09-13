@@ -17,6 +17,7 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   stored: bool
   accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
   proof: ${PROOF_SCHEMA_NAME}
+  ecosystem: [uid]
   deleted: bool
 }
 
@@ -51,6 +52,7 @@ creator: uid .
 creators: [uid] .
 data: uid .
 proof: uid .
+ecosystem: [uid] @reverse .
 deleted: bool @index(bool) . 
 
 `;
