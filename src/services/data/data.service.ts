@@ -20,7 +20,7 @@ export class DataService {
     console.log('[UPRTCL-SERVICE] createData', data);
 
     const dataCoded = {...data.object};
-    const castToObject = JSON.parse(JSON.stringify(dataCoded)); 
+    const castToObject:any = dataCoded; 
  
     if(castToObject.payload !== undefined) {
       if(propertyOrder.map((p) => castToObject.hasOwnProperty(p))) {      
