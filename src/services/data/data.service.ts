@@ -18,9 +18,8 @@ export class DataService {
     _loggedUserId: string | null): Promise<string> {
 
     console.log('[UPRTCL-SERVICE] createData', data);
-
-    const dataCoded = {...data.object};
-    const castToObject:any = dataCoded; 
+    
+    const castToObject:any = data; 
  
     if(castToObject.payload !== undefined) {
       if(propertyOrder.map((p) => castToObject.hasOwnProperty(p))) {      
