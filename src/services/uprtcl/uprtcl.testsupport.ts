@@ -99,8 +99,8 @@ export const createCommit = async (
   return result;
 };
 
-export const getEcosystem = async(perspectiveId: string): Promise<Array<string>> => {
-  return await uprtclRepo.getEcosystem(perspectiveId);
+export const getPerspectiveRelatives = async(perspectiveId: string, relatives: 'ecosystem' | 'children'): Promise<Array<string>> => {
+  return await uprtclRepo.getPerspectiveRelatives(perspectiveId, relatives);
 };
 
 export const addPagesOrLinks =  async (
