@@ -451,6 +451,18 @@ export class UprtclRepository {
     return securedPerspective;
   }
 
+  // Get other independent perspectives
+  // async getBoldPerspectives(perspectiveId: string): Promise<Array<string>> {
+  //   let query = `{
+  //     q(func:eq(xid, ${perspectiveId})) {
+  //       children {
+  //         xid
+  //       }
+  //     }    
+  //   }`
+  //   return [''];
+  // }
+
   async findPerspectives(details: PerspectiveDetails): Promise<string[]> {
     await this.db.ready();
     let condition = '';
