@@ -18,6 +18,7 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
   proof: ${PROOF_SCHEMA_NAME}
   ecosystem: [uid]
+  children: [uid]
   deleted: bool
 }
 
@@ -53,6 +54,7 @@ creators: [uid] .
 data: uid .
 proof: uid .
 ecosystem: [uid] @reverse .
+children: [uid] @reverse .
 deleted: bool @index(bool) . 
 
 `;

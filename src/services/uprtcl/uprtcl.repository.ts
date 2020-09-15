@@ -58,6 +58,12 @@ interface DgCommit {
   proof: DgProof;
 }
 
+interface DbContent {
+  query: string;
+  nquads: string;
+  delNquads: string;
+}
+
 export class UprtclRepository {
   constructor(
     protected db: DGraphService,
@@ -271,46 +277,18 @@ export class UprtclRepository {
         `\nuid(perspective) <context> "${details.context}" .`
       );
 
-    // Collects the ecosystem
-    ecosystem.addedChildren.map((addedChild, i) => {            
-      query = query.concat(`\n
-        ec${i}(func: eq(xid, ${addedChild}))        
-        {
-          ecoAdd${i} as ecosystem            
-        }
-      `)      
-      nquads = nquads.concat(`\nuid(perspective) <ecosystem> uid(ecoAdd${i}) .`);
+    const dbContent:DbContent = {
+      query: query,
+      nquads: nquads,
+      delNquads: delNquads
+    }
 
-      query = query.concat(`\n
-        ecs${i}(func: eq(xid, ${perspectiveId}))        
-        {
-          revEcoAdd${i} as ~ecosystem            
-        }
-      `)      
-      nquads = nquads.concat(`\nuid(revEcoAdd${i}) <ecosystem> uid(ecoAdd${i}) .`);      
-    });
+    // Updates the ecosystem and children
+    const ecosystemUpdated = await this.updateEcosystem(ecosystem, perspectiveId, dbContent);      
 
-    ecosystem.removedChildren.map((removedChild, i) => {            
-      query = query.concat(`\n
-        q${i}(func: eq(xid, ${removedChild}))        
-        {
-          ecoDelete${i} as ecosystem            
-        }
-      `)      
-      delNquads = delNquads.concat(`\nuid(perspective) <ecosystem> uid(ecoDelete${i}) .`);
-
-      query = query.concat(`\n
-        qs${i}(func: eq(xid, ${perspectiveId}))        
-        {
-          revEcoDelete${i} as ~ecosystem            
-        }
-      `)      
-      delNquads = delNquads.concat(`\nuid(revEcoDelete${i}) <ecosystem> uid(ecoDelete${i}) .`);      
-    });
-
-    req.setQuery(`query{${query}}`);
-    mu.setSetNquads(nquads);        
-    mu.setDelNquads(delNquads);
+    req.setQuery(`query{${ecosystemUpdated.query}}`);
+    mu.setSetNquads(ecosystemUpdated.nquads);        
+    mu.setDelNquads(ecosystemUpdated.delNquads);
 
     req.setMutationsList([mu, condMutation]);
 
@@ -323,12 +301,58 @@ export class UprtclRepository {
       result.getUidsMap().toArray()
     );
   }
+  
+  async updateEcosystem(ecosystem: EcosystemUpdates, perspectiveId: string, dbContent: DbContent) {
+    let { query, nquads, delNquads } = dbContent;
 
-  async getEcosystem(perspectiveId: string): Promise<Array<string>> {
+    ecosystem.addedChildren.map((addedChild, i) => {            
+      query = query.concat(`\n
+        addedChild${i} as var(func: eq(xid, ${addedChild}))        
+        {
+          ecoAdd${i} as ecosystem            
+        }
+      `)      
+      nquads = nquads.concat(`\nuid(perspective) <ecosystem> uid(ecoAdd${i}) .`);
+      nquads = nquads.concat(`\nuid(perspective) <children> uid(addedChild${i}) .`);
+
+      query = query.concat(`\n
+        ecs${i}(func: eq(xid, ${perspectiveId}))        
+        {
+          revEcoAdd${i} as ~ecosystem            
+        }
+      `)      
+      nquads = nquads.concat(`\nuid(revEcoAdd${i}) <ecosystem> uid(ecoAdd${i}) .`);            
+    });
+
+    ecosystem.removedChildren.map((removedChild, i) => {            
+      query = query.concat(`\n
+        removedChild${i} as var(func: eq(xid, ${removedChild}))        
+        {
+          ecoDelete${i} as ecosystem            
+        }
+      `)      
+      delNquads = delNquads.concat(`\nuid(perspective) <ecosystem> uid(ecoDelete${i}) .`);
+      delNquads = delNquads.concat(`\nuid(perspective) <children> uid(removedChild${i}) .`);
+
+      query = query.concat(`\n
+        qs${i}(func: eq(xid, ${perspectiveId}))        
+        {
+          revEcoDelete${i} as ~ecosystem            
+        }
+      `)      
+      delNquads = delNquads.concat(`\nuid(revEcoDelete${i}) <ecosystem> uid(ecoDelete${i}) .`);      
+    });
+    return { query, nquads, delNquads };
+  }
+
+  async getPerspectiveRelatives(
+    perspectiveId: string, 
+    relatives: 'ecosystem' | 'children'
+  ): Promise<Array<string>> {
     await this.db.ready();
     const query = `query {
       perspective(func: eq(xid, ${perspectiveId})) {
-        ecosystem {
+        ${relatives} {
           xid
         }
       }
@@ -336,7 +360,7 @@ export class UprtclRepository {
 
     const result = await this.db.client.newTxn().query(query);
 
-    return result.getJson().perspective[0].ecosystem.map((persp:any) => persp.xid);
+    return result.getJson().perspective[0][`${relatives}`].map((persp:any) => persp.xid);
   }
 
   async setDeletedPerspective(

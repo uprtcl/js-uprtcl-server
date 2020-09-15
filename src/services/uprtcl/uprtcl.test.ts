@@ -7,7 +7,7 @@ import {
   deletePerspective,
   createCommitAndData,
   addPagesOrLinks,
-  getEcosystem
+  getPerspectiveRelatives
 } from './uprtcl.testsupport';
 import { createUser } from '../user/user.testsupport';
 import {
@@ -367,7 +367,7 @@ describe('routes', () => {
       );      
 
       // Should point to itself
-      const eco = await getEcosystem(mainPerspective);
+      const eco = await getPerspectiveRelatives(mainPerspective, 'ecosystem');
 
       expect(eco[0]).toEqual(mainPerspective);
 
@@ -400,7 +400,7 @@ describe('routes', () => {
         user1.jwt
       );      
 
-      const eco1 = await getEcosystem(mainPerspective);
+      const eco1 = await getPerspectiveRelatives(mainPerspective, 'ecosystem');
 
       expect(eco1).toEqual([
         mainPerspective,
@@ -435,7 +435,8 @@ describe('routes', () => {
         user1.jwt
       );
 
-      const eco2 = await getEcosystem(mainPerspective);
+      const eco2 = await getPerspectiveRelatives(mainPerspective, 'ecosystem');
+      const children = await getPerspectiveRelatives(mainPerspective, 'children');
 
       expect(eco2).toEqual([
         mainPerspective,
@@ -443,6 +444,11 @@ describe('routes', () => {
         link1Perspecitve,        
         page3Perspective,
         grandsonPerspective
+      ]);
+
+      expect(children).toEqual([
+        page1Perspective,
+        page3Perspective
       ]);
 
     /** remove public permissions */
