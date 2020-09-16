@@ -683,12 +683,69 @@ export class AccessRepository {
     );
   }
 
+  async removeAllPermissions(elementId: string): Promise<void> {
+    await this.db.ready();
+
+    let query = `
+      query{
+        var(func: eq(xid, ${elementId})) {
+          accessConfig {
+            per as permissions
+          }
+        }
+      }
+    `;
+
+    let delNquads = `uid(per) <canRead> * .`;
+    delNquads = delNquads.concat(`\nuid(per) <canWrite> * .`);
+    delNquads = delNquads.concat(`\nuid(per) <canAdmin> * .`);
+
+    const req = new dgraph.Request();
+    const mu = new dgraph.Mutation();
+
+    mu.setDelNquads(delNquads);
+    mu.setCond(`@if(eq(len(per), 1))`);
+    req.setQuery(query);
+    req.setMutationsList([mu]);
+
+    await this.db.callRequest(req);
+  }
+
   async clonePermissions(elementId: string, finDelegatedTo: string): Promise<void> {
     const finDelegatedToAccessConfig = await this.getAccessConfigOfElement(finDelegatedTo);
 
     if(!finDelegatedToAccessConfig.permissionsUid) 
       throw new Error (`Can not clone permissions. Permissions are missed for element ${finDelegatedTo}`);
 
-    await this.setPermissionsConfigOf(elementId, finDelegatedToAccessConfig.permissionsUid);
+    await this.removeAllPermissions(elementId);    
+
+    let query = `
+      el(func: uid(${finDelegatedToAccessConfig.permissionsUid})){        
+        userCr as canRead  @filter(has(did))
+        userCw as canWrite @filter(has(did))
+        userCa as canAdmin @filter(has(did))
+      }
+    `;
+
+    query = query.concat(`
+      \nperspective(func:eq(xid, ${elementId})) {
+        accessConfig {
+          per as permissions
+        }
+      }
+    `);
+    
+    let nquads = `uid(per) <canRead> uid(userCr) .`;
+    nquads = nquads.concat(`\nuid(per) <canWrite> uid(userCw) .`);
+    nquads = nquads.concat(`\nuid(per) <canAdmin> uid(userCa) .`);
+
+    const req = new dgraph.Request();
+    const mu = new dgraph.Mutation();
+
+    mu.setSetNquads(nquads);
+    req.setQuery(`query{${query}}`);
+    req.setMutationsList([mu]);
+
+    await this.db.callRequest(req);
   }
 }
