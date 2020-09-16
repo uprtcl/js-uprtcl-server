@@ -2,7 +2,7 @@ import { Proposal,
          UpdateRequest, 
          NewProposalData, 
          PerspectiveDetails, 
-         ProposalState } from "../uprtcl/types"
+         ProposalState, NewPerspectiveData } from "../uprtcl/types"
 import { UprtclService } from "../uprtcl/uprtcl.service";
 import { ProposalsRepository } from "./proposals.repository";
 import { NOT_AUTHORIZED_MSG } from "../../utils";
@@ -33,8 +33,9 @@ export class ProposalsService {
         
         let canAuthorize:boolean = false;
         let updatesArr: UpdateRequest[] = [];
+        let newPerspectivesArr: NewPerspectiveData[] = [];
 
-        const dproposal = await this.proposalRepo.findProposal(proposalUid, true, true);                    
+        const dproposal = await this.proposalRepo.findProposal(proposalUid, true, true, true);                    
 
         const { 
                 creator: { did: creatorId },
@@ -43,7 +44,8 @@ export class ProposalsService {
                 fromHead: { xid: fromHeadId },
                 toHead: { xid: toHeadId },
                 state,
-                updates
+                updates,
+                newPerspectives
               } = dproposal;        
 
         if(updates) {
@@ -76,6 +78,10 @@ export class ProposalsService {
             }    
         }
 
+        if(newPerspectives) {
+            newPerspectivesArr = JSON.parse(newPerspectives);
+        }
+
         const proposal: Proposal = {                    
             id: proposalUid,            
             creatorId: creatorId,
@@ -86,7 +92,10 @@ export class ProposalsService {
             state: state,
             authorized: state === ProposalState.Executed ? true : false,
             executed: state === ProposalState.Executed ? true : false,
-            updates: updatesArr,
+            details: {
+                updates: updatesArr,
+                newPerspectives: newPerspectivesArr
+            },
             canAuthorize: canAuthorize
         }                        
 
@@ -125,7 +134,7 @@ export class ProposalsService {
         if (loggedUserId === null) throw new Error('Anonymous user. Cant cancel a proposal');
 
         // Get the proposals updates to provide to canAuthorize function and check current state.
-        const dproposal = await this.proposalRepo.findProposal(proposalUid, true, false);
+        const dproposal = await this.proposalRepo.findProposal(proposalUid, true, false, false);
         const { state, updates } = dproposal;    
 
         if(state != ProposalState.Open) throw new Error(`Can't modify a ${state} proposal`);
@@ -150,7 +159,7 @@ export class ProposalsService {
     ): Promise<void> {        
         if (loggedUserId === null) throw new Error('Anonymous user. Cant decline a proposal');
 
-        const dproposal = await this.proposalRepo.findProposal(proposalUid, false, false);        
+        const dproposal = await this.proposalRepo.findProposal(proposalUid, false, false, false);        
 
         const { creator: { did: creatorId }, state } = dproposal;        
 
@@ -170,7 +179,7 @@ export class ProposalsService {
         if (loggedUserId === null) throw new Error('Anonymous user. Cant decline a proposal');
 
         // Get the proposals updates to provide to canAuthorize function
-        const dproposal = await this.proposalRepo.findProposal(proposalUid, true, false);
+        const dproposal = await this.proposalRepo.findProposal(proposalUid, true, false, false);
         const { updates } = dproposal;
 
         if(!updates) {

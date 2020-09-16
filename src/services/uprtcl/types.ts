@@ -27,6 +27,11 @@ export const getAuthority = (perspective: Perspective): string => {
   return `${perspective.remote}:${perspective.path}`
 }
 
+export interface ProposalDetails {
+  updates: UpdateRequest[];
+  newPerspectives: NewPerspectiveData[];
+}
+
 export interface Proposal {
   id: string
   creatorId?: string
@@ -34,7 +39,7 @@ export interface Proposal {
   fromPerspectiveId: string
   toHeadId?: string
   fromHeadId?: string
-  updates?: Array<UpdateRequest>
+  details: ProposalDetails;
   state: ProposalState
   executed: boolean
   authorized: boolean
@@ -84,7 +89,7 @@ export interface NewProposalData {
   toPerspectiveId: string
   fromHeadId: string
   toHeadId: string
-  updates: Array<UpdateRequest>
+  details: ProposalDetails;
 }
 
 // Dgraph incoming data types

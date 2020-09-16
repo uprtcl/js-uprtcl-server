@@ -17,6 +17,7 @@ interface DgProposal {
     fromHead: xid
     toHead: xid    
     updates?: Array<DgUpdate>    
+    newPerspectives?: string    
 }
 
 export class ProposalsRepository {
@@ -60,7 +61,9 @@ export class ProposalsRepository {
         nquads = nquads.concat(`\n_:proposal <fromHead> uid(fromHead) .`);
         nquads = nquads.concat(`\n_:proposal <state>  "${ProposalState.Open}" .`);
 
-        const updatesSetup = await this.setUpdates(proposalData.updates, '_:proposal', nquads, query);
+        const updatesSetup = await this.setUpdates(proposalData.details.updates, '_:proposal', nquads, query);
+        
+        nquads = nquads.concat(`\n_:proposal <newPerspectivesJson>  "${JSON.stringify(proposalData.details.newPerspectives)}" .`);
 
         nquads = updatesSetup.nquads;        
         nquads = nquads.concat(`\n_:proposal <dgraph.type> "${PROPOSALS_SCHEMA_NAME}" .`);
@@ -80,7 +83,7 @@ export class ProposalsRepository {
         updateRequests: Array<UpdateRequest>, 
         loggedUserId:string
     ): Promise<void> {                
-        const dproposal = await this.findProposal(proposalUid, false, false);   
+        const dproposal = await this.findProposal(proposalUid, false, false, false);   
 
         const { creator: { did: proposalCreatorId } } = dproposal;
 
@@ -201,7 +204,8 @@ export class ProposalsRepository {
     async findProposal(
         proposalUid: string, 
         updates: boolean, 
-        perspectives: boolean
+        perspectives: boolean,
+        newPerspectives: boolean
     ): Promise<DgProposal> {
 
         let query = `query {            
@@ -247,6 +251,12 @@ export class ProposalsRepository {
                         xid
                     }
                 }
+            `);
+        }
+
+        if(newPerspectives) {
+            query = query.concat(`
+                newPerspectivesJson
             `);
         }
 
