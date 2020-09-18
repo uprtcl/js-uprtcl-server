@@ -3,8 +3,11 @@ import {
     delegatePermissionsTo,
     finDelegatedChildNodes,
     getSecondLayerFinDelegatedTo,
-    getAccessConfigOfElement
+    getAccessConfigOfElement,
+    getPermissionsConfig,
+    addPermission
 } from './access.testsupport';
+import { PermissionType } from './access.schema';
 import { createUser } from '../user/user.testsupport';
 import {
     createCommitAndData, 
@@ -23,7 +26,10 @@ describe('delegate behavior', () => {
     let perspectiveC1 = '';        
    
     it('should update all finDelegatedTo of all children and clone permissions', async () => {
-        user1 = await createUser('seed1');        
+        user1 = await createUser('seed1');   
+        const user2 = await createUser('seed2');
+        const user3 = await createUser('seed3');
+        const user4 = await createUser('seed4');
 
         const commitA = await createCommitAndData('perspective A', false, user1.jwt);
         perspectiveA = await createPerspective(
@@ -110,8 +116,47 @@ describe('delegate behavior', () => {
         */
 
         // Then, get the permissions of the above obtained element
-        const perspPermissions = await getAccessConfigOfElement(finDelegatedTo);          
-                
+        const perspAccessConfig = await getAccessConfigOfElement(finDelegatedTo);  
+        const perspBAccessConfig = await getAccessConfigOfElement(perspectiveB);         
+                        
+        // Add permissions to finDelegatedTo
+        await addPermission(
+            finDelegatedTo,
+            user2.userId,
+            PermissionType.Read,
+            user1.jwt
+        );
+        
+        await addPermission(
+            finDelegatedTo,
+            user3.userId,
+            PermissionType.Read,
+            user1.jwt
+        );        
+
+        //Add permissions to perspectiveB
+        await addPermission(
+            perspectiveB,
+            user4.userId,
+            PermissionType.Write,
+            user1.jwt
+        );
+
+        await addPermission(
+            perspectiveB,
+            user3.userId,
+            PermissionType.Write,
+            user1.jwt
+        );       
+
+        const perspPermissions = await getPermissionsConfig(perspAccessConfig.permissionsUid!);
+        const perspBPermissions = await getPermissionsConfig(perspBAccessConfig.permissionsUid!);
+
+        // Permissions before delegating to false
+        expect(perspBPermissions.canWrite![0]).toEqual(user3.userId.toLowerCase());
+        expect(perspBPermissions.canWrite![1]).toEqual(user4.userId.toLowerCase());
+        expect(perspBPermissions.canAdmin![0]).toEqual(user1.userId.toLowerCase());
+
         // From true to false
         const delegateToB = await delegatePermissionsTo(
             perspectiveB, 
@@ -119,11 +164,14 @@ describe('delegate behavior', () => {
             undefined,
             user1.jwt
         );
-        expect(delegateToB.result).toEqual(SUCCESS);    
+        expect(delegateToB.result).toEqual(SUCCESS);            
 
-        const perspBElementPermissions = await getAccessConfigOfElement(perspectiveB);     
-
-        expect(perspBElementPermissions.permissionsUid).toEqual(perspPermissions.permissionsUid);
+        // Permissions of B after delegate false
+        const perspFalsePermissions = await getPermissionsConfig(perspBAccessConfig.permissionsUid!);
+            
+        // Checks how permissions are cloned
+        // Permissions after delegating to false
+        expect(perspPermissions).toEqual(perspFalsePermissions);
 
         // Checks all finDelegatedTo of perspectiveB children.
         childrenB = await finDelegatedChildNodes(perspectiveB);                        
@@ -166,9 +214,5 @@ describe('delegate behavior', () => {
            user1.jwt
        );
        expect(delegaToD1.result).toEqual(SUCCESS);    
-
-       const D1Permissions = await getAccessConfigOfElement(perspectiveD1);     
-
-       expect(D1Permissions.permissionsUid).toEqual(rsD1Permissions.permissionsUid);
     });    
 });
