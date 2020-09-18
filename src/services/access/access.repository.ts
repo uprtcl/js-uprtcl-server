@@ -712,39 +712,52 @@ export class AccessRepository {
   }
 
   async clonePermissions(elementId: string, finDelegatedTo: string): Promise<void> {
-    const finDelegatedToAccessConfig = await this.getAccessConfigOfElement(finDelegatedTo);
-
-    if(!finDelegatedToAccessConfig.permissionsUid) 
-      throw new Error (`Can not clone permissions. Permissions are missed for element ${finDelegatedTo}`);
-
     await this.removeAllPermissions(elementId);    
 
     let query = `
-      el(func: uid(${finDelegatedToAccessConfig.permissionsUid})){        
-        userCr as canRead  @filter(has(did))
-        userCw as canWrite @filter(has(did))
-        userCa as canAdmin @filter(has(did))
+      finDelegateTo(func: eq(xid, "${finDelegatedTo}")) {        
+        accessConfig {
+          permissions {
+            canRead {
+              userCr as uid          
+            }
+            canWrite {
+              userCw as uid
+            }
+            canAdmin {
+              userAd as uid
+            }
+          }
+        }
       }
     `;
 
     query = query.concat(`
-      \nperspective(func:eq(xid, ${elementId})) {
+      \nelementId(func:eq(xid, "${elementId}")) {
         accessConfig {
           per as permissions
         }
       }
     `);
     
-    let nquads = `uid(per) <canRead> uid(userCr) .`;
-    nquads = nquads.concat(`\nuid(per) <canWrite> uid(userCw) .`);
-    nquads = nquads.concat(`\nuid(per) <canAdmin> uid(userCa) .`);
+    const readMutation = new dgraph.Mutation();
+    readMutation.setSetNquads(`uid(per) <canRead> uid(userCr) .`);
+    readMutation.setCond(`@if(gt(len(userCr), 0))`);
+
+    const writeMutation = new dgraph.Mutation();    
+    writeMutation.setSetNquads(`uid(per) <canWrite> uid(userCw) .`);
+    writeMutation.setCond(`@if(gt(len(userCw), 0))`);
+
+    const adminMutation = new dgraph.Mutation();
+    adminMutation.setSetNquads(`uid(per) <canAdmin> uid(userAd) .`);
+    adminMutation.setCond(`@if(gt(len(userAd), 0))`);
 
     const req = new dgraph.Request();
-    const mu = new dgraph.Mutation();
-
-    mu.setSetNquads(nquads);
+    
     req.setQuery(`query{${query}}`);
-    req.setMutationsList([mu]);
+    req.setMutationsList([readMutation, 
+                          writeMutation, 
+                          adminMutation]);    
 
     await this.db.callRequest(req);
   }

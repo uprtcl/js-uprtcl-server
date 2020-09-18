@@ -67,6 +67,10 @@ export const getAccessConfigOfElement = async (elementId: string) => {
   return await accessRepo.getAccessConfigOfElement(elementId);
 };
 
+export const getPermissionsConfig = async (permissionsUid: string) => {
+  return await accessRepo.getPermissionsConfig(permissionsUid);
+};
+
 export const addPermission = async (
   elementId: string,
   userToAddId: string,
