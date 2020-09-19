@@ -593,9 +593,7 @@ export class UprtclRepository {
     if (!dcommit.stored) new Error(`Commit with id ${commitId} not found`);
 
     const commit: Commit = {
-      creatorsIds: dcommit.creators
-        ? dcommit.creators.map((creator: any) => creator.did)
-        : [],
+      creatorsIds: dcommit.creators.map((creator: any) => creator.did),
       dataId: dcommit.data.xid,
       timestamp: dcommit.timextamp,
       message: dcommit.message,
