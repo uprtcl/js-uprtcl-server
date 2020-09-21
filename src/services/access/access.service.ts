@@ -51,6 +51,8 @@ export class AccessService {
       throw new Error(`ElementId is empty`);
 
     let accessConfig: AccessConfig;
+    let dftPermUid = await this.createDefaultPermissions(userId);
+
     if (delegateTo) {
       if (userId == null)
         throw new Error('cant inherit permissions if user is not logged in');
@@ -65,10 +67,9 @@ export class AccessService {
         delegate: true,
         delegateTo,
         finDelegatedTo,
-        permissionsUid: delegateAccessConfig.permissionsUid,
+        permissionsUid: dftPermUid,
       };
-    } else {
-      let dftPermUid = await this.createDefaultPermissions(userId);
+    } else {      
       accessConfig = {
         delegate: false,
         finDelegatedTo: elementId,        

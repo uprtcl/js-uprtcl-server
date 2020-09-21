@@ -109,7 +109,7 @@ export class UprtclController {
 
               res.status(200).send(result);
             } catch (error) {
-              console.log('[UPRTCL CONTROLLER] getPerspectiveDetails - Error', 
+              console.error('[UPRTCL CONTROLLER] getPerspectiveDetails - Error', 
                 JSON.stringify(inputs), error);
   
               let result: GetResult<null> = {
@@ -143,6 +143,7 @@ export class UprtclController {
               }
               res.status(200).send(result);
             } catch (error) {
+              console.error(error);
               let result: PostResult = {
                 result:  ERROR,
                 message: error.message,
@@ -172,6 +173,7 @@ export class UprtclController {
               }
               res.status(200).send(result);
             } catch (error) {
+              console.error(error);
               let result: PostResult = {
                 result:  ERROR,
                 message: error.message,
@@ -201,6 +203,7 @@ export class UprtclController {
               }
               res.status(200).send(result);
             } catch (error) {
+              console.error(error);
               let result: PostResult = {
                 result:  ERROR,
                 message: error.message,

@@ -253,7 +253,6 @@ export class UprtclRepository {
 
     /**  */
     const mu = new dgraph.Mutation();
-    const condMutation = new dgraph.Mutation();
     const req = new dgraph.Request();
 
     let query = `perspective as var(func: eq(xid, "${perspectiveId}"))`;
@@ -290,7 +289,7 @@ export class UprtclRepository {
     mu.setSetNquads(ecosystemUpdated.nquads);        
     mu.setDelNquads(ecosystemUpdated.delNquads);
 
-    req.setMutationsList([mu, condMutation]);
+    req.setMutationsList([mu]);
 
     let result = await this.db.callRequest(req);
 
@@ -617,9 +616,7 @@ export class UprtclRepository {
     if (!dcommit.stored) new Error(`Commit with id ${commitId} not found`);
 
     const commit: Commit = {
-      creatorsIds: dcommit.creators
-        ? dcommit.creators.map((creator: any) => creator.did)
-        : [],
+      creatorsIds: dcommit.creators.map((creator: any) => creator.did),
       dataId: dcommit.data.xid,
       timestamp: dcommit.timextamp,
       message: dcommit.message,

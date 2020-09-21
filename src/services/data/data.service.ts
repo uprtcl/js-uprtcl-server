@@ -1,6 +1,6 @@
 import { DGraphService } from "../../db/dgraph.service";
 import { DataRepository } from "../data/data.repository";
-import { Hashed, Secured, Commit } from "../uprtcl/types";
+import { Hashed, Secured, Commit, Signed } from "../uprtcl/types";
 import { UprtclRepository } from "../uprtcl/uprtcl.repository";
 
 const propertyOrder = ['creatorsIds', 'dataId', 'message', 'timestamp', 'parentsIds'];
@@ -19,24 +19,14 @@ export class DataService {
 
     console.log('[UPRTCL-SERVICE] createData', data);
     
-    const castToObject:any = data; 
- 
-    if(castToObject.payload !== undefined) {
-      if(propertyOrder.map((p) => castToObject.hasOwnProperty(p))) {      
-        const { proof, payload } = castToObject;
+    if(
+      (data.object as Signed<any>).payload !== undefined && 
+      propertyOrder.every((p) => (data.object as Signed<any>).payload.hasOwnProperty(p))) {
 
-        const commit: Secured<Commit> = {
-         id: data.id,
-         object: {
-           payload: payload,
-           proof: proof
-         }    
-        }
-        
-        return await this.uprtclRepo.createCommit(commit);
-      }
+      console.log('[UPRTCL-SERVICE] commitPatternDetected', data);
+      return await this.uprtclRepo.createCommit(data as Secured<Commit>);
     }
-
+    
     let dataId = await this.dataRepo.createData(data);
     
     return dataId;
