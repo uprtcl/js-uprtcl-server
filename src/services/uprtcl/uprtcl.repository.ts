@@ -345,6 +345,29 @@ export class UprtclRepository {
     return { query, nquads, delNquads };
   }
 
+  async getOtherIndpPerspectives(
+    perspectiveId: string    
+  ): Promise<Array<string>> {
+    await this.db.ready();
+    let query = `refPersp(func: eq(xid, ${perspectiveId})) { 
+      targetCon as context
+      parents: ~children {
+        refParent as context
+      }
+    }`;
+
+    query = query.concat(`\niPersp(func: eq(context, val(targetCon))) @cascade{
+      xid
+      ~children @filter(not(eq(context, val(refParent) ) ) ) {
+        context
+      }
+    }`);
+
+    let result = await this.db.client.newTxn().query(`query{${query}}`);        
+
+    return result.getJson().iPersp.map((p:any) => p.xid);    
+  }
+
   async getPerspectiveRelatives(
     perspectiveId: string, 
     relatives: 'ecosystem' | 'children'
@@ -450,18 +473,6 @@ export class UprtclRepository {
     };
     return securedPerspective;
   }
-
-  // Get other independent perspectives
-  // async getBoldPerspectives(perspectiveId: string): Promise<Array<string>> {
-  //   let query = `{
-  //     q(func:eq(xid, ${perspectiveId})) {
-  //       children {
-  //         xid
-  //       }
-  //     }    
-  //   }`
-  //   return [''];
-  // }
 
   async findPerspectives(details: PerspectiveDetails): Promise<string[]> {
     await this.db.ready();
