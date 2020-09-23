@@ -362,9 +362,15 @@ export class UprtclRepository {
       }
     }`);
 
-    let result = await this.db.client.newTxn().query(`query{${query}}`);        
+    query = query.concat(`\nnoParent(func: eq(context, val(targetCon))) 
+    @filter(eq(count(~children), 0))
+    {
+      xid
+    }`);
 
-    return result.getJson().iPersp.map((p:any) => p.xid);    
+    let result = (await this.db.client.newTxn().query(`query{${query}}`)).getJson();        
+
+    return result.noParent.map((p:any) => p.xid).concat(result.iPersp.map((p:any) => p.xid));    
   }
 
   async getPerspectiveRelatives(
