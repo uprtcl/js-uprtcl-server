@@ -344,6 +344,56 @@ export class UprtclRepository {
     return { query, nquads, delNquads };
   }
 
+  async getOtherIndpPerspectives(
+    perspectiveId: string,
+    ecosystem: boolean    
+  ): Promise<Array<string>> {
+    await this.db.ready();
+
+    let query = ``;
+
+    if(ecosystem) {
+      query = `
+        persp(func: eq(xid, ${perspectiveId})) {
+          ecosystem {
+            ecoPersp as xid
+          }
+        }
+      `;
+      
+      query = query.concat(`\nrefPersp(func: eq(xid, val(ecoPersp))) {
+        targetCon as context
+        parents: ~children {
+          refParent as context
+        }
+      }`);
+    } else {
+        query = `refPersp(func: eq(xid, ${perspectiveId})) { 
+          targetCon as context
+          parents: ~children {
+            refParent as context
+          }
+        }`;
+    }
+
+    query = query.concat(`\niPersp(func: eq(context, val(targetCon))) @cascade {
+      xid
+      ~children @filter(not(eq(context, val(refParent) ) ) ) {
+        context
+      }
+    }`);
+
+    query = query.concat(`\nnoParent(func: eq(context, val(targetCon))) 
+    @filter(eq(count(~children), 0))
+    {
+      xid
+    }`);    
+
+    let result = (await this.db.client.newTxn().query(`query{${query}}`)).getJson();            
+
+    return result.noParent.map((p:any) => p.xid).concat(result.iPersp.map((p:any) => p.xid));    
+  }
+
   async getPerspectiveRelatives(
     perspectiveId: string, 
     relatives: 'ecosystem' | 'children'
