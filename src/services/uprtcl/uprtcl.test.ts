@@ -881,8 +881,8 @@ describe('routes', () => {
       user1.jwt
     );
 
-    const independentPerspectives = await getIndependentPerspectives(pageB1Perspective);
-  
+    const independentPerspectives = await getIndependentPerspectives(perspectiveB);
+
     expect(independentPerspectives[0]).toEqual(perspectiveA);
     expect(independentPerspectives[1]).toEqual(pageA1Perspective);
     expect(independentPerspectives[2]).toEqual(linkA2Perspective);

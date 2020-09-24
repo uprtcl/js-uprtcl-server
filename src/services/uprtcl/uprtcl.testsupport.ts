@@ -104,7 +104,7 @@ export const getPerspectiveRelatives = async(perspectiveId: string, relatives: '
 };
 
 export const getIndependentPerspectives = async(perspectiveId: string): Promise<Array<string>> => {
-  return await uprtclRepo.getOtherIndpPerspectives(perspectiveId);
+  return await uprtclRepo.getOtherIndpPerspectives(perspectiveId, false);
 };
 
 export const addPagesOrLinks =  async (
