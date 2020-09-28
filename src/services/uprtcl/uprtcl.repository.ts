@@ -347,7 +347,8 @@ export class UprtclRepository {
 
   async getOtherIndpPerspectives(
     perspectiveId: string,
-    ecosystem: boolean    
+    ecosystem: boolean,
+    loggedUserId: string    
   ): Promise<IndependentPersps> {
     await this.db.ready();
 
@@ -383,13 +384,13 @@ export class UprtclRepository {
         permissions {
           publicRead
           publicWrite
-          canRead {
+          canRead @filter(eq(did, ${loggedUserId})) {
             did
           }
-          canWrite {
+          canWrite @filter(eq(did, ${loggedUserId})) {
             did
           }
-          canAdmin {
+          canAdmin @filter(eq(did, ${loggedUserId})) {
             did
           }
         }
@@ -407,13 +408,13 @@ export class UprtclRepository {
         permissions {
           publicRead
           publicWrite
-          canRead {
+          canRead @filter(eq(did, ${loggedUserId})) {
             did
           }
-          canWrite {
+          canWrite @filter(eq(did, ${loggedUserId})) {
             did
           }
-          canAdmin {
+          canAdmin @filter(eq(did, ${loggedUserId})) {
             did
           }
         }
