@@ -57,58 +57,18 @@ export class UprtclService {
     if(loggedUserId === null)
       throw new Error('Anonymous user. Cant get independent perspectives');
     
-    const persps = await this.uprtclRepo.getOtherIndpPerspectives(perspectiveId, includeEcosystem);
+    const persps = await this.uprtclRepo.getOtherIndpPerspectives(perspectiveId, includeEcosystem, loggedUserId);
 
-    return this.filterIndPerspectives(persps.noParent, false, loggedUserId)
-            .concat(this.filterIndPerspectives(persps.iPersp, true, loggedUserId));    
+    return this.filterIndPerspectives(persps.noParent, false)
+                .concat(this.filterIndPerspectives(persps.iPersp, true));
   }
 
   filterIndPerspectives(
     perspectives: Array<string>,
-    hasParent: boolean,
-    loggedUserId: string
+    hasParent: boolean    
   ): Array<string> {
-      const filterPersp: Array<string> = perspectives.filter((persp) => 
-      (hasParent) ? (persp.hasOwnProperty('~children')) ? [] : undefined : []
-    )
-    .map((persp:any) => { 
-      const {
-        xid,
-        accessConfig: {
-          permissions: {
-            publicWrite,
-            publicRead,
-            canRead,
-            canWrite,
-            canAdmin
-          }
-        }
-      } = persp;          
-
-      if(publicRead || publicWrite) {
-        return xid;
-      }
-
-      if(canRead) {
-        if(canRead.filter((read:any) => read.did === loggedUserId)) {
-          return xid;
-        }
-      }
-
-      if(canWrite) {
-        if(canWrite.filter((write:any) => write.did === loggedUserId)) {
-          return xid;
-        }
-      }
-
-      if(canAdmin) {
-        if(canAdmin.filter((admin:any) => admin.did === loggedUserId)) {
-          return xid;
-        }
-      }        
-    });
-    
-    return filterPersp;
+      return perspectives.reduce((xid:any, persps:any) => 
+                (((hasParent) ? persps['~children'] : persps) && xid.push(persps.xid), xid), []);
   }
 
   async findPerspectives(
