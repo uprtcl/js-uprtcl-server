@@ -103,8 +103,13 @@ export const getPerspectiveRelatives = async(perspectiveId: string, relatives: '
   return await uprtclRepo.getPerspectiveRelatives(perspectiveId, relatives);
 };
 
-export const getIndependentPerspectives = async(perspectiveId: string): Promise<Array<string>> => {
-  return await uprtclRepo.getOtherIndpPerspectives(perspectiveId, false);
+export const getIndependentPerspectives = async(perspectiveId: string, jwt: string): Promise<GetResult<String[]>> => {
+  const router = await createApp();
+  const get = await request(router)
+    .get(`/uprtcl/1/persp/context/${perspectiveId}?includeEcosystem=false`)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
+  return JSON.parse(get.text);
 };
 
 export const addPagesOrLinks =  async (
