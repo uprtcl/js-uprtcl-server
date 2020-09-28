@@ -11,6 +11,7 @@ import {
   Proof,
   getAuthority,  
   EcosystemUpdates,
+  IndependentPersps
 } from './types';
 import {
   PERSPECTIVE_SCHEMA_NAME,
@@ -347,7 +348,7 @@ export class UprtclRepository {
   async getOtherIndpPerspectives(
     perspectiveId: string,
     ecosystem: boolean    
-  ): Promise<Array<string>> {
+  ): Promise<IndependentPersps> {
     await this.db.ready();
 
     let query = ``;
@@ -376,8 +377,23 @@ export class UprtclRepository {
         }`;
     }
 
-    query = query.concat(`\niPersp(func: eq(context, val(targetCon))) @cascade {
+    query = query.concat(`\niPersp(func: eq(context, val(targetCon))) {
       xid
+      accessConfig {
+        permissions {
+          publicRead
+          publicWrite
+          canRead {
+            did
+          }
+          canWrite {
+            did
+          }
+          canAdmin {
+            did
+          }
+        }
+      }
       ~children @filter(not(eq(context, val(refParent) ) ) ) {
         context
       }
@@ -387,11 +403,29 @@ export class UprtclRepository {
     @filter(eq(count(~children), 0))
     {
       xid
+      accessConfig {
+        permissions {
+          publicRead
+          publicWrite
+          canRead {
+            did
+          }
+          canWrite {
+            did
+          }
+          canAdmin {
+            did
+          }
+        }
+      }
     }`);    
 
-    let result = (await this.db.client.newTxn().query(`query{${query}}`)).getJson();            
-
-    return result.noParent.map((p:any) => p.xid).concat(result.iPersp.map((p:any) => p.xid));    
+    let result = (await this.db.client.newTxn().query(`query{${query}}`)).getJson();   
+    
+    return {
+      noParent: result.noParent,
+      iPersp: result.iPersp
+    }      
   }
 
   async getPerspectiveRelatives(
