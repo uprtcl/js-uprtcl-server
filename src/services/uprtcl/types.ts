@@ -56,6 +56,11 @@ export interface Commit {
   dataId: string
 }
 
+export interface IndependentPersps {
+  noParent: Array<string>
+  iPersp: Array<string>
+}
+
 export interface Hashed<T> {
   id: string
   object: T
