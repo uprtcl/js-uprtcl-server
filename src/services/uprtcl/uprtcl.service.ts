@@ -67,8 +67,26 @@ export class UprtclService {
     perspectives: Array<string>,
     hasParent: boolean    
   ): Array<string> {
-      return perspectives.reduce((xid:any, persps:any) => 
-                (((hasParent) ? persps['~children'] : persps) && xid.push(persps.xid), xid), []);
+      const finalPersps = perspectives.reduce((final:any, persps:any) => 
+                ((hasParent ? persps['~children'] : persps) && final.push(persps), final), []);
+
+      return finalPersps.map((persp:any) => {
+        const {
+          xid,
+          accessConfig: {
+            permissions: {
+              publicRead,
+              publicWrite,
+              canRead,
+              canWrite,
+              canAdmin
+            }
+          }
+        } = persp;
+
+        return (publicRead || publicWrite) ? xid 
+              : (canRead || canWrite || canAdmin) ? xid : undefined;
+      });
   }
 
   async findPerspectives(
