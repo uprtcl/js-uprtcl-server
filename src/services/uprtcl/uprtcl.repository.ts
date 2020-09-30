@@ -9,7 +9,7 @@ import {
   Commit,
   Secured,
   Proof,
-  getAuthority,  
+  getAuthority,
   EcosystemUpdates,
 } from './types';
 import {
@@ -142,7 +142,7 @@ export class UprtclRepository {
 
     const query1 = `perspective as var(func: eq(xid, "${id}"))`;
     req1.setQuery(`query{${query1}}`);
-    
+
     const nquads1 = `uid(perspective) <ecosystem> uid(perspective) .`;
 
     mu1.setSetNquads(nquads1);
@@ -276,17 +276,21 @@ export class UprtclRepository {
         `\nuid(perspective) <context> "${details.context}" .`
       );
 
-    const dbContent:DbContent = {
+    const dbContent: DbContent = {
       query: query,
       nquads: nquads,
-      delNquads: delNquads
-    }
+      delNquads: delNquads,
+    };
 
     // Updates the ecosystem and children
-    const ecosystemUpdated = await this.updateEcosystem(ecosystem, perspectiveId, dbContent);      
+    const ecosystemUpdated = await this.updateEcosystem(
+      ecosystem,
+      perspectiveId,
+      dbContent
+    );
 
     req.setQuery(`query{${ecosystemUpdated.query}}`);
-    mu.setSetNquads(ecosystemUpdated.nquads);        
+    mu.setSetNquads(ecosystemUpdated.nquads);
     mu.setDelNquads(ecosystemUpdated.delNquads);
 
     req.setMutationsList([mu]);
@@ -300,59 +304,75 @@ export class UprtclRepository {
       result.getUidsMap().toArray()
     );
   }
-  
-  async updateEcosystem(ecosystem: EcosystemUpdates, perspectiveId: string, dbContent: DbContent) {
+
+  async updateEcosystem(
+    ecosystem: EcosystemUpdates,
+    perspectiveId: string,
+    dbContent: DbContent
+  ) {
     let { query, nquads, delNquads } = dbContent;
 
-    ecosystem.addedChildren.map((addedChild, i) => {            
+    ecosystem.addedChildren.map((addedChild, i) => {
       query = query.concat(`\n
         addedChild${i} as var(func: eq(xid, ${addedChild}))        
         {
           ecoAdd${i} as ecosystem            
         }
-      `)      
-      nquads = nquads.concat(`\nuid(perspective) <ecosystem> uid(ecoAdd${i}) .`);
-      nquads = nquads.concat(`\nuid(perspective) <children> uid(addedChild${i}) .`);
+      `);
+      nquads = nquads.concat(
+        `\nuid(perspective) <ecosystem> uid(ecoAdd${i}) .`
+      );
+      nquads = nquads.concat(
+        `\nuid(perspective) <children> uid(addedChild${i}) .`
+      );
 
       query = query.concat(`\n
         ecs${i}(func: eq(xid, ${perspectiveId}))        
         {
           revEcoAdd${i} as ~ecosystem            
         }
-      `)      
-      nquads = nquads.concat(`\nuid(revEcoAdd${i}) <ecosystem> uid(ecoAdd${i}) .`);            
+      `);
+      nquads = nquads.concat(
+        `\nuid(revEcoAdd${i}) <ecosystem> uid(ecoAdd${i}) .`
+      );
     });
 
-    ecosystem.removedChildren.map((removedChild, i) => {            
+    ecosystem.removedChildren.map((removedChild, i) => {
       query = query.concat(`\n
         removedChild${i} as var(func: eq(xid, ${removedChild}))        
         {
           ecoDelete${i} as ecosystem            
         }
-      `)      
-      delNquads = delNquads.concat(`\nuid(perspective) <ecosystem> uid(ecoDelete${i}) .`);
-      delNquads = delNquads.concat(`\nuid(perspective) <children> uid(removedChild${i}) .`);
+      `);
+      delNquads = delNquads.concat(
+        `\nuid(perspective) <ecosystem> uid(ecoDelete${i}) .`
+      );
+      delNquads = delNquads.concat(
+        `\nuid(perspective) <children> uid(removedChild${i}) .`
+      );
 
       query = query.concat(`\n
         qs${i}(func: eq(xid, ${perspectiveId}))        
         {
           revEcoDelete${i} as ~ecosystem            
         }
-      `)      
-      delNquads = delNquads.concat(`\nuid(revEcoDelete${i}) <ecosystem> uid(ecoDelete${i}) .`);      
+      `);
+      delNquads = delNquads.concat(
+        `\nuid(revEcoDelete${i}) <ecosystem> uid(ecoDelete${i}) .`
+      );
     });
     return { query, nquads, delNquads };
   }
 
   async getOtherIndpPerspectives(
     perspectiveId: string,
-    ecosystem: boolean    
+    ecosystem: boolean
   ): Promise<Array<string>> {
     await this.db.ready();
 
     let query = ``;
 
-    if(ecosystem) {
+    if (ecosystem) {
       query = `
         persp(func: eq(xid, ${perspectiveId})) {
           ecosystem {
@@ -360,7 +380,7 @@ export class UprtclRepository {
           }
         }
       `;
-      
+
       query = query.concat(`\nrefPersp(func: eq(xid, val(ecoPersp))) {
         targetCon as context
         parents: ~children {
@@ -368,7 +388,7 @@ export class UprtclRepository {
         }
       }`);
     } else {
-        query = `refPersp(func: eq(xid, ${perspectiveId})) { 
+      query = `refPersp(func: eq(xid, ${perspectiveId})) { 
           targetCon as context
           parents: ~children {
             refParent as context
@@ -387,15 +407,19 @@ export class UprtclRepository {
     @filter(eq(count(~children), 0))
     {
       xid
-    }`);    
+    }`);
 
-    let result = (await this.db.client.newTxn().query(`query{${query}}`)).getJson();            
+    let result = (
+      await this.db.client.newTxn().query(`query{${query}}`)
+    ).getJson();
 
-    return result.noParent.map((p:any) => p.xid).concat(result.iPersp.map((p:any) => p.xid));    
+    return result.noParent
+      .map((p: any) => p.xid)
+      .concat(result.iPersp.map((p: any) => p.xid));
   }
 
   async getPerspectiveRelatives(
-    perspectiveId: string, 
+    perspectiveId: string,
     relatives: 'ecosystem' | 'children'
   ): Promise<Array<string>> {
     await this.db.ready();
@@ -409,7 +433,9 @@ export class UprtclRepository {
 
     const result = await this.db.client.newTxn().query(query);
 
-    return result.getJson().perspective[0][`${relatives}`].map((persp:any) => persp.xid);
+    return result
+      .getJson()
+      .perspective[0][`${relatives}`].map((persp: any) => persp.xid);
   }
 
   async setDeletedPerspective(
@@ -643,7 +669,9 @@ export class UprtclRepository {
     if (!dcommit.stored) new Error(`Commit with id ${commitId} not found`);
 
     const commit: Commit = {
-      creatorsIds: dcommit.creators.map((creator: any) => creator.did),
+      creatorsIds: dcommit.creators
+        ? dcommit.creators.map((creator: any) => creator.did)
+        : [],
       dataId: dcommit.data.xid,
       timestamp: dcommit.timextamp,
       message: dcommit.message,
