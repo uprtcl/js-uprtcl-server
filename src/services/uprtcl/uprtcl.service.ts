@@ -57,34 +57,7 @@ export class UprtclService {
     if(loggedUserId === null)
       throw new Error('Anonymous user. Cant get independent perspectives');
     
-    const persps = await this.uprtclRepo.getOtherIndpPerspectives(perspectiveId, includeEcosystem, loggedUserId);
-
-    return this.filterIndPerspectives(persps.noParent, false)
-                .concat(this.filterIndPerspectives(persps.iPersp, true));
-  }
-
-  filterIndPerspectives(
-    perspectives: Array<string>,
-    hasParent: boolean    
-  ): Array<string> {
-      const finalPersps = perspectives.reduce((final:any, persps:any) => 
-                ((hasParent ? persps['~children'] : persps) && final.push(persps), final), []);
-
-      return finalPersps.map((persp:any) => {
-        const {
-          xid,
-          accessConfig: {
-            permissions: {
-              publicRead,
-              publicWrite,
-              canRead
-            }
-          }
-        } = persp;
-
-        return (publicRead || publicWrite) ? xid 
-              : (canRead) ? xid : undefined;
-      });
+    return await this.uprtclRepo.getOtherIndpPerspectives(perspectiveId, includeEcosystem, loggedUserId);
   }
 
   async findPerspectives(
