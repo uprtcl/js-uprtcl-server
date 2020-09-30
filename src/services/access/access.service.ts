@@ -23,8 +23,8 @@ export class AccessService {
       persmissions = {
         publicRead: false,
         publicWrite: false,
-        canRead: [],
-        canWrite: [],
+        canRead: [userId],
+        canWrite: [userId],
         canAdmin: [userId],
       };
     } else {
