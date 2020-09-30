@@ -643,7 +643,7 @@ describe('routes', () => {
       ]);
   });
 
-  test('independent perspectives', async() => {
+  test.only('independent perspectives', async() => {
 
     const user1 = await createUser('seed1');
     const creatorId = 'did:method:7777';
