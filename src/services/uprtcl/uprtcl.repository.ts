@@ -384,13 +384,7 @@ export class UprtclRepository {
         permissions {
           publicRead
           publicWrite
-          canRead @filter(eq(did, ${loggedUserId})) {
-            did
-          }
-          canWrite @filter(eq(did, ${loggedUserId})) {
-            did
-          }
-          canAdmin @filter(eq(did, ${loggedUserId})) {
+          canRead @filter(eq(did, ${loggedUserId.toLowerCase()})) {
             did
           }
         }
@@ -409,12 +403,6 @@ export class UprtclRepository {
           publicRead
           publicWrite
           canRead @filter(eq(did, ${loggedUserId})) {
-            did
-          }
-          canWrite @filter(eq(did, ${loggedUserId})) {
-            did
-          }
-          canAdmin @filter(eq(did, ${loggedUserId})) {
             did
           }
         }

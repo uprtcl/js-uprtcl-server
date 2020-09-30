@@ -77,15 +77,13 @@ export class UprtclService {
             permissions: {
               publicRead,
               publicWrite,
-              canRead,
-              canWrite,
-              canAdmin
+              canRead
             }
           }
         } = persp;
 
         return (publicRead || publicWrite) ? xid 
-              : (canRead || canWrite || canAdmin) ? xid : undefined;
+              : (canRead) ? xid : undefined;
       });
   }
 
