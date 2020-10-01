@@ -110,6 +110,9 @@ export class UprtclRepository {
     nquads = nquads.concat(
       `\n_:perspective <timextamp> "${perspective.timestamp}"^^<xs:int> .`
     );
+    nquads = nquads.concat(
+      `\n_:perspective <context> "${perspective.context}" .`
+    );
     nquads = nquads.concat(`\n_:perspective <deleted> "false" .`);
     nquads = nquads.concat(
       `\n_:perspective <remote> "${perspective.remote}" .`
@@ -271,10 +274,6 @@ export class UprtclRepository {
     }
     if (details.name !== undefined)
       nquads = nquads.concat(`\nuid(perspective) <name> "${details.name}" .`);
-    if (details.context !== undefined)
-      nquads = nquads.concat(
-        `\nuid(perspective) <context> "${details.context}" .`
-      );
 
     const dbContent: DbContent = {
       query: query,
@@ -509,6 +508,7 @@ export class UprtclRepository {
       path: dperspective.path,
       creatorId: dperspective.creator.did,
       timestamp: dperspective.timextamp,
+      context: dperspective.context,
     };
 
     const proof: Proof = {
@@ -526,28 +526,10 @@ export class UprtclRepository {
     return securedPerspective;
   }
 
-  async findPerspectives(details: PerspectiveDetails): Promise<string[]> {
+  async findPerspectives(context: string): Promise<string[]> {
     await this.db.ready();
-    let condition = '';
-
-    condition = condition.concat(
-      `${condition !== '' ? ' AND ' : ''} eq(deleted, "false")`
-    );
-
-    if (details.name) {
-      condition = condition.concat(
-        `${condition !== '' ? ' AND ' : ''}eq(name, ${details.name})`
-      );
-    }
-
-    if (details.context) {
-      condition = condition.concat(
-        `${condition !== '' ? ' AND ' : ''}eq(context, ${details.context})`
-      );
-    }
-
     const query = `query {
-      perspective(func: eq(stored, "true")) @filter(${condition}) {
+      perspective(func: eq(stored, "true")) @filter(eq(context, ${context})) {
         xid
         name
         context
@@ -560,11 +542,6 @@ export class UprtclRepository {
         proof {
           signature
           type
-        }
-        ${
-          details.headId
-            ? `\nhead @filter(func: eq(xid, ${details.headId})){ xid }`
-            : ''
         }
       }
     }`;
@@ -582,6 +559,7 @@ export class UprtclRepository {
           path: dperspective.path,
           creatorId: dperspective.creator.did,
           timestamp: dperspective.timextamp,
+          context: dperspective.context,
         };
       }
     );
@@ -621,7 +599,6 @@ export class UprtclRepository {
     if (json.perspective.length === 0) {
       return {
         name: '',
-        context: '',
         headId: '',
       };
     }
@@ -629,8 +606,7 @@ export class UprtclRepository {
     const details = json.perspective[0];
     return {
       name: details.name,
-      context: details.context,
-      headId: details.head.xid,
+      headId: details.head ? details.head.xid : undefined,
     };
   }
 

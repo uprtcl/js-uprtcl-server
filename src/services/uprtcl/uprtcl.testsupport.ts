@@ -14,6 +14,7 @@ import { uprtclRepo } from '../access/access.testsupport';
 export const createPerspective = async (
   creatorId: string,
   timestamp: number,
+  context: string,
   jwt: string,
   headId?: string,
   parentId?: string
@@ -23,6 +24,7 @@ export const createPerspective = async (
     path: LOCAL_EVEES_PATH,
     creatorId: creatorId,
     timestamp: timestamp,
+    context: context,
   };
 
   const secured: Secured<Perspective> = {
@@ -99,15 +101,20 @@ export const createCommit = async (
   return result;
 };
 
-export const getPerspectiveRelatives = async(perspectiveId: string, relatives: 'ecosystem' | 'children'): Promise<Array<string>> => {
+export const getPerspectiveRelatives = async (
+  perspectiveId: string,
+  relatives: 'ecosystem' | 'children'
+): Promise<Array<string>> => {
   return await uprtclRepo.getPerspectiveRelatives(perspectiveId, relatives);
 };
 
-export const getIndependentPerspectives = async(perspectiveId: string): Promise<Array<string>> => {
+export const getIndependentPerspectives = async (
+  perspectiveId: string
+): Promise<Array<string>> => {
   return await uprtclRepo.getOtherIndpPerspectives(perspectiveId, false);
 };
 
-export const addPagesOrLinks =  async (
+export const addPagesOrLinks = async (
   addedContent: Array<string>,
   pages: boolean,
   parents: Array<string>,
@@ -118,10 +125,10 @@ export const addPagesOrLinks =  async (
 
   let data = {};
 
-  if(pages) {
-    data = { title: '', type: DocNodeType.title, pages: addedContent }
+  if (pages) {
+    data = { title: '', type: DocNodeType.title, pages: addedContent };
   } else {
-    data = { text: '', type: DocNodeType.paragraph, links: addedContent }
+    data = { text: '', type: DocNodeType.paragraph, links: addedContent };
   }
 
   const dataId = await createData(data, jwt);
@@ -134,7 +141,7 @@ export const addPagesOrLinks =  async (
     jwt
   );
   return commitId;
-}
+};
 
 export const createCommitAndData = async (
   content: string,
@@ -146,10 +153,10 @@ export const createCommitAndData = async (
 
   let data = {};
 
-  if(page) {
-    data = { title: content, type: DocNodeType.title, pages: [] }
+  if (page) {
+    data = { title: content, type: DocNodeType.title, pages: [] };
   } else {
-    data = { text: content, type: DocNodeType.paragraph, links: [] }
+    data = { text: content, type: DocNodeType.paragraph, links: [] };
   }
 
   const dataId = await createData(data, jwt);
@@ -213,7 +220,7 @@ export const getCommit = async (
 };
 
 export const findPerspectives = async (
-  details: PerspectiveDetails,
+  details: { context: string },
   jwt: string
 ): Promise<GetResult<string[]>> => {
   const router = await createApp();
