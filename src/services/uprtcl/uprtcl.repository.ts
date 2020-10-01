@@ -357,15 +357,13 @@ export class UprtclRepository {
       // If independent perspectives from an ecosystem are needed
       query = `
         persp(func: eq(xid, ${perspectiveId})) {
-          ecosystem {
-            ecoPersp as xid
-          }
+          eco as ecosystem
         }
       `;
       
       // Look for independent perspectives for every element of an ecosystem, in this case
       // the perspective ecosystem
-      query = query.concat(`\nrefPersp(func: eq(xid, val(ecoPersp))) {
+      query = query.concat(`\nrefPersp(func: uid(eco)) {
         targetCon as context
         parents: ~children {
           refParent as context
