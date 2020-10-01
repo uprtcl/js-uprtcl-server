@@ -55,7 +55,6 @@ export interface Commit {
   parentsIds: Array<string>;
   dataId: string;
 }
-
 export interface Hashed<T> {
   id: string;
   object: T;

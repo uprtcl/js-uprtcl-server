@@ -365,56 +365,83 @@ export class UprtclRepository {
 
   async getOtherIndpPerspectives(
     perspectiveId: string,
-    ecosystem: boolean
+    ecosystem: boolean,
+    loggedUserId: string    
   ): Promise<Array<string>> {
     await this.db.ready();
 
     let query = ``;
 
-    if (ecosystem) {
+    if(ecosystem) {
+      // If independent perspectives from an ecosystem are needed
       query = `
         persp(func: eq(xid, ${perspectiveId})) {
-          ecosystem {
-            ecoPersp as xid
-          }
+          eco as ecosystem
         }
       `;
-
-      query = query.concat(`\nrefPersp(func: eq(xid, val(ecoPersp))) {
+      
+      // Look for independent perspectives for every element of an ecosystem, in this case
+      // the perspective ecosystem
+      query = query.concat(`\nrefPersp(func: uid(eco)) {
         targetCon as context
         parents: ~children {
           refParent as context
         }
       }`);
     } else {
+      // Otherwise, only look for independent perspective for the indicated persp.
       query = `refPersp(func: eq(xid, ${perspectiveId})) { 
-          targetCon as context
-          parents: ~children {
-            refParent as context
-          }
-        }`;
+        targetCon as context
+        parents: ~children {
+          refParent as context
+        }
+      }`;
     }
 
-    query = query.concat(`\niPersp(func: eq(context, val(targetCon))) @cascade {
+    // Verify permissions on the perspectives found
+    query = query.concat(`\niPublicRead as var(func: eq(context, val(targetCon)))
+    @cascade {
+      xid
+      accessConfig {
+        permissions @filter(eq(publicRead, true)) {
+          publicRead
+        }
+      }
+    }`);
+
+    query = query.concat(`\n iCanRead as var(func: eq(context, val(targetCon)))
+    @cascade {
+      xid
+      accessConfig {
+        permissions {
+          canRead @filter(eq(did, ${loggedUserId.toLowerCase()})) {
+            did
+          }
+        }
+      }
+    }`);
+
+    // Verify independent perspectives criteria with parents.
+    query = query.concat(`\niPersp(func: has(xid)) 
+    @filter(uid(iPublicRead) OR uid(iCanRead))
+    @cascade {
       xid
       ~children @filter(not(eq(context, val(refParent) ) ) ) {
         context
       }
     }`);
 
-    query = query.concat(`\nnoParent(func: eq(context, val(targetCon))) 
-    @filter(eq(count(~children), 0))
+    // Verify independent perspectives criteria without parents.
+    query = query.concat(`\nnoParent(func: has(xid)) 
+    @filter(eq(count(~children), 0) AND (uid(iPublicRead) OR uid(iCanRead)))
     {
       xid
     }`);
 
-    let result = (
-      await this.db.client.newTxn().query(`query{${query}}`)
-    ).getJson();
+    let result = (await this.db.client.newTxn().query(`query{${query}}`)).getJson();   
 
-    return result.noParent
-      .map((p: any) => p.xid)
-      .concat(result.iPersp.map((p: any) => p.xid));
+    return result.noParent.map((p:any) => p.xid)
+          .concat(result.iPersp.map((p:any) => p.xid));
   }
 
   async getPerspectiveRelatives(

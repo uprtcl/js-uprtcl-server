@@ -683,11 +683,11 @@ describe('routes', () => {
     */
 
 
- PAL2 = createAndInitPerspective(texdt: links)
- PAL = createAndInitPerspective(texdt: links: [PAL2])
- A = createAndInitPerspective(texdt: links: [PAL], context)
+//  PAL2 = createAndInitPerspective(texdt: links)
+//  PAL = createAndInitPerspective(texdt: links: [PAL2])
+//  A = createAndInitPerspective(texdt: links: [PAL], context)
 
- PBL = forkPerspective([PAL])
+//  PBL = forkPerspective([PAL])
 
 
  
@@ -958,12 +958,11 @@ describe('routes', () => {
       user1.jwt
     );
 
-    const independentPerspectives = await getIndependentPerspectives(
-      perspectiveB
-    );
+    const independentPerspectives = (await getIndependentPerspectives(pageB1Perspective, user1.jwt)).data;
 
     expect(independentPerspectives[0]).toEqual(perspectiveA);
     expect(independentPerspectives[1]).toEqual(pageA1Perspective);
     expect(independentPerspectives[2]).toEqual(linkA2Perspective);
+    expect(independentPerspectives[3]).toEqual(linkA3Perspective);
   });
 });
