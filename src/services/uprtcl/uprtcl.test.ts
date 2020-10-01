@@ -662,6 +662,35 @@ describe('routes', () => {
     const perspectiveAcontext = 'perspective.A.context';
 
     // Branch A
+
+    /* PAL2 =createAndInitPerspective(texdt: links) {
+      // const comPAL2 = createCommitAndData(texdt: links)
+      // const PAL2 = createPerspective(head: comPAL2)
+    }
+    
+    forkPerspective(p1) {
+      const childs = getChildren(p1)
+      chidid = await childs.map(() => {
+        return forkPerspective(child)
+      })
+
+      p1f.data.links = chidid;
+      p1f.context = p1.context
+
+      return p1f.id
+    }
+
+    */
+
+
+ PAL2 = createAndInitPerspective(texdt: links)
+ PAL = createAndInitPerspective(texdt: links: [PAL2])
+ A = createAndInitPerspective(texdt: links: [PAL], context)
+
+ PBL = forkPerspective([PAL])
+
+
+ 
     // Create perspectiveA
     const commitA = await createCommitAndData('base space', true, user1.jwt);
     const perspectiveA = await createPerspective(
@@ -797,6 +826,8 @@ describe('routes', () => {
 
     // Branch B
 
+    // createLB
+
     // Create perspectiveB
     const commitB = await createCommitAndData('base space', true, user1.jwt);
     const perspectiveB = await createPerspective(
@@ -821,7 +852,7 @@ describe('routes', () => {
       pageB1Commit
     );
 
-    const dataB1 = await addPagesOrLinks(
+    const commitB1 = await addPagesOrLinks(
       [pageB1Perspective],
       true,
       [commitB],
@@ -831,7 +862,7 @@ describe('routes', () => {
     await updatePerspective(
       perspectiveB,
       {
-        headId: dataB1,
+        headId: commitB1,
         name: name,
       },
       user1.jwt
