@@ -65,7 +65,8 @@ export class ProposalsRepository {
             proposalData.details.newPerspectives, 
             '_:proposal', 
             nquads, 
-            query);
+            query
+        );
 
         nquads = updatesSetup.nquads;        
         nquads = nquads.concat(`\n_:proposal <dgraph.type> "${PROPOSALS_SCHEMA_NAME}" .`);
@@ -142,15 +143,13 @@ export class ProposalsRepository {
 
     async createNewPerspectiveProposal(newPerspective: NewPerspectiveData): Promise<string> {
         const mu = new dgraph.Mutation();
-        const req = new dgraph.Request();        
+        const req = new dgraph.Request(); 
         
-        let nquads = `_:NewPerspective <NEWsP_perspectiveId>  "${newPerspective.perspective.id}" .`;    
+        let nquads = `_:NewPerspective <NEWP_perspectiveId>  "${newPerspective.perspective.id}" .`;    
         if (newPerspective.parentId) nquads = nquads.concat(`\n_:NewPerspective <NEWP_parentId> "${newPerspective.parentId}" .`);
         if (newPerspective.details && newPerspective.details.headId) nquads = nquads.concat(`\n_:NewPerspective <NEWP_headId> "${newPerspective.details.headId}" .`);
 
         nquads = nquads.concat(`\n_:NewPerspective <dgraph.type> "${NEW_PERSPECTIVE_PROPOSAL_SCHEMA_NAME}" .`);
-
-        req.setQuery(`query{}`);
         mu.setSetNquads(nquads);
         req.setMutationsList([mu]);
 
