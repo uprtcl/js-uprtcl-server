@@ -11,6 +11,91 @@ import { createData } from '../data/support.data';
 import { DocNodeType } from '../data/types';
 import { uprtclRepo } from '../access/access.testsupport';
 
+interface PerspectiveData {
+  persp: string,
+  commit: string
+}
+
+export const forkPerspective = async (
+  perspectiveId: string,
+  jwt: string
+): Promise<string> => {
+    const children = (await getPerspectiveRelatives(perspectiveId, 'children')).map(async (child) => {
+    try {
+      return await forkPerspective(child, jwt);
+    } catch {
+      return;
+    }
+  });
+
+  const childrenIds = await Promise.all(children);
+
+  const persp = await getPerspective(perspectiveId, jwt);
+  const perspDetails = await getPerspectiveDetails(perspectiveId, jwt);  
+
+  console.log("");
+  console.log("");
+  console.log("");
+  console.log("");
+  console.log(persp.data);
+  const headId: string = perspDetails.data.headId ? perspDetails.data.headId : '';
+
+  console.log(await getPerspective(headId, jwt));
+
+  console.log("");
+  console.log("");
+  console.log("");
+  console.log("");
+
+  return ''
+}
+
+export const addChildToPerspective = async (
+  childId: string,
+  parentId: string,
+  parentCommit: string,
+  pages: boolean,
+  jwt: string
+): Promise<void> => {
+  const commitChild = await addPagesOrLinks(
+    [childId],
+    pages,
+    [parentCommit],
+    jwt
+  );
+
+  await updatePerspective(
+    parentId,
+    {
+      headId: commitChild,
+      name: ''
+    },
+    jwt
+  )
+}
+
+export const createAndInitPerspective = async ( 
+  content: string, 
+  pages: boolean,
+  creatorId: string,
+  jwt: string,
+  timestamp: number,
+  context: string  
+): Promise<PerspectiveData> => {
+  const commit = await createCommitAndData(content, pages, jwt);
+
+  return {
+    persp: await createPerspective (
+      creatorId,
+      timestamp,
+      context,
+      jwt,
+      commit    
+    ),
+    commit: commit
+  };
+}
+
 export const createPerspective = async (
   creatorId: string,
   timestamp: number,
