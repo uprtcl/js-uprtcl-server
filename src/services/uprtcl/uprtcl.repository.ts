@@ -459,9 +459,10 @@ export class UprtclRepository {
 
     const result = await this.db.client.newTxn().query(query);
 
-    return result
-      .getJson()
-      .perspective[0][`${relatives}`].map((persp: any) => persp.xid);
+    return (result.getJson().perspective[0])
+      ? result.getJson()
+      .perspective[0][`${relatives}`].map((persp: any) => persp.xid)
+      : [];
   }
 
   async setDeletedPerspective(
