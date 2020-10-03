@@ -666,22 +666,6 @@ describe('routes', () => {
     const perspectiveBcontext = 'perspective.B.context';
 
     // Branch A
-    
-    /* forkPerspective(p1) {
-      const childs = getChildren(p1)
-      chidid = await childs.map(() => {
-        return forkPerspective(child)
-      })
-
-      p1f.data.links = chidid;
-      p1f.context = p1.context
-
-      return p1f.id
-    }
-
-    */
-
-//  PBL = forkPerspective([PAL])
 
     const A = await createAndInitPerspective(
       'base space A',
@@ -732,13 +716,36 @@ describe('routes', () => {
 
     // Create perspectiveB
 
-    const PB1= await forkPerspective(PA1.persp, user1.jwt);
+    const B = await createAndInitPerspective(
+      'base space B',
+      true,
+      creatorId,
+      user1.jwt,
+      141214,
+      perspectiveBcontext
+    );
 
-    // const independentPerspectives = (await getIndependentPerspectives(pageB1Perspective, user1.jwt)).data;
+    const PB1 = await forkPerspective(PA1.persp, user1.jwt);
 
-    // expect(independentPerspectives[0]).toEqual(perspectiveA);
-    // expect(independentPerspectives[1]).toEqual(pageA1Perspective);
-    // expect(independentPerspectives[2]).toEqual(linkA2Perspective);
-    // expect(independentPerspectives[3]).toEqual(linkA3Perspective);
+    await addChildToPerspective(
+      PB1,
+      B.persp,
+      B.commit,
+      false,
+      user1.jwt
+    );
+    
+    const LB2 = (await getPerspectiveRelatives(PB1, 'children'))[0];   
+    
+    const LC = await forkPerspective(LB2, user1.jwt);
+
+    const independentPerspectives = (await getIndependentPerspectives(PA1.persp, user1.jwt)).data;
+
+    expect(independentPerspectives[0]).toEqual(PB1);
+
+    const independentPerspectivesEco = (await getIndependentPerspectives(PA1.persp, user1.jwt, true)).data;
+
+    expect(independentPerspectivesEco[1]).toEqual(PB1);
+    expect(independentPerspectivesEco[0]).toEqual(LC);
   });
 });
