@@ -16,38 +16,55 @@ interface PerspectiveData {
   commit: string
 }
 
-export const forkPerspective = async (
+export const forkPerspective = async (  
   perspectiveId: string,
-  jwt: string
-): Promise<string> => {
-    const children = (await getPerspectiveRelatives(perspectiveId, 'children')).map(async (child) => {
-    try {
-      return await forkPerspective(child, jwt);
-    } catch {
-      return;
+  jwt: string,
+  parent?: PerspectiveData
+): Promise<any> => {
+    const timestamp = Math.floor(100000 + Math.random() * 900000);
+
+    const persp = await getPerspective(perspectiveId, jwt);    
+    const {
+      data: {
+        object: {
+          payload: {
+            creatorId,
+            context
+          }
+        }
+      }
+    } = persp;
+
+    const forkedPersp = await createAndInitPerspective(
+      '',
+      false,
+      creatorId,
+      jwt,
+      timestamp,
+      context
+    );
+
+    if(parent) {
+      await addChildToPerspective(
+        forkedPersp.persp,
+        parent.persp,
+        parent.commit,
+        false,
+        jwt
+      )
     }
-  });
 
-  const childrenIds = await Promise.all(children);
+    const children = (await getPerspectiveRelatives(perspectiveId, 'children')).map(async (child) => {
+      try {
+        return await forkPerspective(child, jwt, forkedPersp);
+      } catch {
+        return;
+      }
+    });
+  
+  await Promise.all(children);    
 
-  const persp = await getPerspective(perspectiveId, jwt);
-  const perspDetails = await getPerspectiveDetails(perspectiveId, jwt);  
-
-  console.log("");
-  console.log("");
-  console.log("");
-  console.log("");
-  console.log(persp.data);
-  const headId: string = perspDetails.data.headId ? perspDetails.data.headId : '';
-
-  console.log(await getPerspective(headId, jwt));
-
-  console.log("");
-  console.log("");
-  console.log("");
-  console.log("");
-
-  return ''
+  return (parent) ? parent.persp : forkedPersp.persp;
 }
 
 export const addChildToPerspective = async (
@@ -193,10 +210,14 @@ export const getPerspectiveRelatives = async (
   return await uprtclRepo.getPerspectiveRelatives(perspectiveId, relatives);
 };
 
-export const getIndependentPerspectives = async(perspectiveId: string, jwt: string): Promise<GetResult<String[]>> => {
+export const getIndependentPerspectives = async(
+  perspectiveId: string, 
+  jwt: string,
+  eco?: boolean
+): Promise<GetResult<String[]>> => {
   const router = await createApp();
   const get = await request(router)
-    .get(`/uprtcl/1/persp/context/${perspectiveId}?includeEcosystem=false`)
+    .get(`/uprtcl/1/persp/context/${perspectiveId}?includeEcosystem=${eco}`)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   return JSON.parse(get.text);
