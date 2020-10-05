@@ -6,39 +6,21 @@ const jwksRsa = require('jwks-rsa');
 
 require('dotenv').config();
 
-export function getAuth0Secret(kid: string) {
-  return new Promise((resolve, reject) => {
-    const client = jwksRsa({
-      strictSsl: true, // Default value
-      jwksUri: `https://${process.env.AUTH0_DOMAIN}/.well-known/jwks.json`,
-      cache: true,
-      rateLimit: true,
-    });
-
-    client.getSigningKey(kid, (_err: any, key: any) => {
-      const signingKey = key.publicKey || key.rsaPublicKey;
-      resolve(signingKey);
-    });
-  });
-}
-
 export function verifyAuth0Token(token: string, kid: string) {
   return new Promise((resolve, reject) => {
-    getAuth0Secret(kid).then((secret: any) => {
-      jwt.verify(
-        token,
-        secret,
-        {
-          algorithms: ['RS256'],
-        },
-        (err: any, decodedToken: any) => {
-          if (err || !decodedToken) {
-            return reject(err);
-          }
-          resolve(decodedToken);
+    jwt.verify(
+      token,
+      process.env.AUTH0_SECRET,
+      {
+        algorithms: ['RS256'],
+      },
+      (err: any, decodedToken: any) => {
+        if (err || !decodedToken) {
+          return reject(err);
         }
-      );
-    });
+        resolve(decodedToken);
+      }
+    );
   });
 }
 
