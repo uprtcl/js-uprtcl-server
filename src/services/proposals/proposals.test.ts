@@ -20,8 +20,9 @@ import {
 import {
   createPerspective,  
   createCommitAndData,
-  updatePerspective
+  updatePerspective, getPerspective, getPerspectiveDetails
 } from '../uprtcl/uprtcl.testsupport';
+import { NewPerspectiveData } from '../uprtcl/types';
 
 
 describe('Testing proposals controller, service and repo', () => {
@@ -55,6 +56,7 @@ describe('Testing proposals controller, service and repo', () => {
       toPerspectiveId = await createPerspective(
         user1.userId,
         846851,
+        'context',
         user1.jwt,
         commit1Id
       );     
@@ -63,19 +65,36 @@ describe('Testing proposals controller, service and repo', () => {
       fromPerspectiveId = await createPerspective(
         user1.userId,
         118948,
+        'context',
         user1.jwt,
         commit2Id
       );               
+
+      const newPersp1 = await getPerspective(toPerspectiveId, user1.jwt);
+      const newPersp1Details = await getPerspectiveDetails(toPerspectiveId, user1.jwt);
+      const newPersp1Obj: NewPerspectiveData = {
+        perspective: newPersp1.data,
+        details: newPersp1Details.data
+      };
+
+      const newPersp2 = await getPerspective(fromPerspectiveId, user1.jwt);
+      const newPersp2Details = await getPerspectiveDetails(fromPerspectiveId, user1.jwt);
+      const newPersp2Obj: NewPerspectiveData = {
+        perspective: newPersp2.data,
+        details: newPersp2Details.data
+      };
 
       const proposal = await createProposal(fromPerspectiveId, 
                                             toPerspectiveId,
                                             commit2Id, 
                                             commit1Id,
                                             [],
+                                            [newPersp1Obj,
+                                            newPersp2Obj],
                                             user2.jwt);            
 
       const { result, elementIds } = JSON.parse(proposal);
-      proposalUid = elementIds[0];
+      proposalUid = elementIds[0];      
 
       expect(result).toEqual(SUCCESS);          
     });
@@ -130,11 +149,11 @@ describe('Testing proposals controller, service and repo', () => {
       ); 
 
       // Create a third perspective
-
       const commit5Id = await createCommitAndData('text 999999', false, user1.jwt);
       thirdPerspectiveId = await createPerspective(
         user1.userId,
         79878,
+        'context',        
         user1.jwt,
         commit5Id
       );     
@@ -172,7 +191,7 @@ describe('Testing proposals controller, service and repo', () => {
       expect(declinedProposal.result).toEqual(ERROR);
     });
 
-    // Test a proposal rejection    
+    // // Test a proposal rejection    
 
     it('should not allow to make a reject operation to non open proposals', async() => {
      // User1 is the owner of the perspectives
@@ -196,6 +215,7 @@ describe('Testing proposals controller, service and repo', () => {
                                             fromPerspectiveId, // new toPerspective
                                             commit6Id, 
                                             commit5Id,
+                                            [],
                                             [],
                                             user2.jwt);            
 
@@ -238,6 +258,7 @@ describe('Testing proposals controller, service and repo', () => {
       const fourthPerspectiveId = await createPerspective(
         user2.userId,
         999,
+        'context',
         user2.jwt,
         commit9Id
       );   
@@ -282,9 +303,9 @@ describe('Testing proposals controller, service and repo', () => {
       expect(proposal.result).toEqual(SUCCESS);                 
     });    
 
-    // /**
-    //  * CRUD read: get proposals from perspective
-    //  */
+    /**
+     * CRUD read: get proposals from perspective
+     */
 
     it('should filter OPEN and EXECUTED proposals pointing to one perspective', async () => {
       const proposalIds = await getProposalsToPerspective(toPerspectiveId, user1.jwt);  
@@ -310,6 +331,7 @@ describe('Testing proposals controller, service and repo', () => {
                           toPerspectiveId, // new toPerspective
                           commit3Id, 
                           commit5Id,
+                          [],
                           [],
                           user2.jwt);                   
 

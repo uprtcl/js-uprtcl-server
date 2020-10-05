@@ -1,7 +1,7 @@
 import { DGraphService } from "../../db/dgraph.service";
-import { NewProposalData, ProposalState, xid, did, DgUpdate } from "../uprtcl/types";
+import { NewProposalData, ProposalState, xid, did, DgUpdate, NewPerspectiveData } from "../uprtcl/types";
 import { UserRepository } from "../user/user.repository";
-import { PROPOSALS_SCHEMA_NAME, HEAD_UPDATE_SCHEMA_NAME } from "../proposals/proposals.schema";
+import { PROPOSALS_SCHEMA_NAME, HEAD_UPDATE_SCHEMA_NAME, NEW_PERSPECTIVE_PROPOSAL_SCHEMA_NAME } from "../proposals/proposals.schema";
 import { Proposal, UpdateRequest } from "../uprtcl/types";
 import { NOT_AUTHORIZED_MSG } from "../../utils";
 
@@ -60,7 +60,13 @@ export class ProposalsRepository {
         nquads = nquads.concat(`\n_:proposal <fromHead> uid(fromHead) .`);
         nquads = nquads.concat(`\n_:proposal <state>  "${ProposalState.Open}" .`);
 
-        const updatesSetup = await this.setUpdates(proposalData.updates, '_:proposal', nquads, query);
+        const updatesSetup = await this.setDetails(
+            proposalData.details.updates, 
+            proposalData.details.newPerspectives, 
+            '_:proposal', 
+            nquads, 
+            query
+        );
 
         nquads = updatesSetup.nquads;        
         nquads = nquads.concat(`\n_:proposal <dgraph.type> "${PROPOSALS_SCHEMA_NAME}" .`);
@@ -94,7 +100,7 @@ export class ProposalsRepository {
         let query = `proposal as var(func: uid(${proposalUid}))`;
         let nquads = '';                
 
-        const updatesSetup = await this.setUpdates(updateRequests, 'uid(proposal)', nquads, query);
+        const updatesSetup = await this.setDetails(updateRequests, [], 'uid(proposal)', nquads, query);
 
         nquads = updatesSetup.nquads;
         query = updatesSetup.query;
@@ -133,7 +139,23 @@ export class ProposalsRepository {
         const result = await this.db.callRequest(req);    
 
         return result.getUidsMap().get("HeadUpdate");        
+    }
+
+    async createNewPerspectiveProposal(newPerspective: NewPerspectiveData): Promise<string> {
+        const mu = new dgraph.Mutation();
+        const req = new dgraph.Request(); 
         
+        let nquads = `_:NewPerspective <NEWP_perspectiveId>  "${newPerspective.perspective.id}" .`;    
+        if (newPerspective.parentId) nquads = nquads.concat(`\n_:NewPerspective <NEWP_parentId> "${newPerspective.parentId}" .`);
+        if (newPerspective.details && newPerspective.details.headId) nquads = nquads.concat(`\n_:NewPerspective <NEWP_headId> "${newPerspective.details.headId}" .`);
+
+        nquads = nquads.concat(`\n_:NewPerspective <dgraph.type> "${NEW_PERSPECTIVE_PROPOSAL_SCHEMA_NAME}" .`);
+        mu.setSetNquads(nquads);
+        req.setMutationsList([mu]);
+
+        const result = await this.db.callRequest(req);    
+
+        return result.getUidsMap().get("NewPerspective");
     }
 
     async getProposalsToPerspective(perspectiveId: string): Promise<string[]> {             
@@ -167,8 +189,9 @@ export class ProposalsRepository {
      * @param query - The query coming from the parent process.
      */
 
-    async setUpdates(
+    async setDetails(
         updates: UpdateRequest[], 
+        newPerspectives: NewPerspectiveData[], 
         dgproposal: string, 
         nquads: string, 
         query:string
@@ -185,6 +208,18 @@ export class ProposalsRepository {
         });
 
         await Promise.all(updatePromises);
+
+        const newPerspectivesPromises = newPerspectives.map(async (newPerspective, i) => {
+            const newPerspectiveProposalId = await this.createNewPerspectiveProposal(newPerspective);
+
+            // Find HeadUpdates that belongs to the new updates
+            query = query.concat(`\nnewPerspective${i} as var(func: uid(${newPerspectiveProposalId}))`);
+
+            // Add updates to proposal
+            nquads = nquads.concat(`\n${dgproposal} <newPerspectives> uid(newPerspective${i}) .`);
+        })
+
+        await Promise.all(newPerspectivesPromises);
 
         return {
             nquads, query

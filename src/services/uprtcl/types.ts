@@ -83,7 +83,10 @@ export interface NewProposalData {
   toPerspectiveId: string;
   fromHeadId: string;
   toHeadId: string;
-  updates: Array<UpdateRequest>;
+  details: {
+    updates: Array<UpdateRequest>;
+    newPerspectives: Array<NewPerspectiveData>;
+  }
 }
 
 // Dgraph incoming data types

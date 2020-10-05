@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { createApp } from '../../server';
 import { PostResult, GetResult } from '../../utils';
-import { Proposal, UpdateRequest } from '../uprtcl/types';
+import { NewPerspectiveData, Proposal, UpdateRequest } from '../uprtcl/types';
 
 export const createProposal = async (
 	fromPerspectiveId: string,
@@ -9,6 +9,7 @@ export const createProposal = async (
 	fromHeadId: string,
 	toHeadId: string,
 	updates: UpdateRequest[],
+	newPerspectives: NewPerspectiveData[],
 	jwt: string
 ): Promise<string> => {
 	const router = await createApp();
@@ -18,8 +19,11 @@ export const createProposal = async (
 			"fromPerspectiveId": fromPerspectiveId,
 			"toPerspectiveId": toPerspectiveId,
 			"fromHeadId": fromHeadId,
-			"toHeadId": toHeadId,
-			"updates": updates
+			"toHeadId": toHeadId,			
+			"details": {
+				updates: updates,
+				newPerspectives: newPerspectives
+			}
 		}).set('Authorization', jwt ? `Bearer ${jwt}` : '');
 	
 	let result: any = post.text;  		
