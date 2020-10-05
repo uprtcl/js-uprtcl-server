@@ -48,13 +48,25 @@ export class UprtclService {
     return perspective;
   }
 
-  async findPerspectives(
-    details: PerspectiveDetails,
+  async findIndPerspectives(
+    perspectiveId: string,
+    includeEcosystem: boolean,
     loggedUserId: string | null
   ): Promise<string[]> {
-    console.log('[UPRTCL-SERVICE] findPerspectives', { details });
+
+    if(loggedUserId === null)
+      throw new Error('Anonymous user. Cant get independent perspectives');
+    
+    return await this.uprtclRepo.getOtherIndpPerspectives(perspectiveId, includeEcosystem, loggedUserId);
+  }
+
+  async findPerspectives(
+    context: string,
+    loggedUserId: string | null
+  ): Promise<string[]> {
+    console.log('[UPRTCL-SERVICE] findPerspectives', { context });
     // TODO filter on query not by code...
-    const perspectivesIds = await this.uprtclRepo.findPerspectives(details);
+    const perspectivesIds = await this.uprtclRepo.findPerspectives(context);
 
     const accessiblePerspectivesPromises = perspectivesIds.map(
       async (perspectiveId) => {
@@ -103,7 +115,11 @@ export class UprtclService {
 
     if (perspectiveData.details) {
       /** Bypass update perspective ACL because this is perspective inception */
-      await this.updatePerspective(perspId, perspectiveData.details, loggedUserId);
+      await this.updatePerspective(
+        perspId,
+        perspectiveData.details,
+        loggedUserId
+      );
     }
 
     return perspId;
@@ -128,40 +144,51 @@ export class UprtclService {
     )
       throw new Error(NOT_AUTHORIZED_MSG);
 
-    const oldDetails = await this.getPerspectiveDetails(perspectiveId, loggedUserId);
+    const oldDetails = await this.getPerspectiveDetails(
+      perspectiveId,
+      loggedUserId
+    );
     let addedChildren: Array<string> = [];
     let removedChildren: Array<string> = [];
 
-    if((oldDetails.headId && oldDetails.headId !== '') && details.headId) {   
+    if (oldDetails.headId && oldDetails.headId !== '' && details.headId) {
       const oldDataId = (await this.getCommit(oldDetails.headId, loggedUserId))
-                        .object.payload.dataId;
+        .object.payload.dataId;
       const newDataId = (await this.getCommit(details.headId, loggedUserId))
-                        .object.payload.dataId;
+        .object.payload.dataId;
 
       const oldData = (await this.dataService.getData(oldDataId)).object;
       const newData = (await this.dataService.getData(newDataId)).object;
 
-      const currentChildren: Array<string> = oldData.pages ? oldData.pages : oldData.links;
-      const updatedChildren: Array<string> = newData.pages ? newData.pages : newData.links;
+      const currentChildren: Array<string> = oldData.pages
+        ? oldData.pages
+        : oldData.links;
+      const updatedChildren: Array<string> = newData.pages
+        ? newData.pages
+        : newData.links;
 
       const difference = currentChildren
-                       .filter((oldChild: string) => !updatedChildren.includes(oldChild))
-                       .concat(updatedChildren.filter((newChild: string) => !currentChildren.includes(newChild)));
+        .filter((oldChild: string) => !updatedChildren.includes(oldChild))
+        .concat(
+          updatedChildren.filter(
+            (newChild: string) => !currentChildren.includes(newChild)
+          )
+        );
 
-      difference.map(child => {
-        if(currentChildren.includes(child)) {
+      difference.map((child) => {
+        if (currentChildren.includes(child)) {
           removedChildren.push(child);
         }
 
-        if(updatedChildren.includes(child)) {
+        if (updatedChildren.includes(child)) {
           addedChildren.push(child);
         }
-      })                          
+      });
     }
-    
+
     await this.uprtclRepo.updatePerspective(perspectiveId, details, {
       addedChildren: addedChildren,
-      removedChildren: removedChildren
+      removedChildren: removedChildren,
     });
   }
 
