@@ -2,6 +2,7 @@ import { C1_ETH_AUTH } from '../services/user/user.service';
 import { NextFunction } from 'express';
 
 var jwt = require('jsonwebtoken');
+const fs = require('fs');
 const jwksRsa = require('jwks-rsa');
 
 require('dotenv').config();
@@ -10,7 +11,7 @@ export function verifyAuth0Token(token: string, kid: string) {
   return new Promise((resolve, reject) => {
     jwt.verify(
       token,
-      process.env.AUTH0_SECRET,
+      fs.readFileSync('linked-thoughts-dev.pem'),
       {
         algorithms: ['RS256'],
       },
