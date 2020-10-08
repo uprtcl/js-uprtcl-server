@@ -5,13 +5,14 @@ var jwt = require('jsonwebtoken');
 const fs = require('fs');
 const jwksRsa = require('jwks-rsa');
 
+const publicKey = fs.readFileSync('auth0.pem');
 require('dotenv').config();
 
 export function verifyAuth0Token(token: string, kid: string) {
   return new Promise((resolve, reject) => {
     jwt.verify(
       token,
-      fs.readFileSync('linked-thoughts-dev.pem'),
+      publicKey,
       {
         algorithms: ['RS256'],
       },
