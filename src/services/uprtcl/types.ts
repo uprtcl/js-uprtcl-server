@@ -34,7 +34,11 @@ export interface Proposal {
   fromPerspectiveId: string;
   toHeadId?: string;
   fromHeadId?: string;
-  updates?: Array<UpdateRequest>;
+  details: {
+    updates?: UpdateRequest[];
+    newPerspectives?: NewPerspectiveData[];
+  }
+  
   state: ProposalState;
   executed: boolean;
   authorized: boolean;

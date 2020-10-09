@@ -2,11 +2,17 @@ import { DGraphService } from "../../db/dgraph.service";
 import { NewProposalData, ProposalState, xid, did, DgUpdate, NewPerspectiveData } from "../uprtcl/types";
 import { UserRepository } from "../user/user.repository";
 import { PROPOSALS_SCHEMA_NAME, HEAD_UPDATE_SCHEMA_NAME, NEW_PERSPECTIVE_PROPOSAL_SCHEMA_NAME } from "../proposals/proposals.schema";
-import { Proposal, UpdateRequest } from "../uprtcl/types";
+import { UpdateRequest } from "../uprtcl/types";
 import { NOT_AUTHORIZED_MSG } from "../../utils";
 
 const dgraph = require("dgraph-js");
 require("dotenv").config();
+
+interface DgNewPerspective {
+  NEWP_perspectiveId: string;
+  NEWP_parentId: string;
+  NEWP_headId: string;
+}
 
 interface DgProposal {
     uid?: string
@@ -17,6 +23,7 @@ interface DgProposal {
     fromHead: xid
     toHead: xid    
     updates?: Array<DgUpdate>    
+    newPerspectives?: Array<DgNewPerspective>    
 }
 
 export class ProposalsRepository {
@@ -86,7 +93,7 @@ export class ProposalsRepository {
         updateRequests: Array<UpdateRequest>, 
         loggedUserId:string
     ): Promise<void> {                
-        const dproposal = await this.findProposal(proposalUid, false, false);   
+        const dproposal = await this.getProposal(proposalUid, false, false);   
 
         const { creator: { did: proposalCreatorId } } = dproposal;
 
@@ -163,7 +170,8 @@ export class ProposalsRepository {
             proposals(func: has(toPerspective))
             @cascade
             @filter(eq(state, "OPEN") OR eq(state, "EXECUTED"))
-            {   uid
+            {   
+                uid
                 toPerspective @filter(eq(xid, "${perspectiveId}")) {
                     xid
                 }
@@ -233,7 +241,7 @@ export class ProposalsRepository {
      * @param {boolean} perspectives - True if you need the perspectives of the proposal.
      */
 
-    async findProposal(
+    async getProposal(
         proposalUid: string, 
         updates: boolean, 
         perspectives: boolean
@@ -281,6 +289,11 @@ export class ProposalsRepository {
                     oldHead {
                         xid
                     }
+                }
+                newPerspectives {
+                    NEWP_perspectiveId
+                    NEWP_parentId
+                    NEWP_headId
                 }
             `);
         }

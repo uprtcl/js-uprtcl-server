@@ -2,15 +2,18 @@ import { Proposal,
          UpdateRequest, 
          NewProposalData, 
          PerspectiveDetails, 
-         ProposalState } from "../uprtcl/types"
+         ProposalState, 
+         NewPerspectiveData} from "../uprtcl/types"
 import { UprtclService } from "../uprtcl/uprtcl.service";
 import { ProposalsRepository } from "./proposals.repository";
 import { NOT_AUTHORIZED_MSG } from "../../utils";
+import { DataService } from "../data/data.service";
 
 export class ProposalsService {
 
     constructor(
         protected proposalRepo: ProposalsRepository,
+        protected dataService: DataService,
         protected uprtclService: UprtclService) {    
     }
 
@@ -34,7 +37,7 @@ export class ProposalsService {
         let canAuthorize:boolean = false;
         let updatesArr: UpdateRequest[] = [];
 
-        const dproposal = await this.proposalRepo.findProposal(proposalUid, true, true);                    
+        const dproposal = await this.proposalRepo.getProposal(proposalUid, true, true);                    
 
         const { 
                 creator: { did: creatorId },
@@ -43,39 +46,45 @@ export class ProposalsService {
                 fromHead: { xid: fromHeadId },
                 toHead: { xid: toHeadId },
                 state,
-                updates
+                updates,
+                newPerspectives
               } = dproposal;        
 
-        if(updates) {
-            updates.map(update => {    
-              const {
-                  oldHead,
-                  newHead: {
-                      xid: newHeadId
-                  },
-                  perspective: {
-                      xid: perspectiveId
-                  },
-                  fromPerspective: {
-                      xid: fromPerspectiveId
-                  }
-              } = update || {};
+        updatesArr = updates ? updates.map((update): UpdateRequest => {    
+            const {
+                oldHead,
+                newHead: {
+                    xid: newHeadId
+                },
+                perspective: {
+                    xid: perspectiveId
+                },
+                fromPerspective: {
+                    xid: fromPerspectiveId
+                }
+            } = update || {};
 
-              const updateEl: UpdateRequest = {
-                  fromPerspectiveId: fromPerspectiveId,
-                  oldHeadId: oldHead?.xid,
-                  perspectiveId: perspectiveId,
-                  newHeadId: newHeadId
-              }
+            return {
+                fromPerspectiveId: fromPerspectiveId,
+                oldHeadId: oldHead?.xid,
+                perspectiveId: perspectiveId,
+                newHeadId: newHeadId
+            }
+        }) : [];
 
-              updatesArr.push(updateEl);
-            });
+        if(loggedUserId !== null && updates) {
+            canAuthorize = await this.uprtclService.canAuthorizeProposal(updates, loggedUserId);     
+        }    
 
-            if(loggedUserId !== null) {
-                canAuthorize = await this.uprtclService.canAuthorizeProposal(updates, loggedUserId);     
-            }    
-        }
-
+        const newPerspectivesArr = newPerspectives ? await Promise.all(newPerspectives.map(async (newPerspective): Promise<NewPerspectiveData> => {
+            const perspective = await this.dataService.getData(newPerspective.NEWP_perspectiveId);
+            return {
+                perspective,
+                parentId: newPerspective.NEWP_parentId,
+                details: { headId: newPerspective.NEWP_headId}
+            }
+        })) : [];
+        
         const proposal: Proposal = {                    
             id: proposalUid,            
             creatorId: creatorId,
@@ -86,7 +95,10 @@ export class ProposalsService {
             state: state,
             authorized: state === ProposalState.Executed ? true : false,
             executed: state === ProposalState.Executed ? true : false,
-            updates: updatesArr,
+            details: {
+                updates: updatesArr,
+                newPerspectives: newPerspectivesArr,
+            },
             canAuthorize: canAuthorize
         }                        
 
@@ -125,7 +137,7 @@ export class ProposalsService {
         if (loggedUserId === null) throw new Error('Anonymous user. Cant cancel a proposal');
 
         // Get the proposals updates to provide to canAuthorize function and check current state.
-        const dproposal = await this.proposalRepo.findProposal(proposalUid, true, false);
+        const dproposal = await this.proposalRepo.getProposal(proposalUid, true, false);
         const { state, updates } = dproposal;    
 
         if(state != ProposalState.Open) throw new Error(`Can't modify a ${state} proposal`);
@@ -150,7 +162,7 @@ export class ProposalsService {
     ): Promise<void> {        
         if (loggedUserId === null) throw new Error('Anonymous user. Cant decline a proposal');
 
-        const dproposal = await this.proposalRepo.findProposal(proposalUid, false, false);        
+        const dproposal = await this.proposalRepo.getProposal(proposalUid, false, false);        
 
         const { creator: { did: creatorId }, state } = dproposal;        
 
@@ -170,7 +182,7 @@ export class ProposalsService {
         if (loggedUserId === null) throw new Error('Anonymous user. Cant decline a proposal');
 
         // Get the proposals updates to provide to canAuthorize function
-        const dproposal = await this.proposalRepo.findProposal(proposalUid, true, false);
+        const dproposal = await this.proposalRepo.getProposal(proposalUid, true, false);
         const { updates } = dproposal;
 
         if(!updates) {
