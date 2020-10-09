@@ -2,6 +2,7 @@ import { SCHEMA} from "./schema";
 
 const dgraph = require("dgraph-js");
 const grpc = require("grpc");
+const Url = require("url-parse");
 
 export const requestToObj = (req: any) => {
   return {
@@ -17,11 +18,15 @@ export const requestToObj = (req: any) => {
 
 export class DGraphService {
   host: string;
+  port: string;
+  apiKey: string;
   client: any;
   connectionReady: Promise<any>;
 
-  constructor(_host: string) {
+  constructor(_host: string, _port: string, _apiKey: string) {
     this.host = _host;
+    this.port = _port;
+    this.apiKey = _apiKey;
     this.connectionReady = new Promise(async (resolve) => {
       await this.connect();
       // await this.dropAll();
@@ -32,7 +37,19 @@ export class DGraphService {
   }
 
   async connect() {
-    let clientStub = new dgraph.DgraphClientStub(this.host, grpc.credentials.createInsecure());
+    
+    let clientStub:any;
+
+    if(this.apiKey) {
+      let slashql = this.clientStubFromSlashGraphQLEndpoint(
+        this.host,
+        this.apiKey
+      )
+      clientStub = slashql;
+    } else {
+      clientStub = new dgraph.DgraphClientStub(`${this.host}:${this.port}`, grpc.credentials.createInsecure());
+    }
+
     this.client = new dgraph.DgraphClient(clientStub);
   }
 
@@ -74,5 +91,34 @@ export class DGraphService {
         }
       }
     })
+  }
+
+  clientStubFromSlashGraphQLEndpoint = (
+    graphqlEndpoint: string,
+    apiKey: string
+  ) => {
+    let url = new Url(graphqlEndpoint);    
+
+    let urlParts = url.host.split(".");
+    let firstHalf = urlParts[0];
+    let secondHalf = urlParts.splice(1).join(".") + ":" + this.port;
+    let backenedURL = firstHalf + ".grpc." + secondHalf;    
+
+    const metaCreds = grpc.credentials.createFromMetadataGenerator(
+        (
+          _: Object,
+          callback: (_: undefined, metadata: any) => void
+        ) => {
+            const metadata = new grpc.Metadata();
+            metadata.add("authorization", apiKey);
+            callback(undefined, metadata);
+        },
+    );
+    let credentials = grpc.credentials.combineChannelCredentials(
+        grpc.credentials.createSsl(),
+        metaCreds,
+    );      
+
+    return new dgraph.DgraphClientStub(backenedURL, credentials);
   }
 }
