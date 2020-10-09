@@ -118,7 +118,7 @@ export class UprtclRepository {
 
     nquads = nquads.concat(`\n_:proof <dgraph.type> "${PROOF_SCHEMA_NAME}" .`);
     nquads = nquads.concat(`\n_:proof <signature> "${proof.signature}" .`);
-    nquads = nquads.concat(`\n_:proof <type> "${proof.type}" .`);
+    nquads = nquads.concat(`\n_:proof <proof_type> "${proof.type}" .`);
 
     nquads = nquads.concat(`\nuid(persp) <proof> _:proof .`);
 

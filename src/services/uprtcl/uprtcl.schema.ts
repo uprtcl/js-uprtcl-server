@@ -15,6 +15,8 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   name: string
   context: string
   stored: bool
+  path: string
+  remote: string
   accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
   proof: ${PROOF_SCHEMA_NAME}
   ecosystem: [uid]
@@ -56,5 +58,7 @@ proof: uid .
 ecosystem: [uid] @reverse .
 children: [uid] @reverse .
 deleted: bool @index(bool) . 
+remote: string .
+path: string .
 
 `;
