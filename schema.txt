@@ -1,0 +1,157 @@
+
+
+type Perspective {
+  xid: string
+  creator: uid
+  authority: string
+  timextamp: int
+  head: Commit
+  name: string
+  context: string
+  stored: bool
+  accessConfig: AccessConfig
+  proof: Proof
+  ecosystem: [uid]
+  children: [uid]
+  deleted: bool
+}
+
+type Commit {
+  xid: string
+  creators: [uid]
+  timextamp: int
+  message: string
+  parents: [uid]
+  data: uid
+  stored: bool
+  accessConfig: AccessConfig
+}
+
+type Proof {
+  signature: string
+  proof_type: string
+}
+
+stored: bool @index(bool) . 
+xid: string @index(hash) .
+authority: string .
+timextamp: int .
+message: string .
+head: uid .
+name: string @index(exact) .
+parents: [uid] .
+signature: string .
+proof_type: string .
+context: string @index(exact) .
+creator: uid .
+creators: [uid] .
+data: uid .
+proof: uid .
+ecosystem: [uid] @reverse .
+children: [uid] @reverse .
+deleted: bool @index(bool) . 
+
+
+
+
+type Data {
+  xid: string
+  stored: bool
+  jsonString: string
+}
+
+# data objects
+jsonString: string @index(fulltext) .
+
+
+
+type Permissions {
+  publicRead: bool
+  publicWrite: bool
+  canRead: [Profile]
+  canWrite: [Profile]
+  canAdmin: [Profile]
+}
+
+type AccessConfig {
+  delegate: bool
+  delegateTo: uid
+  finDelegatedTo: uid
+  permissions: Permissions
+}
+
+canRead: [uid] .
+canWrite: [uid] .
+canAdmin: [uid] .
+accessConfig: uid @reverse .
+permissions: uid .
+publicRead: bool @index(bool) .
+publicWrite: bool @index(bool) .
+delegate: bool .
+delegateTo: uid @reverse .
+finDelegatedTo: uid @reverse .
+
+
+
+
+type KnownSources {
+  elementId: string
+  casIDs: [string]
+}
+
+elementId: string @index(exact) @upsert .
+casIDs: [string] .
+
+
+
+
+type Profile {
+  did: string
+  nonce: string
+}
+
+did: string @index(exact) @upsert .
+nonce: string  .
+
+
+
+type HeadUpdate {
+    fromPerspective: Perspective
+    perspective: Perspective
+    newHead: Commit
+    oldHead: Commit
+}
+
+type NewPerspectiveProposal {
+    NEWP_perspectiveId: string!
+    NEWP_parentId: string
+    NEWP_headId: string
+}
+
+type Proposal {
+	creator: uid
+    toPerspective: Perspective
+    fromPerspective: Perspective
+    toHead: Commit
+    fromHead: Commit
+    updates: [HeadUpdate]
+    newPerspectives: [NewPerspectiveProposal]
+    state: string!
+}
+
+perspective: uid .
+newHead: uid .
+oldHead: uid .
+creator: uid .
+toPerspective: uid .
+fromPerspective: uid .
+toHead: uid .
+fromHead: uid .
+updates: [uid] .
+newPerspectives: [uid] .
+state: string @index(exact) .
+
+NEWP_perspectiveId: string .
+NEWP_parentId: string .
+NEWP_headId: string .
+
