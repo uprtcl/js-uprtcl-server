@@ -9,7 +9,7 @@ import { DGraphService } from "../../db/dgraph.service";
 import { UprtclRepository } from '../uprtcl/uprtcl.repository';
 import { DataRepository } from '../data/data.repository';
 
-const db = new DGraphService("localhost:9080");
+const db = new DGraphService("localhost", '9080', '');
 const userRepo = new UserRepository(db);
 const accessRepo = new AccessRepository(db, userRepo);
 const dataRepo = new DataRepository(db, userRepo);

@@ -657,7 +657,7 @@ describe('routes', () => {
     expect(children).toEqual([page1Perspective, page3Perspective]);
   });
 
-  test.only('independent perspectives', async () => {
+  test('independent perspectives', async () => {
     const user1 = await createUser('seed1');
     const creatorId = 'did:method:7777';
     const perspectiveAcontext = 'perspective.A.context';
