@@ -76,14 +76,6 @@ export class UprtclRepository {
 
     const id = await ipldService.validateSecured(securedPerspective);
 
-    /** throw if perspective exist */
-    const existQuery = `perspective(func: eq(xid, ${id})) { count(uid) }`;
-    const res = await this.db.client.newTxn().query(`query{${existQuery}}`);
-
-    if (res.getJson().perspective.count > 0) {
-      throw new Error(`Perspective with id ${id} already exist`);
-    }
-
     const perspective = securedPerspective.object.payload;
     const proof = securedPerspective.object.proof;
 
@@ -102,31 +94,33 @@ export class UprtclRepository {
     await this.userRepo.upsertProfile(perspective.creatorId);
 
     let query = `profile as var(func: eq(did, "${perspective.creatorId.toLowerCase()}"))`;
+    query = query.concat(`persp as var(func: eq(xid, "${id}"))`)
+
     req.setQuery(`query{${query}}`);
 
-    let nquads = `_:perspective <xid> "${id}" .`;
-    nquads = nquads.concat(`\n_:perspective <stored> "true" .`);
-    nquads = nquads.concat(`\n_:perspective <creator> uid(profile) .`);
+    let nquads = `uid(persp) <xid> "${id}" .`;
+    nquads = nquads.concat(`\nuid(persp) <stored> "true" .`);
+    nquads = nquads.concat(`\nuid(persp) <creator> uid(profile) .`);
     nquads = nquads.concat(
-      `\n_:perspective <timextamp> "${perspective.timestamp}"^^<xs:int> .`
+      `\nuid(persp) <timextamp> "${perspective.timestamp}"^^<xs:int> .`
     );
     nquads = nquads.concat(
-      `\n_:perspective <context> "${perspective.context}" .`
+      `\nuid(persp) <context> "${perspective.context}" .`
     );
-    nquads = nquads.concat(`\n_:perspective <deleted> "false" .`);
+    nquads = nquads.concat(`\nuid(persp) <deleted> "false" .`);
     nquads = nquads.concat(
-      `\n_:perspective <remote> "${perspective.remote}" .`
+      `\nuid(persp) <remote> "${perspective.remote}" .`
     );
-    nquads = nquads.concat(`\n_:perspective <path> "${perspective.path}" .`);
+    nquads = nquads.concat(`\nuid(persp) <path> "${perspective.path}" .`);
     nquads = nquads.concat(
-      `\n_:perspective <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`
+      `\nuid(persp) <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`
     );
 
     nquads = nquads.concat(`\n_:proof <dgraph.type> "${PROOF_SCHEMA_NAME}" .`);
     nquads = nquads.concat(`\n_:proof <signature> "${proof.signature}" .`);
     nquads = nquads.concat(`\n_:proof <type> "${proof.type}" .`);
 
-    nquads = nquads.concat(`\n_:perspective <proof> _:proof .`);
+    nquads = nquads.concat(`\nuid(persp) <proof> _:proof .`);
 
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);

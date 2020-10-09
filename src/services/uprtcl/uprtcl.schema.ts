@@ -39,7 +39,7 @@ type ${PROOF_SCHEMA_NAME} {
 }
 
 stored: bool @index(bool) . 
-xid: string @index(exact) @upsert .
+xid: string @index(hash) .
 authority: string .
 timextamp: int .
 message: string .
