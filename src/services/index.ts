@@ -20,7 +20,11 @@ import { ProposalsRepository } from "./proposals/proposals.repository";
 
 export const getRoutes = async () => {
   /** poors man dependency injection */
-  const dbService = new DGraphService(process.env.DGRAPH_HOST as string);
+  const dbService = new DGraphService(
+    process.env.DGRAPH_HOST as string, 
+    process.env.DGRAPH_PORT as string, 
+    process.env.SLASH_API_KEY as string
+  );
 
   // Make sure that DGraph DB is connected properly before
   // proceeding to start the API.

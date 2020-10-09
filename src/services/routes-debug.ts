@@ -21,7 +21,11 @@ import { ProposalsController } from './proposals/proposals.controller';
 // TODO: Update index.ts
 
 /** poors man dependency injection */
-const dbService = new DGraphService(process.env.DGRAPH_HOST as string);
+const dbService = new DGraphService(
+  process.env.DGRAPH_HOST as string, 
+  process.env.DGRAPH_PORT as string, 
+  process.env.SLASH_API_KEY as string
+);
 
 const userRepo = new UserRepository(dbService);
 const userService = new UserService(dbService, userRepo);
