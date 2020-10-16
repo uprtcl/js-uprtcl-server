@@ -5,7 +5,7 @@ var jwt = require('jsonwebtoken');
 const fs = require('fs');
 const jwksRsa = require('jwks-rsa');
 
-const publicKey = fs.readFileSync('auth0.pem');
+const publicKey = fs.readFileSync(process.env.PUBKEY_FILE);
 require('dotenv').config();
 
 export function verifyAuth0Token(token: string, kid: string) {
