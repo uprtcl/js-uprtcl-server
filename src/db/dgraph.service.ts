@@ -41,10 +41,10 @@ export class DGraphService {
     let clientStub:any;
 
     if(this.apiKey) {
-      let slashql = this.clientStubFromSlashGraphQLEndpoint(
+      let slashql = dgraph.clientStubFromSlashGraphQLEndpoint(
         this.host,
         this.apiKey
-      )
+      );
       clientStub = slashql;
     } else {
       clientStub = new dgraph.DgraphClientStub(`${this.host}:${this.port}`, grpc.credentials.createInsecure());
@@ -91,34 +91,5 @@ export class DGraphService {
         }
       }
     })
-  }
-
-  clientStubFromSlashGraphQLEndpoint = (
-    graphqlEndpoint: string,
-    apiKey: string
-  ) => {
-    let url = new Url(graphqlEndpoint);    
-
-    let urlParts = url.host.split(".");
-    let firstHalf = urlParts[0];
-    let secondHalf = urlParts.splice(1).join(".") + ":" + this.port;
-    let backenedURL = firstHalf + ".grpc." + secondHalf;    
-
-    const metaCreds = grpc.credentials.createFromMetadataGenerator(
-        (
-          _: Object,
-          callback: (_: undefined, metadata: any) => void
-        ) => {
-            const metadata = new grpc.Metadata();
-            metadata.add("authorization", apiKey);
-            callback(undefined, metadata);
-        },
-    );
-    let credentials = grpc.credentials.combineChannelCredentials(
-        grpc.credentials.createSsl(),
-        metaCreds,
-    );      
-
-    return new dgraph.DgraphClientStub(backenedURL, credentials);
   }
 }
