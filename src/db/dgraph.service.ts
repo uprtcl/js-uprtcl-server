@@ -46,8 +46,8 @@ export class DGraphService {
         this.apiKey
       );
       clientStub = slashql;
-    } else {
-      clientStub = new dgraph.DgraphClientStub(`${this.host}:${this.port}`, grpc.credentials.createInsecure());
+    } else {      
+      clientStub = new dgraph.DgraphClientStub(`${this.host}:${this.port}`);
     }
 
     this.client = new dgraph.DgraphClient(clientStub);
