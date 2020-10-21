@@ -6,7 +6,7 @@ apps:
       "NODE_ENV": "production"
       "JWT_SECRET": "123456"
       "PROTOCOL": "https"
-      "HOST": "ipfs.intercreativity.io"
+      "HOST": "api.intercreativity.io"
       "PORT": 5001
       "DGRAPH_HOST": "https://humdrum-stick.us-west-2.aws.cloud.dgraph.io/graphql"
       "DGRAPH_PORT": 443    
