@@ -233,6 +233,8 @@ export class UprtclRepository {
   ): Promise<void> {
     await this.db.ready();
 
+    details.headId = !details.headId ? undefined : details.headId;
+
     if (details.headId !== undefined) {
       /** delete the current head */
       const delMu = new dgraph.Mutation();
@@ -288,7 +290,9 @@ export class UprtclRepository {
 
     req.setMutationsList([mu]);
 
-    let result = await this.db.callRequest(req);
+    debugger;
+
+    let result = await this.db.callRequest(req);    
 
     console.log(
       '[DGRAPH] updatePerspective',
