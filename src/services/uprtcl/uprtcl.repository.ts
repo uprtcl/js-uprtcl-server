@@ -555,7 +555,7 @@ export class UprtclRepository {
   async findPerspectives(context: string): Promise<string[]> {
     await this.db.ready();
     const query = `query {
-      perspective(func: eq(stored, "true")) @filter(eq(context, ${context})) {
+      perspective(func: eq(stored, "true")) @filter(eq(context, "${context}")) {
         xid
         name
         context
