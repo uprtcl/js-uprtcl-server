@@ -38,13 +38,13 @@ export class ProposalsService {
         let updatesArr: UpdateRequest[] = [];
 
         const dproposal = await this.proposalRepo.getProposal(proposalUid, true, true);                    
-
+                       
         const { 
                 creator: { did: creatorId },
                 fromPerspective: { xid: fromPerspectiveId },
                 toPerspective: { xid: toPerspectiveId },
                 fromHead: { xid: fromHeadId },
-                toHead: { xid: toHeadId },
+                toHead: { xid: toHeadId } = {},
                 state,
                 updates,
                 newPerspectives
