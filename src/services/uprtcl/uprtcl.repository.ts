@@ -288,9 +288,7 @@ export class UprtclRepository {
     mu.setSetNquads(ecosystemUpdated.nquads);
     mu.setDelNquads(ecosystemUpdated.delNquads);
 
-    req.setMutationsList([mu]);
-
-    debugger;
+    req.setMutationsList([mu]);    
 
     let result = await this.db.callRequest(req);    
 
