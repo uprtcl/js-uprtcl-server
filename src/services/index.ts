@@ -39,13 +39,13 @@ export const getRoutes = async () => {
   const uprtclRepo = new UprtclRepository(dbService, userRepo, dataRepo);
   const knownSourcesRepo = new KnownSourcesRepository(dbService);
 
-  const dataService = new DataService(dbService, dataRepo, uprtclRepo);
-  const dataController = new DataController(dataService);
-
   const accessService = new AccessService(dbService, accessRepo);
   const accessController = new AccessController(accessService);
 
+  const dataService = new DataService(dbService, dataRepo);
   const uprtclService = new UprtclService(dbService, uprtclRepo, accessService, dataService);
+  
+  const dataController = new DataController(dataService, uprtclService);
   const uprtclController = new UprtclController(uprtclService);
 
   const userService = new UserService(dbService, userRepo);

@@ -38,10 +38,10 @@ const accessController = new AccessController(accessService);
 const dataRepo = new DataRepository(dbService, userRepo);
 const uprtclRepo = new UprtclRepository(dbService, userRepo, dataRepo);
 
-const dataService = new DataService(dbService, dataRepo, uprtclRepo);
-const dataController = new DataController(dataService);
-
+const dataService = new DataService(dbService, dataRepo);
 const uprtclService = new UprtclService(dbService, uprtclRepo, accessService, dataService);
+
+const dataController = new DataController(dataService, uprtclService);
 const uprtclController = new UprtclController(uprtclService);
 
 const proposalsRepo = new ProposalsRepository(dbService, userRepo);
