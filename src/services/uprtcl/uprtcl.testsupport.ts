@@ -217,7 +217,7 @@ export const getIndependentPerspectives = async(
 ): Promise<GetResult<String[]>> => {
   const router = await createApp();
   const get = await request(router)
-    .get(`/uprtcl/1/persp/context/${perspectiveId}?includeEcosystem=${eco}`)
+    .get(`/uprtcl/1/persp/${perspectiveId}/others?includeEcosystem=${eco}`)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   return JSON.parse(get.text);

@@ -210,7 +210,7 @@ export class UprtclController {
       },
 
       {
-        path: "/uprtcl/1/persp/context/:perspectiveId",
+        path: "/uprtcl/1/persp/:perspectiveId/others",
         method: "get",
         handler: [
           checkJwt,
