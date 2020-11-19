@@ -410,7 +410,7 @@ export class UprtclRepository {
       xid
       accessConfig {
         permissions {
-          canRead @filter(eq(did, ${loggedUserId.toLowerCase()})) {
+          canRead @filter(eq(did, "${loggedUserId.toLowerCase()}")) {
             did
           }
         }
