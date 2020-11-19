@@ -4,18 +4,21 @@ import {
   PerspectiveDetails,
   Secured,
   NewPerspectiveData,
+  DgUpdate,
 } from './types';
 import { DGraphService } from '../../db/dgraph.service';
 import { AccessService } from '../access/access.service';
 import { UprtclRepository } from './uprtcl.repository';
 import { PermissionType } from '../access/access.schema';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
+import { DataService } from '../data/data.service';
 
 export class UprtclService {
   constructor(
     protected db: DGraphService,
     protected uprtclRepo: UprtclRepository,
-    protected access: AccessService
+    protected access: AccessService,
+    protected dataService: DataService
   ) {}
 
   private async createPerspective(
@@ -45,13 +48,25 @@ export class UprtclService {
     return perspective;
   }
 
-  async findPerspectives(
-    details: PerspectiveDetails,
+  async findIndPerspectives(
+    perspectiveId: string,
+    includeEcosystem: boolean,
     loggedUserId: string | null
   ): Promise<string[]> {
-    console.log('[UPRTCL-SERVICE] findPerspectives', { details });
+
+    if(loggedUserId === null)
+      throw new Error('Anonymous user. Cant get independent perspectives');
+    
+    return await this.uprtclRepo.getOtherIndpPerspectives(perspectiveId, includeEcosystem, loggedUserId);
+  }
+
+  async findPerspectives(
+    context: string,
+    loggedUserId: string | null
+  ): Promise<string[]> {
+    console.log('[UPRTCL-SERVICE] findPerspectives', { context });
     // TODO filter on query not by code...
-    const perspectivesIds = await this.uprtclRepo.findPerspectives(details);
+    const perspectivesIds = await this.uprtclRepo.findPerspectives(context);
 
     const accessiblePerspectivesPromises = perspectivesIds.map(
       async (perspectiveId) => {
@@ -99,6 +114,7 @@ export class UprtclService {
     }
 
     if (perspectiveData.details) {
+      /** Bypass update perspective ACL because this is perspective inception */
       await this.updatePerspective(
         perspId,
         perspectiveData.details,
@@ -127,7 +143,53 @@ export class UprtclService {
       ))
     )
       throw new Error(NOT_AUTHORIZED_MSG);
-    await this.uprtclRepo.updatePerspective(perspectiveId, details);
+
+    const oldDetails = await this.getPerspectiveDetails(
+      perspectiveId,
+      loggedUserId
+    );
+    let addedChildren: Array<string> = [];
+    let removedChildren: Array<string> = [];
+
+    if (oldDetails.headId && oldDetails.headId !== '' && details.headId) {
+      const oldDataId = (await this.getCommit(oldDetails.headId, loggedUserId))
+        .object.payload.dataId;
+      const newDataId = (await this.getCommit(details.headId, loggedUserId))
+        .object.payload.dataId;
+
+      const oldData = (await this.dataService.getData(oldDataId)).object;
+      const newData = (await this.dataService.getData(newDataId)).object;
+
+      const currentChildren: Array<string> = oldData.pages
+        ? oldData.pages
+        : oldData.links;
+      const updatedChildren: Array<string> = newData.pages
+        ? newData.pages
+        : newData.links;
+
+      const difference = currentChildren
+        .filter((oldChild: string) => !updatedChildren.includes(oldChild))
+        .concat(
+          updatedChildren.filter(
+            (newChild: string) => !currentChildren.includes(newChild)
+          )
+        );
+
+      difference.map((child) => {
+        if (currentChildren.includes(child)) {
+          removedChildren.push(child);
+        }
+
+        if (updatedChildren.includes(child)) {
+          addedChildren.push(child);
+        }
+      });
+    }
+
+    await this.uprtclRepo.updatePerspective(perspectiveId, details, {
+      addedChildren: addedChildren,
+      removedChildren: removedChildren,
+    });
   }
 
   async deletePerspective(
@@ -177,5 +239,15 @@ export class UprtclService {
     console.log('[UPRTCL-SERVICE] getCommit', { commitId });
     let commit = await this.uprtclRepo.getCommit(commitId);
     return commit;
+  }
+
+  async canAuthorizeProposal(
+    proposalUpdates: DgUpdate[],
+    loggedUserId: string
+  ): Promise<boolean> {
+    if (loggedUserId === null)
+      throw new Error("Anonymous user. Can't authorize a proposal");
+
+    return this.access.canAuthorizeProposal(proposalUpdates, loggedUserId);
   }
 }

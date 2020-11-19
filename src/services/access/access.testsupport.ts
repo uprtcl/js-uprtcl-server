@@ -1,29 +1,74 @@
 import request from 'supertest';
 
 import { PostResult } from '../../utils';
-import { AccessConfig } from './access.repository';
 import { createApp } from '../../server';
 import { PermissionType } from './access.schema';
+import { AccessRepository } from "./access.repository";
+import { UserRepository } from "../user/user.repository";
+import { DGraphService } from "../../db/dgraph.service";
+import { UprtclRepository } from '../uprtcl/uprtcl.repository';
+import { DataRepository } from '../data/data.repository';
+
+const db = new DGraphService("localhost", '9080', '');
+const userRepo = new UserRepository(db);
+const accessRepo = new AccessRepository(db, userRepo);
+const dataRepo = new DataRepository(db, userRepo);
+export const uprtclRepo = new UprtclRepository(db, userRepo, dataRepo);
 
 export const delegatePermissionsTo = async (
   elementId: string,
-  delegateTo: string,
+  delegate: boolean,
+  delegateTo: string | undefined,
   jwt: string
 ): Promise<PostResult> => {
   const router = await createApp();
-  const accessConfig: AccessConfig = {
-    delegate: true,
-    delegateTo: delegateTo,
-  };
-
+  const url = `/uprtcl/1/permissions/${elementId}/delegate/?delegate=${delegate}&delegateTo=${delegateTo}`;
+  
   const put = await request(router)
-    .put(`/uprtcl/1/accessConfig/${elementId}`)
-    .send(accessConfig)
+    .put(url)
+    .send()
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
-  expect(put.status).toEqual(200);
+  expect(put.status).toEqual(200);  
 
   return JSON.parse(put.text);
+};
+
+export const finDelegatedChildNodes = async (elementId: string) => {
+  const childNodes = await accessRepo.getDelegatedFrom(elementId);
+
+  const accessConfigs = childNodes.map(async (child) => {
+    const accessConfig = await accessRepo.getAccessConfigOfElement(child);
+    return accessConfig.finDelegatedTo;
+  });
+
+  return await Promise.all(
+    accessConfigs
+  );
+};
+
+export const getSecondLayerFinDelegatedTo = async (elementId: string) => {
+  const elementIdAccessConfig = await accessRepo.getAccessConfigOfElement(
+                                  elementId
+                                );
+  
+  if(!elementIdAccessConfig.delegateTo) throw new Error("delegateTo not found");
+
+  const delegateToAccessConfig = await accessRepo.getAccessConfigOfElement(
+                                  elementIdAccessConfig.delegateTo
+                                 );
+                                
+  if(!delegateToAccessConfig.finDelegatedTo) throw new Error("finDelegatedTo not found");
+
+  return delegateToAccessConfig.finDelegatedTo;
+};
+
+export const getAccessConfigOfElement = async (elementId: string) => {
+  return await accessRepo.getAccessConfigOfElement(elementId);
+};
+
+export const getPermissionsConfig = async (permissionsUid: string) => {
+  return await accessRepo.getPermissionsConfig(permissionsUid);
 };
 
 export const addPermission = async (

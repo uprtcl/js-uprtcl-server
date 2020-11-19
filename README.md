@@ -19,6 +19,7 @@ Install `serverless` globally.
   JWT_SECRET=123456
   PROTOCOL=http
   HOST=localhost:3100
+  DGRAPH_HOST=localhost:9080
 
   ```
 

@@ -9,10 +9,114 @@ import {
 } from '../providers';
 import { createData } from '../data/support.data';
 import { DocNodeType } from '../data/types';
+import { uprtclRepo } from '../access/access.testsupport';
+
+interface PerspectiveData {
+  persp: string,
+  commit: string
+}
+
+export const forkPerspective = async (  
+  perspectiveId: string,
+  jwt: string,
+  parent?: PerspectiveData
+): Promise<any> => {
+    const timestamp = Math.floor(100000 + Math.random() * 900000);
+
+    const persp = await getPerspective(perspectiveId, jwt);    
+    const {
+      data: {
+        object: {
+          payload: {
+            creatorId,
+            context
+          }
+        }
+      }
+    } = persp;
+
+    const forkedPersp = await createAndInitPerspective(
+      '',
+      false,
+      creatorId,
+      jwt,
+      timestamp,
+      context
+    );
+
+    if(parent) {
+      await addChildToPerspective(
+        forkedPersp.persp,
+        parent.persp,
+        parent.commit,
+        false,
+        jwt
+      )
+    }
+
+    const children = (await getPerspectiveRelatives(perspectiveId, 'children')).map(async (child) => {
+      try {
+        return await forkPerspective(child, jwt, forkedPersp);
+      } catch {
+        return;
+      }
+    });
+  
+  await Promise.all(children);    
+
+  return (parent) ? parent.persp : forkedPersp.persp;
+}
+
+export const addChildToPerspective = async (
+  childId: string,
+  parentId: string,
+  parentCommit: string,
+  pages: boolean,
+  jwt: string
+): Promise<void> => {
+  const commitChild = await addPagesOrLinks(
+    [childId],
+    pages,
+    [parentCommit],
+    jwt
+  );
+
+  await updatePerspective(
+    parentId,
+    {
+      headId: commitChild,
+      name: ''
+    },
+    jwt
+  )
+}
+
+export const createAndInitPerspective = async ( 
+  content: string, 
+  pages: boolean,
+  creatorId: string,
+  jwt: string,
+  timestamp: number,
+  context: string  
+): Promise<PerspectiveData> => {
+  const commit = await createCommitAndData(content, pages, jwt);
+
+  return {
+    persp: await createPerspective (
+      creatorId,
+      timestamp,
+      context,
+      jwt,
+      commit    
+    ),
+    commit: commit
+  };
+}
 
 export const createPerspective = async (
   creatorId: string,
   timestamp: number,
+  context: string,
   jwt: string,
   headId?: string,
   parentId?: string
@@ -22,6 +126,7 @@ export const createPerspective = async (
     path: LOCAL_EVEES_PATH,
     creatorId: creatorId,
     timestamp: timestamp,
+    context: context,
   };
 
   const secured: Secured<Perspective> = {
@@ -98,23 +203,78 @@ export const createCommit = async (
   return result;
 };
 
-export const createCommitAndData = async (
-  text: string,
+export const getPerspectiveRelatives = async (
+  perspectiveId: string,
+  relatives: 'ecosystem' | 'children'
+): Promise<Array<string>> => {
+  return await uprtclRepo.getPerspectiveRelatives(perspectiveId, relatives);
+};
+
+export const getIndependentPerspectives = async(
+  perspectiveId: string, 
+  jwt: string,
+  eco?: boolean
+): Promise<GetResult<String[]>> => {
+  const router = await createApp();
+  const get = await request(router)
+    .get(`/uprtcl/1/persp/context/${perspectiveId}?includeEcosystem=${eco}`)
+    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+
+  return JSON.parse(get.text);
+};
+
+export const addPagesOrLinks = async (
+  addedContent: Array<string>,
+  pages: boolean,
+  parents: Array<string>,
   jwt: string
 ): Promise<string> => {
   const creatorId = 'did:method:12345';
   const timestamp = Math.round(Math.random() * 100000);
 
-  const par1Id = await createData(
-    { text: text, type: DocNodeType.paragraph, links: [] },
+  let data = {};
+
+  if (pages) {
+    data = { title: '', type: DocNodeType.title, pages: addedContent };
+  } else {
+    data = { text: '', type: DocNodeType.paragraph, links: addedContent };
+  }
+
+  const dataId = await createData(data, jwt);
+  let commitId = await createCommit(
+    [creatorId],
+    timestamp,
+    'sample message',
+    parents,
+    dataId,
     jwt
   );
+  return commitId;
+};
+
+export const createCommitAndData = async (
+  content: string,
+  page: boolean,
+  jwt: string
+): Promise<string> => {
+  const creatorId = 'did:method:12345';
+  const timestamp = Math.round(Math.random() * 100000);
+
+  let data = {};
+
+  if (page) {
+    data = { title: content, type: DocNodeType.title, pages: [] };
+  } else {
+    data = { text: content, type: DocNodeType.paragraph, links: [] };
+  }
+
+  const dataId = await createData(data, jwt);
   let commitId = await createCommit(
     [creatorId],
     timestamp,
     'sample message',
     [],
-    par1Id,
+    dataId,
     jwt
   );
   return commitId;
@@ -169,7 +329,7 @@ export const getCommit = async (
 };
 
 export const findPerspectives = async (
-  details: PerspectiveDetails,
+  details: { context: string },
   jwt: string
 ): Promise<GetResult<string[]>> => {
   const router = await createApp();

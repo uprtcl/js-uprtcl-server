@@ -10,6 +10,7 @@ import {
   Secured,
   Proof,
   getAuthority,
+  EcosystemUpdates,
 } from './types';
 import {
   PERSPECTIVE_SCHEMA_NAME,
@@ -57,6 +58,12 @@ interface DgCommit {
   proof: DgProof;
 }
 
+interface DbContent {
+  query: string;
+  nquads: string;
+  delNquads: string;
+}
+
 export class UprtclRepository {
   constructor(
     protected db: DGraphService,
@@ -68,14 +75,6 @@ export class UprtclRepository {
     await this.db.ready();
 
     const id = await ipldService.validateSecured(securedPerspective);
-
-    /** throw if perspective exist */
-    const existQuery = `perspective(func: eq(xid, ${id})) { count(uid) }`;
-    const res = await this.db.client.newTxn().query(`query{${existQuery}}`);
-
-    if (res.getJson().perspective.count > 0) {
-      throw new Error(`Perspective with id ${id} already exist`);
-    }
 
     const perspective = securedPerspective.object.payload;
     const proof = securedPerspective.object.proof;
@@ -95,28 +94,29 @@ export class UprtclRepository {
     await this.userRepo.upsertProfile(perspective.creatorId);
 
     let query = `profile as var(func: eq(did, "${perspective.creatorId.toLowerCase()}"))`;
+    query = query.concat(`persp as var(func: eq(xid, "${id}"))`);
+
     req.setQuery(`query{${query}}`);
 
-    let nquads = `_:perspective <xid> "${id}" .`;
-    nquads = nquads.concat(`\n_:perspective <stored> "true" .`);
-    nquads = nquads.concat(`\n_:perspective <creator> uid(profile) .`);
+    let nquads = `uid(persp) <xid> "${id}" .`;
+    nquads = nquads.concat(`\nuid(persp) <stored> "true" .`);
+    nquads = nquads.concat(`\nuid(persp) <creator> uid(profile) .`);
     nquads = nquads.concat(
-      `\n_:perspective <timextamp> "${perspective.timestamp}"^^<xs:int> .`
+      `\nuid(persp) <timextamp> "${perspective.timestamp}"^^<xs:int> .`
     );
-    nquads = nquads.concat(`\n_:perspective <deleted> "false" .`);
+    nquads = nquads.concat(`\nuid(persp) <context> "${perspective.context}" .`);
+    nquads = nquads.concat(`\nuid(persp) <deleted> "false" .`);
+    nquads = nquads.concat(`\nuid(persp) <remote> "${perspective.remote}" .`);
+    nquads = nquads.concat(`\nuid(persp) <path> "${perspective.path}" .`);
     nquads = nquads.concat(
-      `\n_:perspective <remote> "${perspective.remote}" .`
-    );
-    nquads = nquads.concat(`\n_:perspective <path> "${perspective.path}" .`);
-    nquads = nquads.concat(
-      `\n_:perspective <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`
+      `\nuid(persp) <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`
     );
 
     nquads = nquads.concat(`\n_:proof <dgraph.type> "${PROOF_SCHEMA_NAME}" .`);
     nquads = nquads.concat(`\n_:proof <signature> "${proof.signature}" .`);
-    nquads = nquads.concat(`\n_:proof <type> "${proof.type}" .`);
+    nquads = nquads.concat(`\n_:proof <proof_type> "${proof.type}" .`);
 
-    nquads = nquads.concat(`\n_:perspective <proof> _:proof .`);
+    nquads = nquads.concat(`\nuid(persp) <proof> _:proof .`);
 
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
@@ -128,6 +128,21 @@ export class UprtclRepository {
       { nquads },
       result.getUidsMap().toArray()
     );
+
+    // Add ecosystem to itself
+    const mu1 = new dgraph.Mutation();
+    const req1 = new dgraph.Request();
+
+    const query1 = `perspective as var(func: eq(xid, "${id}"))`;
+    req1.setQuery(`query{${query1}}`);
+
+    const nquads1 = `uid(perspective) <ecosystem> uid(perspective) .`;
+
+    mu1.setSetNquads(nquads1);
+    req1.setMutationsList([mu1]);
+
+    await this.db.callRequest(req1);
+
     return id;
   }
 
@@ -177,7 +192,7 @@ export class UprtclRepository {
 
     nquads = nquads.concat(`\n_:proof <dgraph.type> "${PROOF_SCHEMA_NAME}" .`);
     nquads = nquads.concat(`\n_:proof <signature> "${proof.signature}" .`);
-    nquads = nquads.concat(`\n_:proof <type> "${proof.type}" .`);
+    nquads = nquads.concat(`\n_:proof <proof_type> "${proof.type}" .`);
 
     nquads = nquads.concat(`\nuid(commit) <proof> _:proof .`);
 
@@ -209,9 +224,12 @@ export class UprtclRepository {
 
   async updatePerspective(
     perspectiveId: string,
-    details: PerspectiveDetails
+    details: PerspectiveDetails,
+    ecosystem: EcosystemUpdates
   ): Promise<void> {
     await this.db.ready();
+
+    details.headId = !details.headId ? undefined : details.headId;
 
     if (details.headId !== undefined) {
       /** delete the current head */
@@ -236,9 +254,10 @@ export class UprtclRepository {
     if (details.headId !== undefined)
       query = query.concat(`\nhead as var(func: eq(xid, "${details.headId}"))`);
 
-    req.setQuery(`query{${query}}`);
     let nquads = '';
     nquads = nquads.concat(`\nuid(perspective) <xid> "${perspectiveId}" .`);
+
+    let delNquads = '';
 
     if (details.headId !== undefined) {
       /** set xid in case the perspective did not existed */
@@ -247,21 +266,199 @@ export class UprtclRepository {
     }
     if (details.name !== undefined)
       nquads = nquads.concat(`\nuid(perspective) <name> "${details.name}" .`);
-    if (details.context !== undefined)
-      nquads = nquads.concat(
-        `\nuid(perspective) <context> "${details.context}" .`
-      );
 
-    mu.setSetNquads(nquads);
+    const dbContent: DbContent = {
+      query: query,
+      nquads: nquads,
+      delNquads: delNquads,
+    };
+
+    // Updates the ecosystem and children
+    const ecosystemUpdated = await this.updateEcosystem(
+      ecosystem,
+      perspectiveId,
+      dbContent
+    );
+
+    req.setQuery(`query{${ecosystemUpdated.query}}`);
+    mu.setSetNquads(ecosystemUpdated.nquads);
+    mu.setDelNquads(ecosystemUpdated.delNquads);
+
     req.setMutationsList([mu]);
 
     let result = await this.db.callRequest(req);
+
     console.log(
       '[DGRAPH] updatePerspective',
       { query },
       { nquads },
       result.getUidsMap().toArray()
     );
+  }
+
+  async updateEcosystem(
+    ecosystem: EcosystemUpdates,
+    perspectiveId: string,
+    dbContent: DbContent
+  ) {
+    let { query, nquads, delNquads } = dbContent;
+
+    ecosystem.addedChildren.map((addedChild, i) => {
+      query = query.concat(`\n
+        addedChild${i} as var(func: eq(xid, ${addedChild}))        
+        {
+          ecoAdd${i} as ecosystem            
+        }
+      `);
+      nquads = nquads.concat(
+        `\nuid(perspective) <ecosystem> uid(ecoAdd${i}) .`
+      );
+      nquads = nquads.concat(
+        `\nuid(perspective) <children> uid(addedChild${i}) .`
+      );
+
+      query = query.concat(`\n
+        ecs${i}(func: eq(xid, ${perspectiveId}))        
+        {
+          revEcoAdd${i} as ~ecosystem            
+        }
+      `);
+      nquads = nquads.concat(
+        `\nuid(revEcoAdd${i}) <ecosystem> uid(ecoAdd${i}) .`
+      );
+    });
+
+    ecosystem.removedChildren.map((removedChild, i) => {
+      query = query.concat(`\n
+        removedChild${i} as var(func: eq(xid, ${removedChild}))        
+        {
+          ecoDelete${i} as ecosystem            
+        }
+      `);
+      delNquads = delNquads.concat(
+        `\nuid(perspective) <ecosystem> uid(ecoDelete${i}) .`
+      );
+      delNquads = delNquads.concat(
+        `\nuid(perspective) <children> uid(removedChild${i}) .`
+      );
+
+      query = query.concat(`\n
+        qs${i}(func: eq(xid, ${perspectiveId}))        
+        {
+          revEcoDelete${i} as ~ecosystem            
+        }
+      `);
+      delNquads = delNquads.concat(
+        `\nuid(revEcoDelete${i}) <ecosystem> uid(ecoDelete${i}) .`
+      );
+    });
+    return { query, nquads, delNquads };
+  }
+
+  async getOtherIndpPerspectives(
+    perspectiveId: string,
+    ecosystem: boolean,
+    loggedUserId: string
+  ): Promise<Array<string>> {
+    await this.db.ready();
+
+    let query = ``;
+
+    if (ecosystem) {
+      // If independent perspectives from an ecosystem are needed
+      query = `
+        persp(func: eq(xid, ${perspectiveId})) {
+          eco as ecosystem
+        }
+      `;
+
+      // Look for independent perspectives for every element of an ecosystem, in this case
+      // the perspective ecosystem
+      query = query.concat(`\nrefPersp(func: uid(eco)) {
+        targetCon as context
+        parents: ~children {
+          refParent as context
+        }
+      }`);
+    } else {
+      // Otherwise, only look for independent perspective for the indicated persp.
+      query = `refPersp(func: eq(xid, ${perspectiveId})) { 
+        targetCon as context
+        parents: ~children {
+          refParent as context
+        }
+      }`;
+    }
+
+    // Verify permissions on the perspectives found
+    query = query.concat(`\niPublicRead as var(func: eq(context, val(targetCon)))
+    @cascade {
+      xid
+      accessConfig {
+        permissions @filter(eq(publicRead, true)) {
+          publicRead
+        }
+      }
+    }`);
+
+    query = query.concat(`\n iCanRead as var(func: eq(context, val(targetCon)))
+    @cascade {
+      xid
+      accessConfig {
+        permissions {
+          canRead @filter(eq(did, ${loggedUserId.toLowerCase()})) {
+            did
+          }
+        }
+      }
+    }`);
+
+    // Verify independent perspectives criteria with parents.
+    query = query.concat(`\niPersp(func: has(xid)) 
+    @filter(uid(iPublicRead) OR uid(iCanRead))
+    @cascade {
+      xid
+      ~children @filter(not(eq(context, val(refParent) ) ) ) {
+        context
+      }
+    }`);
+
+    // Verify independent perspectives criteria without parents.
+    query = query.concat(`\nnoParent(func: has(xid)) 
+    @filter(eq(count(~children), 0) AND (uid(iPublicRead) OR uid(iCanRead)))
+    {
+      xid
+    }`);
+
+    let result = (
+      await this.db.client.newTxn().query(`query{${query}}`)
+    ).getJson();
+
+    return result.noParent
+      .map((p: any) => p.xid)
+      .concat(result.iPersp.map((p: any) => p.xid));
+  }
+
+  async getPerspectiveRelatives(
+    perspectiveId: string,
+    relatives: 'ecosystem' | 'children'
+  ): Promise<Array<string>> {
+    await this.db.ready();
+    const query = `query {
+      perspective(func: eq(xid, ${perspectiveId})) {
+        ${relatives} {
+          xid
+        }
+      }
+    }`;
+
+    const result = await this.db.client.newTxn().query(query);
+
+    return result.getJson().perspective[0]
+      ? result
+          .getJson()
+          .perspective[0][`${relatives}`].map((persp: any) => persp.xid)
+      : [];
   }
 
   async setDeletedPerspective(
@@ -335,6 +532,7 @@ export class UprtclRepository {
       path: dperspective.path,
       creatorId: dperspective.creator.did,
       timestamp: dperspective.timextamp,
+      context: dperspective.context,
     };
 
     const proof: Proof = {
@@ -352,28 +550,10 @@ export class UprtclRepository {
     return securedPerspective;
   }
 
-  async findPerspectives(details: PerspectiveDetails): Promise<string[]> {
+  async findPerspectives(context: string): Promise<string[]> {
     await this.db.ready();
-    let condition = '';
-
-    condition = condition.concat(
-      `${condition !== '' ? ' AND ' : ''} eq(deleted, "false")`
-    );
-
-    if (details.name) {
-      condition = condition.concat(
-        `${condition !== '' ? ' AND ' : ''}eq(name, ${details.name})`
-      );
-    }
-
-    if (details.context) {
-      condition = condition.concat(
-        `${condition !== '' ? ' AND ' : ''}eq(context, "${details.context}")`
-      );
-    }
-
     const query = `query {
-      perspective(func: eq(stored, "true")) @filter(${condition}) {
+      perspective(func: eq(stored, "true")) @filter(eq(context, "${context}")) {
         xid
         name
         context
@@ -386,11 +566,6 @@ export class UprtclRepository {
         proof {
           signature
           type
-        }
-        ${
-          details.headId
-            ? `\nhead @filter(func: eq(xid, ${details.headId})){ xid }`
-            : ''
         }
       }
     }`;
@@ -408,6 +583,7 @@ export class UprtclRepository {
           path: dperspective.path,
           creatorId: dperspective.creator.did,
           timestamp: dperspective.timextamp,
+          context: dperspective.context,
         };
       }
     );
@@ -447,7 +623,6 @@ export class UprtclRepository {
     if (json.perspective.length === 0) {
       return {
         name: '',
-        context: '',
         headId: '',
       };
     }
@@ -455,8 +630,7 @@ export class UprtclRepository {
     const details = json.perspective[0];
     return {
       name: details.name,
-      context: details.context,
-      headId: details.head.xid,
+      headId: details.head ? details.head.xid : undefined,
     };
   }
 
@@ -495,7 +669,9 @@ export class UprtclRepository {
     if (!dcommit.stored) new Error(`Commit with id ${commitId} not found`);
 
     const commit: Commit = {
-      creatorsIds: dcommit.creators.map((creator: any) => creator.did),
+      creatorsIds: dcommit.creators
+        ? dcommit.creators.map((creator: any) => creator.did)
+        : [],
       dataId: dcommit.data.xid,
       timestamp: dcommit.timextamp,
       message: dcommit.message,
