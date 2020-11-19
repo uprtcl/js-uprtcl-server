@@ -1,34 +1,46 @@
 /** architecture from https://itnext.io/production-ready-node-js-rest-apis-setup-using-typescript-postgresql-and-redis-a9525871407 */
+//import { APIGatewayProxyHandler } from 'aws-lambda';
+//import awsServerlessExpress from 'aws-serverless-express';
+import http from 'http';
+import express from 'express';
+import middleware from './middleware';
+import errorHandlers from './middleware/errorHandlers';
+import { applyMiddleware, applyRoutes } from './utils';
+import { getRoutes } from './services';
 
-import http from "http";
-import express from "express";
-import { applyMiddleware, applyRoutes } from "./utils";
-import middleware from "./middleware";
-import errorHandlers from "./middleware/errorHandlers";
-import { routes } from "./services";
-
-process.on("uncaughtException", e => {
+process.on('uncaughtException', (e) => {
   console.log(e);
   process.exit(1);
 });
 
-process.on("unhandledRejection", e => {
+process.on('unhandledRejection', (e) => {
   console.log(e);
   process.exit(1);
 });
 
-const router = express();
-applyMiddleware(middleware, router);
-applyRoutes(routes, router);
-applyMiddleware(errorHandlers, router);
+export const createApp = async () => {
+  const router = express();
+  const routes = await getRoutes();
+  applyMiddleware(middleware, router);
+  applyRoutes(routes, router);
+  applyMiddleware(errorHandlers, router);
+
+  return router;
+};
 
 const { PORT = 3100 } = process.env;
-const server = http.createServer(router);
 
-server.listen(PORT, () =>
-   console.log(`Server is running http://localhost:${PORT}...`)
-);
+createApp().then((router) => {
+  http.createServer(router).listen(PORT, () => {
+    console.log(`Production server on Port:${PORT}...`)
+  })
+})
 
-export {
-  router
-}
+// Old AWS Lambda arquitecture
+// export const handler: APIGatewayProxyHandler = async (event, context) => {
+//   context.callbackWaitsForEmptyEventLoop = false;
+//   console.log('running here...');
+//   const router = await createApp();
+//   const app = awsServerlessExpress.createServer(router);
+//   return awsServerlessExpress.proxy(app, event, context, 'PROMISE').promise;
+// };

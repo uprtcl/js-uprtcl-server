@@ -5,3 +5,7 @@ dgraph/1million.rdf.gz
 dgraph/
 uprtcl.pem
 .env
+.serverless
+.webpack
+npm-debug.log
+.env.dev
