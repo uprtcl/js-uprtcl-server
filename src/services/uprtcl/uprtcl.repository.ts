@@ -419,7 +419,7 @@ export class UprtclRepository {
 
     // Verify independent perspectives criteria with parents.
     query = query.concat(`\niPersp(func: has(xid)) 
-    @filter(uid(iPublicRead) OR uid(iCanRead))
+    @filter((uid(iPublicRead) OR uid(iCanRead)) AND has(~children))
     @cascade {
       xid
       ~children @filter(not(eq(context, val(refParent) ) ) ) {
