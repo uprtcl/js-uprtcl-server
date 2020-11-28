@@ -417,21 +417,28 @@ export class UprtclRepository {
       }
     }`);
 
+    // Verify indepent perspectives criteria with orphan perspective as reference.
+    query = query.concat(`\norphanRef(func: eq(context, val(targetCon))) 
+    @filter(gt(count(~children), 0) AND (uid(iPublicRead) OR uid(iCanRead)) AND not(val(refParent)))
+    @cascade {
+      xid
+    }`);
+
+    // Verify independent perspectives criteria without parents.
+    query = query.concat(`\nnoParent(func: eq(context, val(targetCon)))
+    @filter(eq(count(~children), 0) AND (uid(iPublicRead) OR uid(iCanRead)))
+    {
+      xid
+    }`);
+
     // Verify independent perspectives criteria with parents.
-    query = query.concat(`\niPersp(func: has(xid)) 
-    @filter((uid(iPublicRead) OR uid(iCanRead)) AND has(~children))
+    query = query.concat(`\niPersp(func: eq(context, val(targetCon))) 
+    @filter(gt(count(~children), 0) AND (uid(iPublicRead) OR uid(iCanRead)) AND val(refParent))
     @cascade {
       xid
       ~children @filter(not(eq(context, val(refParent) ) ) ) {
         context
       }
-    }`);
-
-    // Verify independent perspectives criteria without parents.
-    query = query.concat(`\nnoParent(func: has(xid)) 
-    @filter(eq(count(~children), 0) AND (uid(iPublicRead) OR uid(iCanRead)))
-    {
-      xid
     }`);
 
     let result = (await this.db.client.newTxn().query(`query{${query}}`)).getJson();   
