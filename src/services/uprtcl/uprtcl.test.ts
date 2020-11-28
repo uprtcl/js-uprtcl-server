@@ -412,6 +412,7 @@ describe('routes', () => {
     const mainPerspective = await createPerspective(
       creatorId,
       556874,
+      context,
       user1.jwt,
       commitIdBase
     );
@@ -421,6 +422,7 @@ describe('routes', () => {
     const page1Perspective = await createPerspective(
       creatorId,
       879456,
+      context,
       user1.jwt,
       page1Commit
     );
@@ -448,6 +450,7 @@ describe('routes', () => {
     const page2Perspective = await createPerspective(
       creatorId,
       333548,
+      context,
       user1.jwt,
       page2Commit
     );
@@ -474,6 +477,7 @@ describe('routes', () => {
     const link1Perspecitve = await createPerspective(
       creatorId,
       998745,
+      context,
       user1.jwt,
       link1Commit
     );
@@ -500,6 +504,7 @@ describe('routes', () => {
     const link2Perspective = await createPerspective(
       creatorId,
       132564,
+      context,
       user1.jwt,
       link2Commit
     );
@@ -524,6 +529,7 @@ describe('routes', () => {
     const link3Perspective = await createPerspective(
       creatorId,
       884565,
+      context,
       user1.jwt,
       link3Commit
     );
@@ -550,6 +556,7 @@ describe('routes', () => {
     const page3Perspective = await createPerspective(
       creatorId,
       445648,
+      context,
       user1.jwt,
       page3Commit
     );
@@ -623,6 +630,7 @@ describe('routes', () => {
     const grandsonPerspective = await createPerspective(
       creatorId,
       442132,
+      context,
       user1.jwt,
       grandSonCommit
     );
