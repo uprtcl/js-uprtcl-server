@@ -151,29 +151,45 @@ export class UprtclService {
     let addedChildren: Array<string> = [];
     let removedChildren: Array<string> = [];
 
-    if (oldDetails.headId && oldDetails.headId !== '' && details.headId) {
-      const oldDataId = (await this.getCommit(oldDetails.headId, loggedUserId))
-        .object.payload.dataId;
-      const newDataId = (await this.getCommit(details.headId, loggedUserId))
-        .object.payload.dataId;
+    let currentChildren: Array<string> = [];
+    let updatedChildren: Array<string> = [];
 
-      const oldData = (await this.dataService.getData(oldDataId)).object;
-      const newData = (await this.dataService.getData(newDataId)).object;
+    if(details.headId) {
+      if (oldDetails.headId && oldDetails.headId !== '') {
+        const oldDataId = (await this.getCommit(oldDetails.headId, loggedUserId))
+          .object.payload.dataId;
+        const newDataId = (await this.getCommit(details.headId, loggedUserId))
+          .object.payload.dataId;
 
-      const currentChildren: Array<string> = oldData.pages
-        ? oldData.pages
-        : oldData.links;
-      const updatedChildren: Array<string> = newData.pages
-        ? newData.pages
-        : newData.links;
+        const oldData = (await this.dataService.getData(oldDataId)).object;
+        const newData = (await this.dataService.getData(newDataId)).object;
+
+        currentChildren = oldData.pages
+          ? oldData.pages
+          : oldData.links;
+        updatedChildren = newData.pages
+          ? newData.pages
+          : newData.links;
+      } else if(!oldDetails.headId) {
+        const perspTimestamp = (await this.getPerspective(perspectiveId, loggedUserId)).object.payload.timestamp;
+
+        if(perspTimestamp === 0) {   
+          const newDataId = (await this.getCommit(details.headId, loggedUserId))
+          .object.payload.dataId;
+          const newData = (await this.dataService.getData(newDataId)).object;
+          updatedChildren = newData.pages
+          ? newData.pages
+          : newData.links;
+        }
+      }
 
       const difference = currentChildren
-        .filter((oldChild: string) => !updatedChildren.includes(oldChild))
-        .concat(
-          updatedChildren.filter(
-            (newChild: string) => !currentChildren.includes(newChild)
-          )
-        );
+              .filter((oldChild: string) => !updatedChildren.includes(oldChild))
+              .concat(
+                updatedChildren.filter(
+                  (newChild: string) => !currentChildren.includes(newChild)
+                )
+              );
 
       difference.map((child) => {
         if (currentChildren.includes(child)) {
