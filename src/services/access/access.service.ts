@@ -92,7 +92,7 @@ export class AccessService {
     return this.accessRepo.getAccessConfigOfElement(elementId);
   }
 
-  async getAccessConfigEffective(
+  async getAccessConfigDetails(
     elementId: string,
     userId: string
   ): Promise<AccessConfigInherited> {
@@ -127,11 +127,11 @@ export class AccessService {
     };
   }
 
-  async getUserPermissions(
+  async getUserCan(
     elementId: string,
     userId: string
   ): Promise<UserPermissions> {
-    return this.accessRepo.getUserPermissions(elementId, userId);
+    return this.accessRepo.getUserCan(elementId, userId);
   }
 
   async getPermissionsConfigOfElement(elementId: string) {
@@ -218,12 +218,7 @@ export class AccessService {
       permissionsElement = accessConfig.finDelegatedTo;
     }
 
-    if (userId != null) {
-      return this.accessRepo.can(permissionsElement, userId, type);
-    }
-
-    console.log('[ACCESS-SERVICE] isRole - FALSE', { elementId, userId, type });
-    return false;
+    return this.accessRepo.can(permissionsElement, userId, type);
   }
 
   async setPublic(

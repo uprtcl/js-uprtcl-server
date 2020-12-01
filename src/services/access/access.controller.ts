@@ -73,8 +73,9 @@ export class AccessController {
         ],
       },
 
+      /** get the permissions of the logged user (also if anonymous) */
       {
-        path: '/uprtcl/1/permissions/:elementId/can',
+        path: '/uprtcl/1/permissions/:elementId',
         method: 'get',
         handler: [
           checkJwt,
@@ -85,7 +86,7 @@ export class AccessController {
             };
 
             try {
-              const permissions = await this.accessService.getUserPermissions(
+              const permissions = await this.accessService.getUserCan(
                 inputs.elementId,
                 inputs.userId
               );
@@ -126,7 +127,7 @@ export class AccessController {
       },
 
       {
-        path: '/uprtcl/1/permissions/:elementId',
+        path: '/uprtcl/1/permissions/:elementId/details',
         method: 'get',
         handler: [
           checkJwt,
@@ -137,7 +138,7 @@ export class AccessController {
             };
 
             try {
-              const permissions = await this.accessService.getAccessConfigEffective(
+              const accessConfig = await this.accessService.getAccessConfigDetails(
                 inputs.elementId,
                 inputs.userId
               );
@@ -150,7 +151,7 @@ export class AccessController {
               let result: GetResult<AccessConfigInherited> = {
                 result: SUCCESS,
                 message: '',
-                data: permissions,
+                data: accessConfig,
               };
 
               console.log('[ACCESS CONTROLLER] getAccessConfigEffective', {

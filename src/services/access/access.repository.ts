@@ -38,6 +38,11 @@ export interface UserPermissions {
   canAdmin: boolean;
 }
 
+export interface PublicPermissions {
+  publicRead: boolean;
+  publicWrite: boolean;
+}
+
 export class AccessRepository {
   constructor(
     protected db: DGraphService,
@@ -146,31 +151,101 @@ export class AccessRepository {
     return result.getUidsMap().toArray()[0];
   }
 
-  async can(
+  async getUserCan(
     elementId: string,
-    userId: string,
-    type: PermissionType
-  ): Promise<boolean> {
-    let can: boolean = false;
-    const permissions = await this.getUserPermissions(elementId, userId);
+    userId: string | null
+  ): Promise<UserPermissions> {
+    const publicPermissions = await this.getPublicPermissions(elementId);
 
-    switch (type) {
-      case PermissionType.Read:
-        can = permissions.canRead;
-        break;
-
-      case PermissionType.Write:
-        can = permissions.canWrite;
-        break;
-
-      case PermissionType.Admin:
-        can = permissions.canAdmin;
-        break;
+    if (!userId) {
+      return {
+        canRead: publicPermissions.publicRead,
+        canWrite: publicPermissions.publicWrite,
+        canAdmin: false,
+      };
     }
 
-    console.log(`[DGRAPH] isRole ${type}`, { elementId, userId }, { can });
+    const permissions = await this.getUserPermissions(elementId, userId);
 
-    return can;
+    return {
+      canRead: publicPermissions.publicRead || permissions.canRead,
+      canWrite: publicPermissions.publicWrite || permissions.canWrite,
+      canAdmin: permissions.canAdmin,
+    };
+  }
+
+  /** optimize to not get user permissions if public */
+  async can(
+    elementId: string,
+    userId: string | null,
+    type: PermissionType
+  ): Promise<boolean> {
+    const publicPermissions = await this.getPublicPermissions(elementId);
+    switch (type) {
+      case PermissionType.Read:
+        if (publicPermissions.publicRead) {
+          return true;
+        }
+
+      case PermissionType.Write:
+        if (publicPermissions.publicWrite) {
+          return true;
+        }
+    }
+
+    if (!userId) return false;
+
+    const permissions = await this.getUserPermissions(elementId, userId);
+    switch (type) {
+      case PermissionType.Read:
+        return permissions.canRead;
+
+      case PermissionType.Write:
+        return permissions.canWrite;
+
+      case PermissionType.Admin:
+        return permissions.canAdmin;
+    }
+  }
+
+  async getPublicPermissions(elementId: string): Promise<PublicPermissions> {
+    let query = `
+    element(func: eq(xid, "${elementId}")) {
+      accessConfig {
+        permissions {
+          publicRead
+          publicWrite
+        }
+      }
+    }`;
+
+    let result = await this.db.client.newTxn().query(`query{${query}}`);
+    let json = result.getJson();
+
+    if (json.element.length > 0) {
+      if (json.element[0] === undefined) {
+        throw new Error(
+          `undefined accessConfig in getUserPermissions() for element ${elementId}`
+        );
+      }
+
+      const publicRead: boolean =
+        json.element[0].accessConfig.permissions.publicRead;
+      const publicWrite: boolean =
+        json.element[0].accessConfig.permissions.publicWrite;
+
+      /** apply the logic canAdmin > canWrite > canRead */
+      return {
+        publicRead: publicRead || publicWrite,
+        publicWrite: publicWrite,
+      };
+    } else {
+      /** if not found, the user does not have permissions */
+      return {
+        publicRead: false,
+        publicWrite: false,
+      };
+    }
   }
 
   async getUserPermissions(
@@ -190,8 +265,6 @@ export class AccessRepository {
           canAdmin @filter(eq(did, "${userId.toLowerCase()}")) {
             count(uid)
           }
-          publicWrite
-          publicRead
         }
       }
     }`;
@@ -218,21 +291,10 @@ export class AccessRepository {
         json.element[0].accessConfig.permissions.canAdmin !== undefined &&
         json.element[0].accessConfig.permissions.canAdmin[0].count > 0;
 
-      const publicReadUser: boolean =
-        json.element[0].accessConfig.permissions.publicRead;
-
-      const publicWriteUser: boolean =
-        json.element[0].accessConfig.permissions.publicWrite;
-
       /** apply the logic canAdmin > canWrite > canRead */
       return {
-        canRead:
-          publicReadUser ||
-          publicWriteUser ||
-          canReadUser ||
-          canWriteUser ||
-          canAdminUser,
-        canWrite: publicWriteUser || canWriteUser || canAdminUser,
+        canRead: canReadUser || canWriteUser || canAdminUser,
+        canWrite: canWriteUser || canAdminUser,
         canAdmin: canAdminUser,
       };
     } else {

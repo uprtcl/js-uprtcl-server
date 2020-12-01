@@ -7,6 +7,10 @@ require('dotenv').config();
 
 export const C1_ETH_AUTH = 'C1_ETH_AUTH';
 
+export const loginMessage = (nonce: string) => {
+  return `Login to Intercreativiy \n\nnonce:${nonce}`;
+};
+
 export class UserService {
   constructor(
     protected db: DGraphService,
@@ -32,7 +36,8 @@ export class UserService {
     let owner = userDid;
 
     let nonce = await this.userRepo.getNonce(userDid);
-    var data = `Login to Uprtcl Evees HTTP Server \n\nnonce:${nonce}`;
+    if (!nonce) throw Error('Nonce not correct');
+    var data = loginMessage(nonce);
     var message = '0x' + Buffer.from(data, 'utf8').toString('hex');
     var messageBuffer = ethUtil.toBuffer(message);
     var msgHash = ethUtil.hashPersonalMessage(messageBuffer);

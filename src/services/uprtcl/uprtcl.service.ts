@@ -128,6 +128,18 @@ export class UprtclService {
     return perspId;
   }
 
+  getDataChildren(data: any) {
+    if (data.pages !== undefined) {
+      return data.pages;
+    }
+    if (data.links !== undefined) {
+      return data.links;
+    }
+    if (data.value !== undefined) {
+      return [data.description];
+    }
+  }
+
   async updatePerspective(
     perspectiveId: string,
     details: PerspectiveDetails,
@@ -163,12 +175,8 @@ export class UprtclService {
       const oldData = (await this.dataService.getData(oldDataId)).object;
       const newData = (await this.dataService.getData(newDataId)).object;
 
-      const currentChildren: Array<string> = oldData.pages
-        ? oldData.pages
-        : oldData.links;
-      const updatedChildren: Array<string> = newData.pages
-        ? newData.pages
-        : newData.links;
+      const currentChildren: Array<string> = this.getDataChildren(oldData);
+      const updatedChildren: Array<string> = this.getDataChildren(newData);
 
       const difference = currentChildren
         .filter((oldChild: string) => !updatedChildren.includes(oldChild))
