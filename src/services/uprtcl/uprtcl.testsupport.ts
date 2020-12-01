@@ -12,60 +12,59 @@ import { DocNodeType } from '../data/types';
 import { uprtclRepo } from '../access/access.testsupport';
 
 interface PerspectiveData {
-  persp: string,
-  commit: string
+  persp: string;
+  commit: string;
 }
 
-export const forkPerspective = async (  
+export const forkPerspective = async (
   perspectiveId: string,
   jwt: string,
   parent?: PerspectiveData
 ): Promise<any> => {
-    const timestamp = Math.floor(100000 + Math.random() * 900000);
+  const timestamp = Math.floor(100000 + Math.random() * 900000);
 
-    const persp = await getPerspective(perspectiveId, jwt);    
-    const {
-      data: {
-        object: {
-          payload: {
-            creatorId,
-            context
-          }
-        }
-      }
-    } = persp;
+  const persp = await getPerspective(perspectiveId, jwt);
+  const {
+    data: {
+      object: {
+        payload: { creatorId, context },
+      },
+    },
+  } = persp;
 
-    const forkedPersp = await createAndInitPerspective(
-      '',
+  const forkedPersp = await createAndInitPerspective(
+    '',
+    false,
+    creatorId,
+    jwt,
+    timestamp,
+    context
+  );
+
+  if (parent) {
+    await addChildToPerspective(
+      forkedPersp.persp,
+      parent.persp,
+      parent.commit,
       false,
-      creatorId,
-      jwt,
-      timestamp,
-      context
+      jwt
     );
+  }
 
-    if(parent) {
-      await addChildToPerspective(
-        forkedPersp.persp,
-        parent.persp,
-        parent.commit,
-        false,
-        jwt
-      )
+  const children = (
+    await getPerspectiveRelatives(perspectiveId, 'children')
+  ).map(async (child) => {
+    try {
+      return await forkPerspective(child, jwt, forkedPersp);
+    } catch {
+      return;
     }
+  });
 
-    const children = (await getPerspectiveRelatives(perspectiveId, 'children')).map(async (child) => {
-      try {
-        return await forkPerspective(child, jwt, forkedPersp);
-      } catch {
-        return;
-      }
-    });
-  
-  await Promise.all(children);    
+  await Promise.all(children);
 
-  return (parent) ? parent.persp : forkedPersp.persp;
-}
+  return parent ? parent.persp : forkedPersp.persp;
+};
 
 export const addChildToPerspective = async (
   childId: string,
@@ -85,33 +84,27 @@ export const addChildToPerspective = async (
     parentId,
     {
       headId: commitChild,
-      name: ''
+      name: '',
     },
     jwt
-  )
-}
+  );
+};
 
-export const createAndInitPerspective = async ( 
-  content: string, 
+export const createAndInitPerspective = async (
+  content: string,
   pages: boolean,
   creatorId: string,
   jwt: string,
   timestamp: number,
-  context: string  
+  context: string
 ): Promise<PerspectiveData> => {
   const commit = await createCommitAndData(content, pages, jwt);
 
   return {
-    persp: await createPerspective (
-      creatorId,
-      timestamp,
-      context,
-      jwt,
-      commit    
-    ),
-    commit: commit
+    persp: await createPerspective(creatorId, timestamp, context, jwt, commit),
+    commit: commit,
   };
-}
+};
 
 export const createPerspective = async (
   creatorId: string,
@@ -210,8 +203,8 @@ export const getPerspectiveRelatives = async (
   return await uprtclRepo.getPerspectiveRelatives(perspectiveId, relatives);
 };
 
-export const getIndependentPerspectives = async(
-  perspectiveId: string, 
+export const getIndependentPerspectives = async (
+  perspectiveId: string,
   jwt: string,
   eco?: boolean
 ): Promise<GetResult<String[]>> => {

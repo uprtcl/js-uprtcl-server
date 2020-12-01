@@ -1,8 +1,8 @@
-import { SCHEMA} from "./schema";
+import { SCHEMA } from './schema';
 
-const dgraph = require("dgraph-js");
-const grpc = require("grpc");
-const Url = require("url-parse");
+const dgraph = require('dgraph-js');
+const grpc = require('grpc');
+const Url = require('url-parse');
 
 export const requestToObj = (req: any) => {
   return {
@@ -10,11 +10,11 @@ export const requestToObj = (req: any) => {
     mutations: req.getMutationsList().map((mutation: any) => {
       return JSON.stringify({
         setNquads: mutation.getSetNquads(),
-        delNquads: mutation.getDelNquads()
-      })
-    })
-  }
-}
+        delNquads: mutation.getDelNquads(),
+      });
+    }),
+  };
+};
 
 export class DGraphService {
   host: string;
@@ -33,20 +33,19 @@ export class DGraphService {
       await this.setSchema();
       console.log('[DGRAPH] Initialized');
       resolve();
-    })
+    });
   }
 
   async connect() {
-    
-    let clientStub:any;
+    let clientStub: any;
 
-    if(this.apiKey) {
+    if (this.apiKey) {
       let slashql = dgraph.clientStubFromSlashGraphQLEndpoint(
         this.host,
         this.apiKey
       );
       clientStub = slashql;
-    } else {      
+    } else {
       clientStub = new dgraph.DgraphClientStub(`${this.host}:${this.port}`);
     }
 
@@ -77,19 +76,22 @@ export class DGraphService {
         let tx = await this.client.newTxn();
         let result = await tx.doRequest(req);
         await tx.commit();
-        resolve(result)
+        resolve(result);
       } catch (e) {
-        console.log('[DGRAPH] error during request', {req: requestToObj(req), message: e.message})
+        console.log('[DGRAPH] error during request', {
+          req: requestToObj(req),
+          message: e.message,
+        });
         let regexp = new RegExp('please retry', 'i');
-        if(regexp.test(e.message) && retry < 10) {
-          console.log('[DGRAPH] retrying upsert', req.getQuery())
+        if (regexp.test(e.message) && retry < 10) {
+          console.log('[DGRAPH] retrying upsert', req.getQuery());
           setTimeout(() => {
-            resolve(this.callRequest(req, retry + 1))
+            resolve(this.callRequest(req, retry + 1));
           }, 100);
         } else {
-          reject()
+          reject();
         }
       }
-    })
+    });
   }
 }

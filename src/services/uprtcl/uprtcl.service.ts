@@ -53,11 +53,14 @@ export class UprtclService {
     includeEcosystem: boolean,
     loggedUserId: string | null
   ): Promise<string[]> {
-
-    if(loggedUserId === null)
+    if (loggedUserId === null)
       throw new Error('Anonymous user. Cant get independent perspectives');
-    
-    return await this.uprtclRepo.getOtherIndpPerspectives(perspectiveId, includeEcosystem, loggedUserId);
+
+    return await this.uprtclRepo.getOtherIndpPerspectives(
+      perspectiveId,
+      includeEcosystem,
+      loggedUserId
+    );
   }
 
   async findPerspectives(
@@ -125,6 +128,18 @@ export class UprtclService {
     return perspId;
   }
 
+  getDataChildren(data: any) {
+    if (data.pages !== undefined) {
+      return data.pages;
+    }
+    if (data.links !== undefined) {
+      return data.links;
+    }
+    if (data.value !== undefined) {
+      return [data.description];
+    }
+  }
+
   async updatePerspective(
     perspectiveId: string,
     details: PerspectiveDetails,
@@ -160,12 +175,8 @@ export class UprtclService {
       const oldData = (await this.dataService.getData(oldDataId)).object;
       const newData = (await this.dataService.getData(newDataId)).object;
 
-      const currentChildren: Array<string> = oldData.pages
-        ? oldData.pages
-        : oldData.links;
-      const updatedChildren: Array<string> = newData.pages
-        ? newData.pages
-        : newData.links;
+      const currentChildren: Array<string> = this.getDataChildren(oldData);
+      const updatedChildren: Array<string> = this.getDataChildren(newData);
 
       const difference = currentChildren
         .filter((oldChild: string) => !updatedChildren.includes(oldChild))

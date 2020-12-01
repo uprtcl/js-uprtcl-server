@@ -9,4 +9,4 @@ type ${DATA_SCHEMA_NAME} {
 
 # data objects
 jsonString: string @index(fulltext) .
-`
+`;

@@ -1,214 +1,275 @@
-import { Proposal, 
-         UpdateRequest, 
-         NewProposalData, 
-         PerspectiveDetails, 
-         ProposalState, 
-         NewPerspectiveData} from "../uprtcl/types"
-import { UprtclService } from "../uprtcl/uprtcl.service";
-import { ProposalsRepository } from "./proposals.repository";
-import { NOT_AUTHORIZED_MSG } from "../../utils";
-import { DataService } from "../data/data.service";
+import {
+  Proposal,
+  UpdateRequest,
+  NewProposalData,
+  PerspectiveDetails,
+  ProposalState,
+  NewPerspectiveData,
+} from '../uprtcl/types';
+import { UprtclService } from '../uprtcl/uprtcl.service';
+import { ProposalsRepository } from './proposals.repository';
+import { NOT_AUTHORIZED_MSG } from '../../utils';
+import { DataService } from '../data/data.service';
 
 export class ProposalsService {
+  constructor(
+    protected proposalRepo: ProposalsRepository,
+    protected dataService: DataService,
+    protected uprtclService: UprtclService
+  ) {}
 
-    constructor(
-        protected proposalRepo: ProposalsRepository,
-        protected dataService: DataService,
-        protected uprtclService: UprtclService) {    
+  async createProposal(
+    proposalData: NewProposalData,
+    loggedUserId: string | null
+  ): Promise<string> {
+    if (loggedUserId === null)
+      throw new Error('Anonymous user. Cant create a proposal');
+
+    return await this.proposalRepo.createProposal(proposalData, loggedUserId);
+  }
+
+  async getProposal(
+    proposalUid: string,
+    loggedUserId: string | null
+  ): Promise<Proposal> {
+    if (proposalUid == undefined || proposalUid == '') {
+      throw new Error(`proposalUid is empty`);
     }
 
-    async createProposal(
-        proposalData: NewProposalData, 
-        loggedUserId: string | null
-    ): Promise<string> {
-        if (loggedUserId === null) throw new Error('Anonymous user. Cant create a proposal');
-                
-        return await this.proposalRepo.createProposal(proposalData, loggedUserId);
-    };
+    let canAuthorize: boolean = false;
+    let updatesArr: UpdateRequest[] = [];
 
-    async getProposal(
-        proposalUid: string, 
-        loggedUserId: string|null
-    ): Promise<Proposal> {
-        if(proposalUid == undefined || proposalUid == '') {
-            throw new Error(`proposalUid is empty`);
-        }
-        
-        let canAuthorize:boolean = false;
-        let updatesArr: UpdateRequest[] = [];
+    const dproposal = await this.proposalRepo.getProposal(
+      proposalUid,
+      true,
+      true
+    );
 
-        const dproposal = await this.proposalRepo.getProposal(proposalUid, true, true);                    
-                       
-        const { 
-                creator: { did: creatorId },
-                fromPerspective: { xid: fromPerspectiveId },
-                toPerspective: { xid: toPerspectiveId },
-                fromHead: { xid: fromHeadId },
-                toHead: { xid: toHeadId } = {},
-                state,
-                updates,
-                newPerspectives
-              } = dproposal;        
+    const {
+      creator: { did: creatorId },
+      fromPerspective: { xid: fromPerspectiveId },
+      toPerspective: { xid: toPerspectiveId },
+      fromHead: { xid: fromHeadId },
+      toHead: { xid: toHeadId } = {},
+      state,
+      updates,
+      newPerspectives,
+    } = dproposal;
 
-        updatesArr = updates ? updates.map((update): UpdateRequest => {    
+    updatesArr = updates
+      ? updates.map(
+          (update): UpdateRequest => {
             const {
-                oldHead,
-                newHead: {
-                    xid: newHeadId
-                },
-                perspective: {
-                    xid: perspectiveId
-                },
-                fromPerspective: {
-                    xid: fromPerspectiveId
-                }
+              oldHead,
+              newHead: { xid: newHeadId },
+              perspective: { xid: perspectiveId },
+              fromPerspective: { xid: fromPerspectiveId },
             } = update || {};
 
             return {
-                fromPerspectiveId: fromPerspectiveId,
-                oldHeadId: oldHead?.xid,
-                perspectiveId: perspectiveId,
-                newHeadId: newHeadId
-            }
-        }) : [];
+              fromPerspectiveId: fromPerspectiveId,
+              oldHeadId: oldHead?.xid,
+              perspectiveId: perspectiveId,
+              newHeadId: newHeadId,
+            };
+          }
+        )
+      : [];
 
-        if(loggedUserId !== null && updates) {
-            canAuthorize = await this.uprtclService.canAuthorizeProposal(updates, loggedUserId);     
-        }    
+    if (loggedUserId !== null && updates) {
+      canAuthorize = await this.uprtclService.canAuthorizeProposal(
+        updates,
+        loggedUserId
+      );
+    }
 
-        const newPerspectivesArr = newPerspectives ? await Promise.all(newPerspectives.map(async (newPerspective): Promise<NewPerspectiveData> => {
-            const perspective = await this.dataService.getData(newPerspective.NEWP_perspectiveId);
-            return {
+    const newPerspectivesArr = newPerspectives
+      ? await Promise.all(
+          newPerspectives.map(
+            async (newPerspective): Promise<NewPerspectiveData> => {
+              const perspective = await this.dataService.getData(
+                newPerspective.NEWP_perspectiveId
+              );
+              return {
                 perspective,
                 parentId: newPerspective.NEWP_parentId,
-                details: { headId: newPerspective.NEWP_headId}
+                details: { headId: newPerspective.NEWP_headId },
+              };
             }
-        })) : [];
-        
-        const proposal: Proposal = {                    
-            id: proposalUid,            
-            creatorId: creatorId,
-            toPerspectiveId: toPerspectiveId,
-            fromPerspectiveId: fromPerspectiveId,
-            fromHeadId: fromHeadId,
-            toHeadId: toHeadId,
-            state: state,
-            authorized: state === ProposalState.Executed ? true : false,
-            executed: state === ProposalState.Executed ? true : false,
-            details: {
-                updates: updatesArr,
-                newPerspectives: newPerspectivesArr,
-            },
-            canAuthorize: canAuthorize
-        }                        
+          )
+        )
+      : [];
 
-        return proposal;
+    const proposal: Proposal = {
+      id: proposalUid,
+      creatorId: creatorId,
+      toPerspectiveId: toPerspectiveId,
+      fromPerspectiveId: fromPerspectiveId,
+      fromHeadId: fromHeadId,
+      toHeadId: toHeadId,
+      state: state,
+      authorized: state === ProposalState.Executed ? true : false,
+      executed: state === ProposalState.Executed ? true : false,
+      details: {
+        updates: updatesArr,
+        newPerspectives: newPerspectivesArr,
+      },
+      canAuthorize: canAuthorize,
     };
 
-    async getProposalsToPerspective(
-        perspectiveId: string
-    ): Promise<string[]> {
-        if(perspectiveId == undefined || perspectiveId == '') {
-            throw new Error(`perspectiveId is empty`);
-        }
+    return proposal;
+  }
 
-        const proposals = await this.proposalRepo.getProposalsToPerspective(perspectiveId);
+  async getProposalsToPerspective(perspectiveId: string): Promise<string[]> {
+    if (perspectiveId == undefined || perspectiveId == '') {
+      throw new Error(`perspectiveId is empty`);
+    }
 
-        return proposals;
-    };
+    const proposals = await this.proposalRepo.getProposalsToPerspective(
+      perspectiveId
+    );
 
-    async addUpdatesToProposal(
-        proposalUid: string, 
-        updates: UpdateRequest[], 
-        loggedUserId: string | null
-    ): Promise<void> {
-        if (loggedUserId === null) throw new Error('Anonymous user. Cant update a proposal');           
+    return proposals;
+  }
 
-        await this.proposalRepo.addUpdatesToProposal(proposalUid, updates, loggedUserId);
-    };
+  async addUpdatesToProposal(
+    proposalUid: string,
+    updates: UpdateRequest[],
+    loggedUserId: string | null
+  ): Promise<void> {
+    if (loggedUserId === null)
+      throw new Error('Anonymous user. Cant update a proposal');
 
-    // This method assumes that a user won't be able to reject a proposal if it doesn't have updates at all.
-    // Can the owner of a toPerspective or from an update perspective be authorized?
+    await this.proposalRepo.addUpdatesToProposal(
+      proposalUid,
+      updates,
+      loggedUserId
+    );
+  }
 
-    async rejectProposal(
-        proposalUid: string, 
-        loggedUserId: string | null
-    ): Promise<void> {
-        if (loggedUserId === null) throw new Error('Anonymous user. Cant cancel a proposal');
+  // This method assumes that a user won't be able to reject a proposal if it doesn't have updates at all.
+  // Can the owner of a toPerspective or from an update perspective be authorized?
 
-        // Get the proposals updates to provide to canAuthorize function and check current state.
-        const dproposal = await this.proposalRepo.getProposal(proposalUid, true, false);
-        const { state, updates } = dproposal;    
+  async rejectProposal(
+    proposalUid: string,
+    loggedUserId: string | null
+  ): Promise<void> {
+    if (loggedUserId === null)
+      throw new Error('Anonymous user. Cant cancel a proposal');
 
-        if(state != ProposalState.Open) throw new Error(`Can't modify a ${state} proposal`);
+    // Get the proposals updates to provide to canAuthorize function and check current state.
+    const dproposal = await this.proposalRepo.getProposal(
+      proposalUid,
+      true,
+      false
+    );
+    const { state, updates } = dproposal;
 
-        if(!updates) {
-            throw new Error("Can't accept proposal. No updates added yet.");
-        }        
+    if (state != ProposalState.Open)
+      throw new Error(`Can't modify a ${state} proposal`);
 
-        const canAuthorize = await this.uprtclService.canAuthorizeProposal(updates, loggedUserId)
+    if (!updates) {
+      throw new Error("Can't accept proposal. No updates added yet.");
+    }
 
-        // Check if the user is authorized to perform this action.                        
-        if(!canAuthorize) {
-            throw new Error(NOT_AUTHORIZED_MSG);
-        }        
-                
-        return await this.proposalRepo.modifyProposalState(proposalUid, ProposalState.Rejected);
-    };
+    const canAuthorize = await this.uprtclService.canAuthorizeProposal(
+      updates,
+      loggedUserId
+    );
 
-    async declineProposal(
-        proposalUid: string, 
-        loggedUserId: string | null
-    ): Promise<void> {        
-        if (loggedUserId === null) throw new Error('Anonymous user. Cant decline a proposal');
+    // Check if the user is authorized to perform this action.
+    if (!canAuthorize) {
+      throw new Error(NOT_AUTHORIZED_MSG);
+    }
 
-        const dproposal = await this.proposalRepo.getProposal(proposalUid, false, false);        
+    return await this.proposalRepo.modifyProposalState(
+      proposalUid,
+      ProposalState.Rejected
+    );
+  }
 
-        const { creator: { did: creatorId }, state } = dproposal;        
+  async declineProposal(
+    proposalUid: string,
+    loggedUserId: string | null
+  ): Promise<void> {
+    if (loggedUserId === null)
+      throw new Error('Anonymous user. Cant decline a proposal');
 
-        if(creatorId != loggedUserId) {
-            throw new Error(NOT_AUTHORIZED_MSG);
-        }        
+    const dproposal = await this.proposalRepo.getProposal(
+      proposalUid,
+      false,
+      false
+    );
 
-        if(state != ProposalState.Open) throw new Error(`Can't modify ${state} proposals`);
+    const {
+      creator: { did: creatorId },
+      state,
+    } = dproposal;
 
-        return await this.proposalRepo.modifyProposalState(proposalUid, ProposalState.Declined);
-    };
+    if (creatorId != loggedUserId) {
+      throw new Error(NOT_AUTHORIZED_MSG);
+    }
 
-    async acceptProposal(
-        proposalUid: string, 
-        loggedUserId: string | null
-    ): Promise<void> {        
-        if (loggedUserId === null) throw new Error('Anonymous user. Cant decline a proposal');
+    if (state != ProposalState.Open)
+      throw new Error(`Can't modify ${state} proposals`);
 
-        // Get the proposals updates to provide to canAuthorize function
-        const dproposal = await this.proposalRepo.getProposal(proposalUid, true, false);
-        const { updates } = dproposal;
+    return await this.proposalRepo.modifyProposalState(
+      proposalUid,
+      ProposalState.Declined
+    );
+  }
 
-        if(!updates) {
-            throw new Error("Can't accept proposal. No updates added yet.");
-        } 
+  async acceptProposal(
+    proposalUid: string,
+    loggedUserId: string | null
+  ): Promise<void> {
+    if (loggedUserId === null)
+      throw new Error('Anonymous user. Cant decline a proposal');
 
-        const canAuthorize = await this.uprtclService.canAuthorizeProposal(updates, loggedUserId);
+    // Get the proposals updates to provide to canAuthorize function
+    const dproposal = await this.proposalRepo.getProposal(
+      proposalUid,
+      true,
+      false
+    );
+    const { updates } = dproposal;
 
-        if(!canAuthorize) {
-            throw new Error(NOT_AUTHORIZED_MSG);
-        }
+    if (!updates) {
+      throw new Error("Can't accept proposal. No updates added yet.");
+    }
 
-        const perspectivePromises = updates.map(async update => {
-            const { newHead: { xid: newHeadId }, 
-                    perspective: { xid: perspectiveId } } = update;
+    const canAuthorize = await this.uprtclService.canAuthorizeProposal(
+      updates,
+      loggedUserId
+    );
 
-            const details: PerspectiveDetails = {
-                headId: newHeadId
-            }
+    if (!canAuthorize) {
+      throw new Error(NOT_AUTHORIZED_MSG);
+    }
 
-            await this.uprtclService.updatePerspective(perspectiveId, details, loggedUserId);
-        });
+    const perspectivePromises = updates.map(async (update) => {
+      const {
+        newHead: { xid: newHeadId },
+        perspective: { xid: perspectiveId },
+      } = update;
 
-        // Updates perspective
-        await Promise.all(perspectivePromises);
-        // Changes proposal state
-        await this.proposalRepo.modifyProposalState(proposalUid, ProposalState.Executed);                                        
-    };
+      const details: PerspectiveDetails = {
+        headId: newHeadId,
+      };
+
+      await this.uprtclService.updatePerspective(
+        perspectiveId,
+        details,
+        loggedUserId
+      );
+    });
+
+    // Updates perspective
+    await Promise.all(perspectivePromises);
+    // Changes proposal state
+    await this.proposalRepo.modifyProposalState(
+      proposalUid,
+      ProposalState.Executed
+    );
+  }
 }

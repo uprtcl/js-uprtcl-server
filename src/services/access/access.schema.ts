@@ -1,4 +1,4 @@
-import { PROFILE_SCHEMA_NAME } from "../user/user.schema";
+import { PROFILE_SCHEMA_NAME } from '../user/user.schema';
 
 export const PERMISSIONS_SCHEMA_NAME = 'Permissions';
 export const ACCESS_CONFIG_SCHEMA_NAME = 'AccessConfig';
@@ -6,7 +6,7 @@ export const ACCESS_CONFIG_SCHEMA_NAME = 'AccessConfig';
 export enum PermissionType {
   Read = 'Read',
   Write = 'Write',
-  Admin = 'Admin'
+  Admin = 'Admin',
 }
 
 export const ACCESS_SCHEMA = `

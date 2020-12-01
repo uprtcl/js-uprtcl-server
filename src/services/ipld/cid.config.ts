@@ -18,6 +18,11 @@ export class CidConfig {
     let cid = new CID(cidStr);
     let multihash = multihashing.multihash.decode(cid.multihash);
 
-    return new CidConfig(cid.multibaseName, cid.version, cid.codec, multihash.name);
+    return new CidConfig(
+      cid.multibaseName,
+      cid.version,
+      cid.codec,
+      multihash.name
+    );
   }
 }

@@ -94,7 +94,7 @@ export class UprtclRepository {
     await this.userRepo.upsertProfile(perspective.creatorId);
 
     let query = `profile as var(func: eq(did, "${perspective.creatorId.toLowerCase()}"))`;
-    query = query.concat(`persp as var(func: eq(xid, "${id}"))`)
+    query = query.concat(`persp as var(func: eq(xid, "${id}"))`);
 
     req.setQuery(`query{${query}}`);
 
@@ -104,13 +104,9 @@ export class UprtclRepository {
     nquads = nquads.concat(
       `\nuid(persp) <timextamp> "${perspective.timestamp}"^^<xs:int> .`
     );
-    nquads = nquads.concat(
-      `\nuid(persp) <context> "${perspective.context}" .`
-    );
+    nquads = nquads.concat(`\nuid(persp) <context> "${perspective.context}" .`);
     nquads = nquads.concat(`\nuid(persp) <deleted> "false" .`);
-    nquads = nquads.concat(
-      `\nuid(persp) <remote> "${perspective.remote}" .`
-    );
+    nquads = nquads.concat(`\nuid(persp) <remote> "${perspective.remote}" .`);
     nquads = nquads.concat(`\nuid(persp) <path> "${perspective.path}" .`);
     nquads = nquads.concat(
       `\nuid(persp) <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`
@@ -288,9 +284,9 @@ export class UprtclRepository {
     mu.setSetNquads(ecosystemUpdated.nquads);
     mu.setDelNquads(ecosystemUpdated.delNquads);
 
-    req.setMutationsList([mu]);    
+    req.setMutationsList([mu]);
 
-    let result = await this.db.callRequest(req);    
+    let result = await this.db.callRequest(req);
 
     console.log(
       '[DGRAPH] updatePerspective',
@@ -362,20 +358,20 @@ export class UprtclRepository {
   async getOtherIndpPerspectives(
     perspectiveId: string,
     ecosystem: boolean,
-    loggedUserId: string    
+    loggedUserId: string
   ): Promise<Array<string>> {
     await this.db.ready();
 
     let query = ``;
 
-    if(ecosystem) {
+    if (ecosystem) {
       // If independent perspectives from an ecosystem are needed
       query = `
         persp(func: eq(xid, ${perspectiveId})) {
           eco as ecosystem
         }
       `;
-      
+
       // Look for independent perspectives for every element of an ecosystem, in this case
       // the perspective ecosystem
       query = query.concat(`\nrefPersp(func: uid(eco)) {
@@ -434,10 +430,13 @@ export class UprtclRepository {
       xid
     }`);
 
-    let result = (await this.db.client.newTxn().query(`query{${query}}`)).getJson();   
+    let result = (
+      await this.db.client.newTxn().query(`query{${query}}`)
+    ).getJson();
 
-    return result.noParent.map((p:any) => p.xid)
-          .concat(result.iPersp.map((p:any) => p.xid));
+    return result.noParent
+      .map((p: any) => p.xid)
+      .concat(result.iPersp.map((p: any) => p.xid));
   }
 
   async getPerspectiveRelatives(
@@ -455,9 +454,10 @@ export class UprtclRepository {
 
     const result = await this.db.client.newTxn().query(query);
 
-    return (result.getJson().perspective[0])
-      ? result.getJson()
-      .perspective[0][`${relatives}`].map((persp: any) => persp.xid)
+    return result.getJson().perspective[0]
+      ? result
+          .getJson()
+          .perspective[0][`${relatives}`].map((persp: any) => persp.xid)
       : [];
   }
 
