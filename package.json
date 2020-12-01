@@ -35,7 +35,7 @@
     "dotenv": "^8.1.0",
     "ethereumjs-util": "^6.1.0",
     "express": "^5.0.0-alpha.7",
-    "express-jwt": "^5.3.1",
+    "express-jwt": "^6.0.0",
     "express-jwt-authz": "^2.3.1",
     "grpc": "^1.24.2",
     "jsonwebtoken": "^8.5.1",
