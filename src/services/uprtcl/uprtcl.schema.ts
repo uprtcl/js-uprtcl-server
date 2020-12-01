@@ -1,4 +1,4 @@
-import { ACCESS_CONFIG_SCHEMA_NAME } from "../access/access.schema";
+import { ACCESS_CONFIG_SCHEMA_NAME } from '../access/access.schema';
 
 export const PERSPECTIVE_SCHEMA_NAME = 'Perspective';
 export const PROOF_SCHEMA_NAME = 'Proof';

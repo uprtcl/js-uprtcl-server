@@ -14,15 +14,15 @@ import { KnownSourcesController } from './knownsources/knownsources.controller';
 import { DataService } from './data/data.service';
 import { DataController } from './data/data.controller';
 import { KnownSourcesService } from './knownsources/knownsources.service';
-import { ProposalsController } from "./proposals/proposals.controller";
-import { ProposalsService } from "./proposals/proposals.service";
-import { ProposalsRepository } from "./proposals/proposals.repository";
+import { ProposalsController } from './proposals/proposals.controller';
+import { ProposalsService } from './proposals/proposals.service';
+import { ProposalsRepository } from './proposals/proposals.repository';
 
 export const getRoutes = async () => {
   /** poors man dependency injection */
   const dbService = new DGraphService(
-    process.env.DGRAPH_HOST as string, 
-    process.env.DGRAPH_PORT as string, 
+    process.env.DGRAPH_HOST as string,
+    process.env.DGRAPH_PORT as string,
     process.env.SLASH_API_KEY as string
   );
 
@@ -43,8 +43,13 @@ export const getRoutes = async () => {
   const accessController = new AccessController(accessService);
 
   const dataService = new DataService(dbService, dataRepo);
-  const uprtclService = new UprtclService(dbService, uprtclRepo, accessService, dataService);
-  
+  const uprtclService = new UprtclService(
+    dbService,
+    uprtclRepo,
+    accessService,
+    dataService
+  );
+
   const dataController = new DataController(dataService, uprtclService);
   const uprtclController = new UprtclController(uprtclService);
 
@@ -52,7 +57,11 @@ export const getRoutes = async () => {
   const userController = new UserController(userService);
 
   const proposalsRepo = new ProposalsRepository(dbService, userRepo);
-  const proposalsService = new ProposalsService(proposalsRepo, dataService, uprtclService);
+  const proposalsService = new ProposalsService(
+    proposalsRepo,
+    dataService,
+    uprtclService
+  );
   const proposalsController = new ProposalsController(proposalsService);
 
   const knownSourcesService = new KnownSourcesService(
@@ -71,7 +80,6 @@ export const getRoutes = async () => {
     ...userController.routes(),
     ...accessController.routes(),
     ...knownSourcesController.routes(),
-    ...proposalsController.routes()
+    ...proposalsController.routes(),
   ];
 };
-

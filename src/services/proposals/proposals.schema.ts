@@ -1,4 +1,7 @@
-import { PERSPECTIVE_SCHEMA_NAME, COMMIT_SCHEMA_NAME } from '../uprtcl/uprtcl.schema';
+import {
+  PERSPECTIVE_SCHEMA_NAME,
+  COMMIT_SCHEMA_NAME,
+} from '../uprtcl/uprtcl.schema';
 
 export const PROPOSALS_SCHEMA_NAME = 'Proposal';
 export const HEAD_UPDATE_SCHEMA_NAME = 'HeadUpdate';

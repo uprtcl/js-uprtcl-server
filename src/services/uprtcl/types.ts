@@ -37,8 +37,8 @@ export interface Proposal {
   details: {
     updates?: UpdateRequest[];
     newPerspectives?: NewPerspectiveData[];
-  }
-  
+  };
+
   state: ProposalState;
   executed: boolean;
   authorized: boolean;
@@ -90,7 +90,7 @@ export interface NewProposalData {
   details: {
     updates: Array<UpdateRequest>;
     newPerspectives: Array<NewPerspectiveData>;
-  }
+  };
 }
 
 // Dgraph incoming data types

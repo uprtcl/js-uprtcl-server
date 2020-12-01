@@ -32,9 +32,9 @@ const { PORT = 3100 } = process.env;
 
 createApp().then((router) => {
   http.createServer(router).listen(PORT, () => {
-    console.log(`Production server on Port:${PORT}...`)
-  })
-})
+    console.log(`Production server on Port:${PORT}...`);
+  });
+});
 
 // Old AWS Lambda arquitecture
 // export const handler: APIGatewayProxyHandler = async (event, context) => {
