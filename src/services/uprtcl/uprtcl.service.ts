@@ -53,11 +53,14 @@ export class UprtclService {
     includeEcosystem: boolean,
     loggedUserId: string | null
   ): Promise<string[]> {
-
-    if(loggedUserId === null)
+    if (loggedUserId === null)
       throw new Error('Anonymous user. Cant get independent perspectives');
-    
-    return await this.uprtclRepo.getOtherIndpPerspectives(perspectiveId, includeEcosystem, loggedUserId);
+
+    return await this.uprtclRepo.getOtherIndpPerspectives(
+      perspectiveId,
+      includeEcosystem,
+      loggedUserId
+    );
   }
 
   async findPerspectives(
@@ -123,6 +126,18 @@ export class UprtclService {
     }
 
     return perspId;
+  }
+
+  getDataChildren(data: any) {
+    if (data.pages !== undefined) {
+      return data.pages;
+    }
+    if (data.links !== undefined) {
+      return data.links;
+    }
+    if (data.value !== undefined) {
+      return [data.description];
+    }
   }
 
   async updatePerspective(

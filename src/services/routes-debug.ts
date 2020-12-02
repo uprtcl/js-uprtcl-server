@@ -15,15 +15,15 @@ import { KnownSourcesController } from './knownsources/knownsources.controller';
 import { DataService } from './data/data.service';
 import { DataController } from './data/data.controller';
 import { KnownSourcesService } from './knownsources/knownsources.service';
-import { ProposalsRepository } from "./proposals/proposals.repository";
+import { ProposalsRepository } from './proposals/proposals.repository';
 import { ProposalsController } from './proposals/proposals.controller';
 
 // TODO: Update index.ts
 
 /** poors man dependency injection */
 const dbService = new DGraphService(
-  process.env.DGRAPH_HOST as string, 
-  process.env.DGRAPH_PORT as string, 
+  process.env.DGRAPH_HOST as string,
+  process.env.DGRAPH_PORT as string,
   process.env.SLASH_API_KEY as string
 );
 
@@ -39,15 +39,23 @@ const dataRepo = new DataRepository(dbService, userRepo);
 const uprtclRepo = new UprtclRepository(dbService, userRepo, dataRepo);
 
 const dataService = new DataService(dbService, dataRepo);
-const uprtclService = new UprtclService(dbService, uprtclRepo, accessService, dataService);
+const uprtclService = new UprtclService(
+  dbService,
+  uprtclRepo,
+  accessService,
+  dataService
+);
 
 const dataController = new DataController(dataService, uprtclService);
 const uprtclController = new UprtclController(uprtclService);
 
 const proposalsRepo = new ProposalsRepository(dbService, userRepo);
-const proposalsService = new ProposalsService(proposalsRepo, dataService, uprtclService);
+const proposalsService = new ProposalsService(
+  proposalsRepo,
+  dataService,
+  uprtclService
+);
 const proposalsController = new ProposalsController(proposalsService);
-
 
 const knownSourcesRepo = new KnownSourcesRepository(dbService);
 const knownSourcesService = new KnownSourcesService(

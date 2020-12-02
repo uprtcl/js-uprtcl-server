@@ -9,33 +9,38 @@ import {
 const dgraph = require('dgraph-js');
 
 export interface PermissionConfig {
-  publicRead: boolean
-  publicWrite: boolean
-  canRead?: string[]
-  canWrite?: string[]
-  canAdmin?: string[]
+  publicRead: boolean;
+  publicWrite: boolean;
+  canRead?: string[];
+  canWrite?: string[];
+  canAdmin?: string[];
 }
 
 export interface AccessConfig {
-  uid?: string
-  delegate: boolean
-  delegateTo?: string
-  finDelegatedTo?: string
-  permissionsUid?: string
+  uid?: string;
+  delegate: boolean;
+  delegateTo?: string;
+  finDelegatedTo?: string;
+  permissionsUid?: string;
 }
 
 export interface AccessConfigInherited {
-  delegate: boolean,
-  delegateTo?: string | null,
-  finDelegatedTo?: string | null,
-  effectivePermissions: PermissionConfig,
-  customPermissions?: PermissionConfig
+  delegate: boolean;
+  delegateTo?: string | null;
+  finDelegatedTo?: string | null;
+  effectivePermissions: PermissionConfig;
+  customPermissions?: PermissionConfig;
 }
 
 export interface UserPermissions {
-  canRead: boolean,
-  canWrite: boolean,
-  canAdmin: boolean
+  canRead: boolean;
+  canWrite: boolean;
+  canAdmin: boolean;
+}
+
+export interface PublicPermissions {
+  publicRead: boolean;
+  publicWrite: boolean;
 }
 
 export class AccessRepository {
@@ -146,41 +151,106 @@ export class AccessRepository {
     return result.getUidsMap().toArray()[0];
   }
 
-  async can(
+  async getUserCan(
     elementId: string,
-    userId: string,
-    type: PermissionType
-  ): Promise<boolean> {
+    userId: string | null
+  ): Promise<UserPermissions> {
+    const publicPermissions = await this.getPublicPermissions(elementId);
 
-    let can: boolean = false;
-    const permissions = await this.getUserPermissions(elementId, userId);
-
-    switch(type) {
-      case PermissionType.Read:
-        can = permissions.canRead;
-        break;
-
-      case PermissionType.Write:
-        can = permissions.canWrite;
-        break;
-
-      case PermissionType.Admin:
-        can = permissions.canAdmin;
-        break;
+    if (!userId) {
+      return {
+        canRead: publicPermissions.publicRead,
+        canWrite: publicPermissions.publicWrite,
+        canAdmin: false,
+      };
     }
 
-    console.log(
-      `[DGRAPH] isRole ${type}`,
-      { elementId, userId },
-      { can }
-    );
+    const permissions = await this.getUserPermissions(elementId, userId);
 
-    return can;
+    return {
+      canRead: publicPermissions.publicRead || permissions.canRead,
+      canWrite: publicPermissions.publicWrite || permissions.canWrite,
+      canAdmin: permissions.canAdmin,
+    };
+  }
+
+  /** optimize to not get user permissions if public */
+  async can(
+    elementId: string,
+    userId: string | null,
+    type: PermissionType
+  ): Promise<boolean> {
+    const publicPermissions = await this.getPublicPermissions(elementId);
+    switch (type) {
+      case PermissionType.Read:
+        if (publicPermissions.publicRead) {
+          return true;
+        }
+
+      case PermissionType.Write:
+        if (publicPermissions.publicWrite) {
+          return true;
+        }
+    }
+
+    if (!userId) return false;
+
+    const permissions = await this.getUserPermissions(elementId, userId);
+    switch (type) {
+      case PermissionType.Read:
+        return permissions.canRead;
+
+      case PermissionType.Write:
+        return permissions.canWrite;
+
+      case PermissionType.Admin:
+        return permissions.canAdmin;
+    }
+  }
+
+  async getPublicPermissions(elementId: string): Promise<PublicPermissions> {
+    let query = `
+    element(func: eq(xid, "${elementId}")) {
+      accessConfig {
+        permissions {
+          publicRead
+          publicWrite
+        }
+      }
+    }`;
+
+    let result = await this.db.client.newTxn().query(`query{${query}}`);
+    let json = result.getJson();
+
+    if (json.element.length > 0) {
+      if (json.element[0] === undefined) {
+        throw new Error(
+          `undefined accessConfig in getUserPermissions() for element ${elementId}`
+        );
+      }
+
+      const publicRead: boolean =
+        json.element[0].accessConfig.permissions.publicRead;
+      const publicWrite: boolean =
+        json.element[0].accessConfig.permissions.publicWrite;
+
+      /** apply the logic canAdmin > canWrite > canRead */
+      return {
+        publicRead: publicRead || publicWrite,
+        publicWrite: publicWrite,
+      };
+    } else {
+      /** if not found, the user does not have permissions */
+      return {
+        publicRead: false,
+        publicWrite: false,
+      };
+    }
   }
 
   async getUserPermissions(
     elementId: string,
-    userId: string,
+    userId: string
   ): Promise<UserPermissions> {
     let query = `
     element(func: eq(xid, "${elementId}")) {
@@ -195,8 +265,6 @@ export class AccessRepository {
           canAdmin @filter(eq(did, "${userId.toLowerCase()}")) {
             count(uid)
           }
-          publicWrite
-          publicRead
         }
       }
     }`;
@@ -210,36 +278,33 @@ export class AccessRepository {
           `undefined accessConfig in getUserPermissions() for element ${elementId}`
         );
       }
-      
-      const canReadUser:boolean = json.element[0].accessConfig.permissions.canRead !== undefined
-        && json.element[0].accessConfig.permissions.canRead[0].count > 0;
-      
-      const canWriteUser:boolean = json.element[0].accessConfig.permissions.canWrite !== undefined
-        && json.element[0].accessConfig.permissions.canWrite[0].count > 0;
-      
-      const canAdminUser:boolean = json.element[0].accessConfig.permissions.canAdmin !== undefined
-        && json.element[0].accessConfig.permissions.canAdmin[0].count > 0;
-      
-      const publicReadUser:boolean = json.element[0].accessConfig.permissions.publicRead;
-      
-      const publicWriteUser:boolean = json.element[0].accessConfig.permissions.publicWrite;
-      
+
+      const canReadUser: boolean =
+        json.element[0].accessConfig.permissions.canRead !== undefined &&
+        json.element[0].accessConfig.permissions.canRead[0].count > 0;
+
+      const canWriteUser: boolean =
+        json.element[0].accessConfig.permissions.canWrite !== undefined &&
+        json.element[0].accessConfig.permissions.canWrite[0].count > 0;
+
+      const canAdminUser: boolean =
+        json.element[0].accessConfig.permissions.canAdmin !== undefined &&
+        json.element[0].accessConfig.permissions.canAdmin[0].count > 0;
+
       /** apply the logic canAdmin > canWrite > canRead */
       return {
-        canRead: publicReadUser || publicWriteUser || canReadUser || canWriteUser || canAdminUser,
-        canWrite: publicWriteUser || canWriteUser || canAdminUser,
-        canAdmin: canAdminUser
+        canRead: canReadUser || canWriteUser || canAdminUser,
+        canWrite: canWriteUser || canAdminUser,
+        canAdmin: canAdminUser,
       };
-
     } else {
       /** if not found, the user does not have permissions */
       return {
         canRead: false,
         canWrite: false,
-        canAdmin: false
+        canAdmin: false,
       };
     }
-
   }
 
   /** only accessible to an admin */
@@ -328,7 +393,7 @@ export class AccessRepository {
       finDelegatedTo: daccessConfig.finDelegatedTo
         ? daccessConfig.finDelegatedTo.xid
         : undefined,
-      permissionsUid: daccessConfig.permissions.uid
+      permissionsUid: daccessConfig.permissions.uid,
     };
   }
 
@@ -442,7 +507,7 @@ export class AccessRepository {
 
   async toggleDelegate(
     elementId: string,
-    delegateTo: string | undefined,        
+    delegateTo: string | undefined
   ): Promise<void> {
     await this.db.ready();
 
@@ -451,10 +516,10 @@ export class AccessRepository {
       element(func: eq(xid, ${elementId})) {
         config as accessConfig
       }`;
-      
+
     /** now update the the accessConfig */
     const mu = new dgraph.Mutation();
-    const req = new dgraph.Request();    
+    const req = new dgraph.Request();
 
     const delegate = delegateTo !== undefined;
 
@@ -463,27 +528,29 @@ export class AccessRepository {
     let finDelegatedTo: string;
 
     if (delegate) {
-      if(!delegateTo) {
+      if (!delegateTo) {
         throw new Error('Undefined delegateTo');
       }
 
-      const delegateToAccessConfig = await this.getAccessConfigOfElement(delegateTo);
+      const delegateToAccessConfig = await this.getAccessConfigOfElement(
+        delegateTo
+      );
 
-      if(delegateToAccessConfig.finDelegatedTo === undefined) {
-        throw new Error(`property finDelegatedTo is undefined for element ${delegateTo}`);
-      } 
+      if (delegateToAccessConfig.finDelegatedTo === undefined) {
+        throw new Error(
+          `property finDelegatedTo is undefined for element ${delegateTo}`
+        );
+      }
 
       query = query.concat(
         `\ndelegateTo as var(func: eq(xid, "${delegateTo}"))`
       );
-      nquads = nquads.concat(
-        `\nuid(config) <delegateTo> uid(delegateTo) .`
-      ); 
+      nquads = nquads.concat(`\nuid(config) <delegateTo> uid(delegateTo) .`);
 
-/* add logic to compute and keep finDelegateTo of this element consistent and 
+      /* add logic to compute and keep finDelegateTo of this element consistent and 
     also of all the elements that where inheriting from this element */
       finDelegatedTo = delegateToAccessConfig.finDelegatedTo;
-    } else {      
+    } else {
       finDelegatedTo = elementId;
     }
 
@@ -501,11 +568,10 @@ export class AccessRepository {
             perspective: ~accessConfig
             a as accessConfig: ~delegateTo
             uid
-          }`);    
-
-    nquads = nquads.concat(
-      `\nuid(a) <finDelegatedTo> uid(finDelegatedTo) .`
+          }`
     );
+
+    nquads = nquads.concat(`\nuid(a) <finDelegatedTo> uid(finDelegatedTo) .`);
 
     if (query !== '') req.setQuery(`query{${query}}`);
 
@@ -589,8 +655,8 @@ export class AccessRepository {
     let json = result.getJson();
 
     return json.elements.length > 0
-      ? json.elements[0].accessConfig.map((accessConfig: any) => 
-          accessConfig.perspective[0].xid
+      ? json.elements[0].accessConfig.map(
+          (accessConfig: any) => accessConfig.perspective[0].xid
         )
       : [];
   }
@@ -711,8 +777,11 @@ export class AccessRepository {
     await this.db.callRequest(req);
   }
 
-  async clonePermissions(elementId: string, finDelegatedTo: string): Promise<void> {
-    await this.removeAllPermissions(elementId);    
+  async clonePermissions(
+    elementId: string,
+    finDelegatedTo: string
+  ): Promise<void> {
+    await this.removeAllPermissions(elementId);
 
     let query = `
       finDelegateTo(func: eq(xid, "${finDelegatedTo}")) {        
@@ -739,12 +808,12 @@ export class AccessRepository {
         }
       }
     `);
-    
+
     const readMutation = new dgraph.Mutation();
     readMutation.setSetNquads(`uid(per) <canRead> uid(userCr) .`);
     readMutation.setCond(`@if(gt(len(userCr), 0))`);
 
-    const writeMutation = new dgraph.Mutation();    
+    const writeMutation = new dgraph.Mutation();
     writeMutation.setSetNquads(`uid(per) <canWrite> uid(userCw) .`);
     writeMutation.setCond(`@if(gt(len(userCw), 0))`);
 
@@ -753,11 +822,9 @@ export class AccessRepository {
     adminMutation.setCond(`@if(gt(len(userAd), 0))`);
 
     const req = new dgraph.Request();
-    
+
     req.setQuery(`query{${query}}`);
-    req.setMutationsList([readMutation, 
-                          writeMutation, 
-                          adminMutation]);    
+    req.setMutationsList([readMutation, writeMutation, adminMutation]);
 
     await this.db.callRequest(req);
   }

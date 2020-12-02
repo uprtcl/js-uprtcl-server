@@ -1,16 +1,15 @@
-import { DGraphService } from "../../db/dgraph.service";
-import { UserRepository } from "../user/user.repository";
-import { KNOWN_SOURCES_SCHEMA_NAME } from "./knownsources.schema";
-import { DATA_SCHEMA_NAME } from "../data/data.schema";
+import { DGraphService } from '../../db/dgraph.service';
+import { UserRepository } from '../user/user.repository';
+import { KNOWN_SOURCES_SCHEMA_NAME } from './knownsources.schema';
+import { DATA_SCHEMA_NAME } from '../data/data.schema';
 import {
   PERSPECTIVE_SCHEMA_NAME,
-  COMMIT_SCHEMA_NAME
-} from "../uprtcl/uprtcl.schema";
+  COMMIT_SCHEMA_NAME,
+} from '../uprtcl/uprtcl.schema';
 import { LOCAL_CASID } from '../providers';
 
-const dgraph = require("dgraph-js");
-require("dotenv").config();
-
+const dgraph = require('dgraph-js');
+require('dotenv').config();
 
 export class KnownSourcesRepository {
   constructor(protected db: DGraphService) {}
@@ -26,7 +25,7 @@ export class KnownSourcesRepository {
 
     let result = await this.db.client.newTxn().query(query);
     let json = result.getJson();
-    console.log("[DGRAPH] getGeneric", { query }, JSON.stringify(json));
+    console.log('[DGRAPH] getGeneric', { query }, JSON.stringify(json));
 
     return json.element[0]['dgraph.type'] ? json.element[0]['dgraph.type'] : [];
   }
@@ -37,12 +36,12 @@ export class KnownSourcesRepository {
   ): Promise<void> {
     await this.db.ready();
 
-    console.log("[DGRAPH] addKnownSources", { elementId }, { casIDs });
+    console.log('[DGRAPH] addKnownSources', { elementId }, { casIDs });
 
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    casIDs = casIDs.filter(casID => casID !== LOCAL_CASID);
+    casIDs = casIDs.filter((casID) => casID !== LOCAL_CASID);
 
     let query = `element as var(func: eq(elementId, "${elementId}"))`;
     req.setQuery(`query{${query}}`);
@@ -60,7 +59,7 @@ export class KnownSourcesRepository {
 
     let result = await this.db.callRequest(req);
     console.log(
-      "[DGRAPH] addKnownSources",
+      '[DGRAPH] addKnownSources',
       { query },
       { nquads },
       result.getUidsMap().toArray()
@@ -78,7 +77,7 @@ export class KnownSourcesRepository {
     }`;
 
     let result = await this.db.client.newTxn().query(query);
-    console.log("[DGRAPH] getKnownSources", { query }, result.getJson());
+    console.log('[DGRAPH] getKnownSources', { query }, result.getJson());
 
     let casIDs =
       result.getJson().casIDs.length > 0
@@ -97,7 +96,7 @@ export class KnownSourcesRepository {
     let resultLocal = await this.db.client.newTxn().query(queryLocal);
     let elements = resultLocal.getJson().element;
     if (elements.length > 0) {
-      const types = elements[0]["dgraph.type"];
+      const types = elements[0]['dgraph.type'];
       const uprtcl_types = [PERSPECTIVE_SCHEMA_NAME, COMMIT_SCHEMA_NAME];
       const data_types = [DATA_SCHEMA_NAME];
 

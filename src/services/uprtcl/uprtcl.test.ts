@@ -9,7 +9,9 @@ import {
   addPagesOrLinks,
   getPerspectiveRelatives,
   getIndependentPerspectives,
-   createAndInitPerspective, forkPerspective, addChildToPerspective
+  createAndInitPerspective,
+  forkPerspective,
+  addChildToPerspective,
 } from './uprtcl.testsupport';
 import { createUser } from '../user/user.testsupport';
 import {
@@ -693,12 +695,7 @@ describe('routes', () => {
       perspectiveA1context
     );
 
-    await addChildToPerspective(
-      PA1.persp, 
-      A.persp, 
-      A.commit, 
-      false, 
-      user1.jwt);
+    await addChildToPerspective(PA1.persp, A.persp, A.commit, false, user1.jwt);
 
     const LA2 = await createAndInitPerspective(
       'link A 2',
@@ -709,18 +706,18 @@ describe('routes', () => {
       perspectiveA2context
     );
 
-   await addChildToPerspective(
-     LA2.persp, 
-     PA1.persp, 
-     PA1.commit, 
-     false, 
-     user1.jwt
+    await addChildToPerspective(
+      LA2.persp,
+      PA1.persp,
+      PA1.commit,
+      false,
+      user1.jwt
     );
     // End of branch A
 
     //-----------------------//
 
-    // Branch B    
+    // Branch B
 
     // Create perspectiveB
 
@@ -735,23 +732,21 @@ describe('routes', () => {
 
     const PB1 = await forkPerspective(PA1.persp, user1.jwt);
 
-    await addChildToPerspective(
-      PB1,
-      B.persp,
-      B.commit,
-      false,
-      user1.jwt
-    );
-    
-    const LB2 = (await getPerspectiveRelatives(PB1, 'children'))[0];   
-    
+    await addChildToPerspective(PB1, B.persp, B.commit, false, user1.jwt);
+
+    const LB2 = (await getPerspectiveRelatives(PB1, 'children'))[0];
+
     const LC = await forkPerspective(LB2, user1.jwt);
 
-    const independentPerspectives = (await getIndependentPerspectives(PA1.persp, user1.jwt)).data;
+    const independentPerspectives = (
+      await getIndependentPerspectives(PA1.persp, user1.jwt)
+    ).data;
 
     expect(independentPerspectives[0]).toEqual(PB1);
 
-    const independentPerspectivesEco = (await getIndependentPerspectives(PA1.persp, user1.jwt, true)).data;
+    const independentPerspectivesEco = (
+      await getIndependentPerspectives(PA1.persp, user1.jwt, true)
+    ).data;
 
     expect(independentPerspectivesEco[1]).toEqual(PB1);
     expect(independentPerspectivesEco[0]).toEqual(LC);

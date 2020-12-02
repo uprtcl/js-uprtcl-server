@@ -215,46 +215,47 @@ export class UprtclController {
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const inputs =  {
+            const inputs = {
               perspId: req.params.perspectiveId,
-              eco: req.query.includeEcosystem
-            }
+              eco: req.query.includeEcosystem,
+            };
 
             try {
               let perspectives = await this.uprtclService.findIndPerspectives(
                 inputs.perspId,
-                (inputs.eco === 'false') ?
-                  false :
-                (inputs.eco === 'true') ?
-                  true :
-                (inputs.eco === '' || inputs.eco === 'undefined') ?
-                  false : false,
+                inputs.eco === 'false'
+                  ? false
+                  : inputs.eco === 'true'
+                  ? true
+                  : inputs.eco === '' || inputs.eco === 'undefined'
+                  ? false
+                  : false,
                 getUserFromReq(req)
               );
 
               let result: GetResult<string[]> = {
                 result: SUCCESS,
                 message: 'perspectives found',
-                data: perspectives
-              }
+                data: perspectives,
+              };
 
               res.status(200).send(result);
-            } catch(error) {
+            } catch (error) {
               console.log(error);
               let result: GetResult<string[]> = {
                 result: ERROR,
                 message: error.message,
-                data: []
-              }
+                data: [],
+              };
               res.status(400).send(result);
             }
-          }
-        ]
+          },
+        ],
       },
 
       {
-        path: "/uprtcl/1/persp",
-        method: "put",
+        path: '/uprtcl/1/persp',
+        method: 'put',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
