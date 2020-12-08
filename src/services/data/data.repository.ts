@@ -85,7 +85,10 @@ export class DataRepository {
     } 
 
     if (json.data.length > 1) {
-      throw new Error(`unexpected number of entries ${json.data.length} for xid ${dataId}`);
+      const data = json.data.filter((d:any) => d.timestamp);
+
+      if(data.length > 0)
+        throw new Error(`unexpected number of entries ${data.length} for xid ${dataId}`);
     }
 
     if (!json.data[0].stored) {
