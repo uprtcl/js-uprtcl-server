@@ -3,7 +3,6 @@ import { NextFunction } from 'express';
 
 var jwt = require('jsonwebtoken');
 const fs = require('fs');
-const jwksRsa = require('jwks-rsa');
 
 const publicKey = fs.readFileSync(process.env.PUBKEY_FILE);
 require('dotenv').config();
