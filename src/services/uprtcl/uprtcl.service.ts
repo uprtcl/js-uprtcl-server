@@ -233,12 +233,12 @@ export class UprtclService {
     return details;
   }
 
-  async createCommit(
-    commit: Secured<Commit>,
+  async createCommits(
+    commits: Secured<Commit>[],
     _loggedUserId: string | null
   ): Promise<string> {
-    console.log('[UPRTCL-SERVICE] createCommit', commit);
-    let commitId = await this.uprtclRepo.createCommit(commit);
+    console.log('[UPRTCL-SERVICE] createCommits', commits);
+    let commitId = await this.uprtclRepo.createCommits(commits);
 
     return commitId;
   }

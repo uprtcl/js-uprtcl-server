@@ -16,7 +16,7 @@ export class DataRepository {
   /** All data objects are stored as textValues, intValues, floatValues and boolValues
    * or links to other objects, if the value is a valid CID string.
    * The path of the property in the JSON object is stored in a facet */
-  async createData(hashedData: Hashed<any>) {
+  async createDatas(hashedData: Hashed<any>[]) {
     await this.db.ready();
 
     /** Validate ID */

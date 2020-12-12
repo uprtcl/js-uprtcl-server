@@ -30,12 +30,12 @@ export class DataService {
     protected dataRepo: DataRepository
   ) {}
 
-  async createData(
-    data: Hashed<Object>,
+  async createDatas(
+    data: Hashed<Object>[],
     _loggedUserId: string | null
   ): Promise<string> {
-    console.log('[UPRTCL-SERVICE] createData', data);
-    let dataId = await this.dataRepo.createData(data);
+    console.log('[UPRTCL-SERVICE] createDatas', datas);
+    let dataId = await this.dataRepo.createDatas(datas);
     return dataId;
   }
 

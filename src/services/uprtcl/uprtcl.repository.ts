@@ -146,67 +146,90 @@ export class UprtclRepository {
     return id;
   }
 
-  async createCommit(securedCommit: Secured<Commit>) {
+  async createCommits(commits: Secured<Commit>[]) {
     await this.db.ready();
 
-    const id = await ipldService.validateSecured(securedCommit);
+    // const id = await ipldService.validateSecured(securedCommit);
+    let query = ``;
+    let nquads = ``;
 
-    const commit = securedCommit.object.payload;
-    const proof = securedCommit.object.proof;
+    for (let securedCommit of commits) {
+      const commit = securedCommit.object.payload;
+      const proof = securedCommit.object.proof;
+      const id = securedCommit.id;
+
+      /** make sure creatorId exist */
+      const addedUsers: string[] = [];
+      for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
+        const did = commit.creatorsIds[ix];
+        if (!addedUsers.includes(did)) {
+          addedUsers.push(did);
+          const segment = this.userRepo.upsertQueries(did);
+          query = query.concat(segment.query);
+          nquads = nquads.concat(segment.nquads);
+        }
+      }
+
+      /** commit object might exist because of parallel update head call */
+      query = query.concat(`\ncommit-${id} as var(func: eq(xid, ${id}))`);
+      query = query.concat(
+        `\ndata-of-${id} as var(func: eq(xid, "${commit.dataId}"))`
+      );
+
+      nquads = `uid(commit-${id}) <xid> "${id}" .`;
+      nquads = nquads.concat(`\nuid(commit-${id}) <stored> "true" .`);
+      nquads = nquads.concat(
+        `\nuid(commit-${id}) <dgraph.type> "${COMMIT_SCHEMA_NAME}" .`
+      );
+      nquads = nquads.concat(
+        `\nuid(commit-${id}) <message> "${commit.message}" .`
+      );
+
+      for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
+        await this.userRepo.upsertProfile(commit.creatorsIds[ix]);
+        query = query.concat(
+          `\ncreator${ix} as var(func: eq(did, "${commit.creatorsIds[
+            ix
+          ].toLowerCase()}"))`
+        );
+        nquads = nquads.concat(
+          `\nuid(commit-${id}) <creators> uid(creator${ix}) .`
+        );
+      }
+
+      nquads = nquads.concat(
+        `\nuid(commit-${id}) <timextamp> "${commit.timestamp}"^^<xs:int> .`
+      );
+      nquads = nquads.concat(`\nuid(commit-${id}) <data> uid(data-of-${id}) .`);
+      nquads = nquads.concat(`\nuid(data-of-${id}) <xid> "${commit.dataId}" .`);
+
+      nquads = nquads.concat(
+        `\n_:proof-${id} <dgraph.type> "${PROOF_SCHEMA_NAME}" .`
+      );
+      nquads = nquads.concat(
+        `\n_:proof-${id} <signature> "${proof.signature}" .`
+      );
+      nquads = nquads.concat(`\n_:proof-${id} <proof_type> "${proof.type}" .`);
+
+      nquads = nquads.concat(`\nuid(commit-${id}) <proof> _:proof-${id} .`);
+
+      /** get and set the uids of the links */
+      for (let ix = 0; ix < commit.parentsIds.length; ix++) {
+        query = query.concat(
+          `\nparents-${id}-${ix} as var(func: eq(xid, ${commit.parentsIds[ix]}))`
+        );
+        nquads = nquads.concat(
+          `\nuid(commit) <parents> uid(parents-${id}-${ix}) .`
+        );
+        /** set the parent xid in case it was not created */
+        nquads = nquads.concat(
+          `\nuid(parents-${id}-${ix}) <xid> "${commit.parentsIds[ix]}" .`
+        );
+      }
+    }
 
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
-
-    /** make sure creatorId exist */
-    for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
-      await this.userRepo.upsertProfile(commit.creatorsIds[ix]);
-    }
-
-    /** commit object might exist because of parallel update head call */
-    let query = `\ncommit as var(func: eq(xid, ${id}))`;
-
-    query = query.concat(`\ndata as var(func: eq(xid, "${commit.dataId}"))`);
-
-    let nquads = `uid(commit) <xid> "${id}" .`;
-    nquads = nquads.concat(`\nuid(commit) <stored> "true" .`);
-    nquads = nquads.concat(
-      `\nuid(commit) <dgraph.type> "${COMMIT_SCHEMA_NAME}" .`
-    );
-    nquads = nquads.concat(`\nuid(commit) <message> "${commit.message}" .`);
-
-    for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
-      await this.userRepo.upsertProfile(commit.creatorsIds[ix]);
-      query = query.concat(
-        `\ncreator${ix} as var(func: eq(did, "${commit.creatorsIds[
-          ix
-        ].toLowerCase()}"))`
-      );
-      nquads = nquads.concat(`\nuid(commit) <creators> uid(creator${ix}) .`);
-    }
-
-    nquads = nquads.concat(
-      `\nuid(commit) <timextamp> "${commit.timestamp}"^^<xs:int> .`
-    );
-    nquads = nquads.concat(`\nuid(commit) <data> uid(data) .`);
-    nquads = nquads.concat(`\nuid(data) <xid> "${commit.dataId}" .`);
-
-    nquads = nquads.concat(`\n_:proof <dgraph.type> "${PROOF_SCHEMA_NAME}" .`);
-    nquads = nquads.concat(`\n_:proof <signature> "${proof.signature}" .`);
-    nquads = nquads.concat(`\n_:proof <proof_type> "${proof.type}" .`);
-
-    nquads = nquads.concat(`\nuid(commit) <proof> _:proof .`);
-
-    /** get and set the uids of the links */
-    for (let ix = 0; ix < commit.parentsIds.length; ix++) {
-      query = query.concat(
-        `\nparents${ix} as var(func: eq(xid, ${commit.parentsIds[ix]}))`
-      );
-      nquads = nquads.concat(`\nuid(commit) <parents> uid(parents${ix}) .`);
-      /** set the parent xid in case it was not created */
-      nquads = nquads.concat(
-        `\nuid(parents${ix}) <xid> "${commit.parentsIds[ix]}" .`
-      );
-    }
 
     req.setQuery(`query{${query}}`);
     mu.setSetNquads(nquads);
@@ -219,7 +242,6 @@ export class UprtclRepository {
       { nquads },
       result.getUidsMap().toArray()
     );
-    return id;
   }
 
   async updatePerspective(

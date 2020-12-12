@@ -10,8 +10,24 @@ interface DgProfile {
   'dgraph.type'?: string;
 }
 
+export interface QuerySegment {
+  query: string;
+  nquads: string;
+}
+
 export class UserRepository {
   constructor(protected db: DGraphService) {}
+
+  upsertQueries(did: string): QuerySegment {
+    let query = `profile-${did} as var(func: eq(did, "${did}"))`;
+
+    let nquads = `uid(profile-${did}) <did> "${did}" .`;
+    nquads = nquads.concat(
+      `\nuid(profile) <dgraph.type> "${PROFILE_SCHEMA_NAME}" .`
+    );
+
+    return { query, nquads };
+  }
 
   async upsertProfile(did: string): Promise<void> {
     await this.db.ready();
@@ -19,16 +35,10 @@ export class UserRepository {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    let query = `profile as var(func: eq(did, "${did.toLowerCase()}"))`;
+    const segment = this.upsertQueries(did);
 
-    req.setQuery(`query{${query}}`);
-
-    let nquads = `uid(profile) <did> "${did.toLowerCase()}" .`;
-    nquads = nquads.concat(
-      `\nuid(profile) <dgraph.type> "${PROFILE_SCHEMA_NAME}" .`
-    );
-
-    mu.setSetNquads(nquads);
+    req.setQuery(`query{${segment.query}}`);
+    mu.setSetNquads(segment.nquads);
     req.setMutationsList([mu]);
 
     let result = await this.db.callRequest(req);
