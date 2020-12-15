@@ -19,11 +19,11 @@ export class UserRepository {
   constructor(protected db: DGraphService) {}
 
   upsertQueries(did: string): QuerySegment {
-    let query = `profile-${did} as var(func: eq(did, "${did}"))`;
+    let query = `\nprofile${did} as var(func: eq(did, "${did}"))`;
 
-    let nquads = `uid(profile-${did}) <did> "${did}" .`;
+    let nquads = `\nuid(profile${did}) <did> "${did}" .`;
     nquads = nquads.concat(
-      `\nuid(profile) <dgraph.type> "${PROFILE_SCHEMA_NAME}" .`
+      `\nuid(profile${did}) <dgraph.type> "${PROFILE_SCHEMA_NAME}" .`
     );
 
     return { query, nquads };
@@ -44,8 +44,7 @@ export class UserRepository {
     let result = await this.db.callRequest(req);
     console.log(
       '[DGRAPH] upsertProfile',
-      { query },
-      { nquads },
+      { segment },
       result.getUidsMap().toArray()
     );
   }

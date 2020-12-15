@@ -52,6 +52,11 @@ export interface UpdateRequest {
   newHeadId: string;
 }
 
+export interface UpdateDetails {
+  id: string;
+  details: PerspectiveDetails;
+}
+
 export interface Commit {
   creatorsIds: string[];
   timestamp: number;

@@ -20,12 +20,12 @@ declare global {
   }
 }
 
-const commitFilter =  (data: any) => {
-  return data.object.payload !== undefined &&
-  propertyOrder.every((p) =>
-    data.object.payload.hasOwnProperty(p)
-  )    
-}
+const commitFilter = (data: any) => {
+  return (
+    data.object.payload !== undefined &&
+    propertyOrder.every((p) => data.object.payload.hasOwnProperty(p))
+  );
+};
 
 export class DataController {
   constructor(
@@ -41,25 +41,15 @@ export class DataController {
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const allDatas = req.body;
-            
-            const commits = allDatas.filter(
-              (data: any) => commitFilter(data)_
-            );
+            const allDatas = req.body.datas;
 
-            const datas = allDatas.filter(
-              (data: any) => !commitFilter(data)_
-            );
+            const commits = allDatas.filter((data: any) => commitFilter(data));
+            const datas = allDatas.filter((data: any) => !commitFilter(data));
 
-            await Promise.all(
-              this.uprtclService.createCommits(
-                commits,
-                getUserFromReq(req)
-              ), 
-              this.dataService.createDatas(
-                datas,
-                getUserFromReq(req)
-              )
+            await this.dataService.createDatas(datas, getUserFromReq(req));
+            await this.uprtclService.createCommits(
+              commits,
+              getUserFromReq(req)
             );
 
             let result: PostResult = {

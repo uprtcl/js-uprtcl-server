@@ -31,12 +31,11 @@ export class DataService {
   ) {}
 
   async createDatas(
-    data: Hashed<Object>[],
+    datas: Hashed<Object>[],
     _loggedUserId: string | null
-  ): Promise<string> {
+  ): Promise<void> {
     console.log('[UPRTCL-SERVICE] createDatas', datas);
     let dataId = await this.dataRepo.createDatas(datas);
-    return dataId;
   }
 
   async getData(dataId: string): Promise<any> {

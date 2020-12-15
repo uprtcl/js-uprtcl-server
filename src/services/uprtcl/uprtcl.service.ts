@@ -5,6 +5,8 @@ import {
   Secured,
   NewPerspectiveData,
   DgUpdate,
+  UpdateRequest,
+  UpdateDetails,
 } from './types';
 import { DGraphService } from '../../db/dgraph.service';
 import { AccessService } from '../access/access.service';
@@ -20,17 +22,6 @@ export class UprtclService {
     protected access: AccessService,
     protected dataService: DataService
   ) {}
-
-  private async createPerspective(
-    perspective: Secured<Perspective>,
-    loggedUserId: string | null
-  ): Promise<string> {
-    console.log('[UPRTCL-SERVICE] createPerspective', {
-      perspective,
-      loggedUserId,
-    });
-    return this.uprtclRepo.createPerspective(perspective);
-  }
 
   async getPerspective(
     perspectiveId: string,
@@ -94,38 +85,65 @@ export class UprtclService {
     return accessiblePerspectives.filter((e: string) => e !== '');
   }
 
-  async createAndInitPerspective(
-    perspectiveData: NewPerspectiveData,
-    loggedUserId: string | null
-  ): Promise<string> {
-    if (loggedUserId === null)
-      throw new Error('Anonymous user. Cant create a perspective');
-
-    let perspId = await this.createPerspective(
-      perspectiveData.perspective,
+  async createAclRecursively(
+    of: NewPerspectiveData,
+    all: NewPerspectiveData[],
+    loggedUserId: string
+  ) {
+    /** top first traverse the tree of new perspectives*/
+    await this.access.createAccessConfig(
+      of.perspective.id,
+      of.parentId,
       loggedUserId
     );
 
-    if (perspectiveData.parentId) {
-      await this.access.createAccessConfig(
-        perspId,
-        perspectiveData.parentId,
+    /** recursively call on all children */
+    const children = all.filter((p) => p.parentId === of.perspective.id);
+    for (const child of children) {
+      await this.createAclRecursively(child, all, loggedUserId);
+    }
+  }
+
+  async createAndInitPerspectives(
+    perspectivesData: NewPerspectiveData[],
+    loggedUserId: string | null
+  ): Promise<void> {
+    if (loggedUserId === null)
+      throw new Error('Anonymous user. Cant create a perspective');
+
+    await this.uprtclRepo.createPerspectives(
+      perspectivesData.map((p) => p.perspective)
+    );
+
+    /** find perspectives whose parent is NOT in the batch of new perspectives */
+    const allIds = perspectivesData.map((p) => p.perspective.id);
+    const external = perspectivesData.filter((p) => {
+      return !p.parentId || !allIds.includes(p.parentId);
+    });
+
+    /** recursively create acls starting from external perspectives until
+     * all perspectives have been created */
+    for (const newPerspective of external) {
+      await this.createAclRecursively(
+        newPerspective,
+        perspectivesData,
         loggedUserId
       );
-    } else {
-      await this.access.createAccessConfig(perspId, undefined, loggedUserId);
     }
 
-    if (perspectiveData.details) {
-      /** Bypass update perspective ACL because this is perspective inception */
-      await this.updatePerspective(
-        perspId,
-        perspectiveData.details,
-        loggedUserId
-      );
-    }
-
-    return perspId;
+    // update needs to be done one by one to manipulate the ecosystem links
+    await Promise.all(
+      perspectivesData.map(async (perspectiveData) => {
+        if (perspectiveData.details) {
+          /** Bypass update perspective ACL because this is perspective inception */
+          await this.updatePerspective(
+            perspectiveData.perspective.id,
+            perspectiveData.details,
+            loggedUserId
+          );
+        }
+      })
+    );
   }
 
   getDataChildren(data: any) {
@@ -138,6 +156,19 @@ export class UprtclService {
     if (data.value !== undefined) {
       return [data.description];
     }
+  }
+
+  async updatePerspectives(
+    updates: UpdateDetails[],
+    loggedUserId: string | null
+  ): Promise<void> {
+    // update needs to be done one by one to manipulate the ecosystem links
+    await Promise.all(
+      updates.map(async (update) => {
+        /** Bypass update perspective ACL because this is perspective inception */
+        await this.updatePerspective(update.id, update.details, loggedUserId);
+      })
+    );
   }
 
   async updatePerspective(
@@ -236,11 +267,9 @@ export class UprtclService {
   async createCommits(
     commits: Secured<Commit>[],
     _loggedUserId: string | null
-  ): Promise<string> {
+  ): Promise<void> {
     console.log('[UPRTCL-SERVICE] createCommits', commits);
     let commitId = await this.uprtclRepo.createCommits(commits);
-
-    return commitId;
   }
 
   async getCommit(

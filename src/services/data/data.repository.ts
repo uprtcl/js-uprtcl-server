@@ -1,7 +1,5 @@
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
-import { localCidConfig } from '../ipld';
-import { ipldService } from '../ipld/ipldService';
 import { DATA_SCHEMA_NAME } from './data.schema';
 import { Hashed } from '../uprtcl/types';
 
@@ -16,45 +14,40 @@ export class DataRepository {
   /** All data objects are stored as textValues, intValues, floatValues and boolValues
    * or links to other objects, if the value is a valid CID string.
    * The path of the property in the JSON object is stored in a facet */
-  async createDatas(hashedData: Hashed<any>[]) {
+  async createDatas(datas: Hashed<any>[]) {
+    if (datas.length === 0) return;
     await this.db.ready();
 
-    /** Validate ID */
-    const data = hashedData.object;
-    let id: string;
+    let query = ``;
+    let nquads = ``;
+    for (let hashedData of datas) {
+      const data = hashedData.object;
+      const id = hashedData.id;
 
-    if (hashedData.id !== undefined && hashedData.id !== '') {
-      let valid = await ipldService.validateCid(hashedData.id, data);
-      if (!valid) {
-        throw new Error(`Invalid cid ${hashedData.id}`);
-      }
-      id = hashedData.id;
-    } else {
-      id = await ipldService.generateCidOrdered(data, localCidConfig);
-      console.log('[DGRAPH] createData - create id', { data, id });
+      // patch store quotes of string attributes as symbol
+      const dataCoded = { ...data };
+      if (dataCoded.text !== undefined)
+        dataCoded.text = dataCoded.text.replace(/"/g, '&quot;');
+      if (dataCoded.title !== undefined)
+        dataCoded.title = dataCoded.title.replace(/"/g, '&quot;');
+
+      query = query.concat(`\ndata${id} as var(func: eq(xid, ${id}))`);
+      nquads = nquads.concat(`\nuid(data${id}) <xid> "${id}" .`);
+
+      nquads = nquads.concat(`\nuid(data${id}) <stored> "true" .`);
+      nquads = nquads.concat(
+        `\nuid(data${id}) <dgraph.type> "${DATA_SCHEMA_NAME}" .`
+      );
+      nquads = nquads.concat(
+        `\nuid(data${id}) <jsonString> "${JSON.stringify(dataCoded).replace(
+          /"/g,
+          '\\"'
+        )}" .`
+      );
     }
 
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
-
-    // patch store quotes of string attributes as symbol
-    const dataCoded = { ...data };
-    if (dataCoded.text !== undefined)
-      dataCoded.text = dataCoded.text.replace(/"/g, '&quot;');
-    if (dataCoded.title !== undefined)
-      dataCoded.title = dataCoded.title.replace(/"/g, '&quot;');
-
-    let query = `data as var(func: eq(xid, ${id}))`;
-    let nquads = `uid(data) <xid> "${id}" .`;
-
-    nquads = nquads.concat(`\nuid(data) <stored> "true" .`);
-    nquads = nquads.concat(`\nuid(data) <dgraph.type> "${DATA_SCHEMA_NAME}" .`);
-    nquads = nquads.concat(
-      `\nuid(data) <jsonString> "${JSON.stringify(dataCoded).replace(
-        /"/g,
-        '\\"'
-      )}" .`
-    );
 
     req.setQuery(`query {${query}}`);
     mu.setSetNquads(nquads);
@@ -67,7 +60,6 @@ export class DataRepository {
       { nquads },
       result.getUidsMap().toArray()
     );
-    return id;
   }
 
   async getData(dataId: string): Promise<Hashed<Object>> {
