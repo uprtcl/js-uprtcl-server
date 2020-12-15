@@ -98,7 +98,7 @@ export class UprtclRepository {
       nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
       nquads = nquads.concat(`\nuid(persp${id}) <stored> "true" .`);
       nquads = nquads.concat(
-        `\nuid(persp${id}) <creator> uid(profile${perspective.creatorId}) .`
+        `\nuid(persp${id}) <creator> uid(profile${this.userRepo.formatDid(perspective.creatorId)}) .`
       );
       nquads = nquads.concat(
         `\nuid(persp${id}) <timextamp> "${perspective.timestamp}"^^<xs:int> .`
