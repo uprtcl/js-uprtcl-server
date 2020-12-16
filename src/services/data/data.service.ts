@@ -1,28 +1,9 @@
 import { DGraphService } from '../../db/dgraph.service';
 import { DataRepository } from '../data/data.repository';
 import {
-  Hashed,
-  Secured,
-  Commit,
-  Signed,
-  NewPerspectiveData,
-  Perspective,
+  Hashed
 } from '../uprtcl/types';
 
-const propertyOrder = [
-  'creatorsIds',
-  'dataId',
-  'message',
-  'timestamp',
-  'parentsIds',
-];
-const perspectivePropertyOrder = [
-  'remote',
-  'path',
-  'creatorId',
-  'context',
-  'timestamp',
-];
 
 export class DataService {
   constructor(
