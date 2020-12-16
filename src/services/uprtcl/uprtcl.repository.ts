@@ -151,14 +151,15 @@ export class UprtclRepository {
     if (commits.length === 0) return;
     await this.db.ready();
 
-    // const id = await ipldService.validateSecured(securedCommit);
     let query = ``;
     let nquads = ``;
 
     for (let securedCommit of commits) {
       const commit = securedCommit.object.payload;
       const proof = securedCommit.object.proof;
-      const id = securedCommit.id;
+      // Why?
+      //const id = securedCommit.id;
+      const id = await ipldService.validateSecured(securedCommit);
 
       /** make sure creatorId exist */
       const addedUsers: string[] = [];
@@ -190,7 +191,7 @@ export class UprtclRepository {
 
       for (let creatorDid of commit.creatorsIds) {
         nquads = nquads.concat(
-          `\nuid(commit${id}) <creators> uid(profile${creatorDid}) .`
+          `\nuid(commit${id}) <creators> uid(profile${this.userRepo.formatDid(creatorDid)}) .`
         );
       }
 
