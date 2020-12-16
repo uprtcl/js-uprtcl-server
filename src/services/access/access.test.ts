@@ -39,6 +39,7 @@ describe('delegate behavior', () => {
     perspectiveA = await createPerspective(
       creatorId,
       454545,
+      'barack_obama',
       user1.jwt,
       commitA
     );
@@ -51,6 +52,7 @@ describe('delegate behavior', () => {
     perspectiveB = await createPerspective(
       creatorId,
       846851,
+      'barack_obama',
       user1.jwt,
       commitB,
       perspectiveA
@@ -64,6 +66,7 @@ describe('delegate behavior', () => {
     perspectiveC1 = await createPerspective(
       creatorId,
       458765,
+      'barack_obama',
       user1.jwt,
       commitC1,
       perspectiveB
@@ -77,6 +80,7 @@ describe('delegate behavior', () => {
     const perspectiveC2 = await createPerspective(
       creatorId,
       123456,
+      'cold_war',
       user1.jwt,
       commitC2,
       perspectiveB
@@ -90,6 +94,7 @@ describe('delegate behavior', () => {
     const perspectiveD1 = await createPerspective(
       creatorId,
       789456,
+      'cold_war',
       user1.jwt,
       commitD1,
       perspectiveC1
