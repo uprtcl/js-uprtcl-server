@@ -136,9 +136,13 @@ export class UprtclService {
       perspectivesData.map(async (perspectiveData) => {
         if (perspectiveData.details) {
           /** Bypass update perspective ACL because this is perspective inception */
-          await this.updatePerspective(
-            perspectiveData.perspective.id,
-            perspectiveData.details,
+          await this.updatePerspectives(
+            [
+              {
+                id: perspectiveData.perspective.id,
+                details: perspectiveData.details,
+              },
+            ],
             loggedUserId
           );
         }
