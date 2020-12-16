@@ -147,12 +147,13 @@ export class UprtclRepository {
     );
   }
 
-  async createCommits(commits: Secured<Commit>[]) {
-    if (commits.length === 0) return;
+  async createCommits(commits: Secured<Commit>[]): Promise<string[]> {
+    if (commits.length === 0) return [];
     await this.db.ready();
 
     let query = ``;
     let nquads = ``;
+    let elementIds = [];
 
     for (let securedCommit of commits) {
       const commit = securedCommit.object.payload;
@@ -160,7 +161,7 @@ export class UprtclRepository {
       // Why?
       //const id = securedCommit.id;
       const id = await ipldService.validateSecured(securedCommit);
-
+      
       /** make sure creatorId exist */
       const addedUsers: string[] = [];
       for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
@@ -223,6 +224,8 @@ export class UprtclRepository {
           `\nuid(parents${id}${ix}) <xid> "${commit.parentsIds[ix]}" .`
         );
       }
+
+      elementIds.push(id);
     }
 
     const mu = new dgraph.Mutation();
@@ -239,6 +242,8 @@ export class UprtclRepository {
       { nquads },
       result.getUidsMap().toArray()
     );
+
+    return elementIds;
   }
 
   async updatePerspective(
