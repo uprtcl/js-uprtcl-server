@@ -2,6 +2,7 @@ import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
 import { DATA_SCHEMA_NAME } from './data.schema';
 import { Hashed } from '../uprtcl/types';
+import { ipldService } from '../ipld/ipldService';
 
 const dgraph = require('dgraph-js');
 
@@ -22,7 +23,7 @@ export class DataRepository {
     let nquads = ``;
     for (let hashedData of datas) {
       const data = hashedData.object;
-      const id = hashedData.id;
+      const id = (hashedData.id !== '') ? hashedData.id : await ipldService.validateSecured(data);
 
       // patch store quotes of string attributes as symbol
       const dataCoded = { ...data };
