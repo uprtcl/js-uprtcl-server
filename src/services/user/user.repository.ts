@@ -18,12 +18,16 @@ export interface QuerySegment {
 export class UserRepository {
   constructor(protected db: DGraphService) {}
 
-  upsertQueries(did: string): QuerySegment {
-    let query = `\nprofile${did} as var(func: eq(did, "${did}"))`;
+  formatDid(did: string): String {
+    return did.replace(/-|[|]/g, '');
+  }
 
-    let nquads = `\nuid(profile${did}) <did> "${did}" .`;
+  upsertQueries(did: string): QuerySegment {
+    let query = `\nprofile${this.formatDid(did)} as var(func: eq(did, "${did}"))`;
+
+    let nquads = `\nuid(profile${this.formatDid(did)}) <did> "${did}" .`;
     nquads = nquads.concat(
-      `\nuid(profile${did}) <dgraph.type> "${PROFILE_SCHEMA_NAME}" .`
+      `\nuid(profile${this.formatDid(did)}) <dgraph.type> "${PROFILE_SCHEMA_NAME}" .`
     );
 
     return { query, nquads };
