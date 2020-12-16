@@ -15,15 +15,16 @@ export class DataRepository {
   /** All data objects are stored as textValues, intValues, floatValues and boolValues
    * or links to other objects, if the value is a valid CID string.
    * The path of the property in the JSON object is stored in a facet */
-  async createDatas(datas: Hashed<any>[]) {
-    if (datas.length === 0) return;
+  async createDatas(datas: Hashed<any>[]): Promise<string[]> {
+    if (datas.length === 0) return [];
     await this.db.ready();
 
     let query = ``;
     let nquads = ``;
+    let elementIds = [];
     for (let hashedData of datas) {
       const data = hashedData.object;
-      const id = (hashedData.id !== '') ? hashedData.id : await ipldService.validateSecured(data);
+      const id = (hashedData.id !== '') ? hashedData.id : await ipldService.validateSecured(hashedData);
 
       // patch store quotes of string attributes as symbol
       const dataCoded = { ...data };
@@ -45,6 +46,7 @@ export class DataRepository {
           '\\"'
         )}" .`
       );
+      elementIds.push(id);
     }
 
     const mu = new dgraph.Mutation();
@@ -61,6 +63,7 @@ export class DataRepository {
       { nquads },
       result.getUidsMap().toArray()
     );
+    return elementIds;
   }
 
   async getData(dataId: string): Promise<Hashed<Object>> {

@@ -46,8 +46,8 @@ export class DataController {
             const commits = allDatas.filter((data: any) => commitFilter(data));
             const datas = allDatas.filter((data: any) => !commitFilter(data));
 
-            await this.dataService.createDatas(datas, getUserFromReq(req));
-            await this.uprtclService.createCommits(
+            const resultDatas = await this.dataService.createDatas(datas, getUserFromReq(req));
+            const resultCommits = await this.uprtclService.createCommits(
               commits,
               getUserFromReq(req)
             );
@@ -55,7 +55,7 @@ export class DataController {
             let result: PostResult = {
               result: SUCCESS,
               message: '',
-              elementIds: [],
+              elementIds: [resultDatas.toString(), resultCommits.toString()]
             };
             res.status(200).send(result);
           },
