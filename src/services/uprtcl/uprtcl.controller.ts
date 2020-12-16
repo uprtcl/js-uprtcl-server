@@ -36,7 +36,7 @@ export class UprtclController {
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const elementId = await this.uprtclService.createAndInitPerspectives(
+            const elementIds = await this.uprtclService.createAndInitPerspectives(
               req.body.perspectives,
               getUserFromReq(req)
             );
@@ -44,7 +44,7 @@ export class UprtclController {
             let result: PostResult = {
               result: SUCCESS,
               message: '',
-              elementIds: [],
+              elementIds,
             };
             res.status(200).send(result);
           },
@@ -289,14 +289,14 @@ export class UprtclController {
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const elementId = await this.uprtclService.createCommits(
+            const elementIds = await this.uprtclService.createCommits(
               [req.body],
               getUserFromReq(req)
             );
             let result: PostResult = {
               result: SUCCESS,
               message: '',
-              elementIds: [],
+              elementIds,
             };
             res.status(200).send(result);
           },
