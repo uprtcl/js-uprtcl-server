@@ -11,12 +11,13 @@ export const createData = async (
     object: data,
   };
   const router = await createApp();
-  await request(router)
+  const post = await request(router)
     .post('/uprtcl/1/data')
     .send({datas:[hashedData]})
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
-  return hashedData.id;
+  expect(post.status).toEqual(200);
+  return JSON.parse(post.text).elementIds[0];
 };
 
 export const getData = async (
