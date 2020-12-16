@@ -108,7 +108,7 @@ export class UprtclService {
   async createAndInitPerspectives(
     perspectivesData: NewPerspectiveData[],
     loggedUserId: string | null
-  ): Promise<void> {
+  ): Promise<string[]> {
     if (loggedUserId === null)
       throw new Error('Anonymous user. Cant create a perspective');
 
@@ -156,6 +156,8 @@ export class UprtclService {
         }
       })
     );
+
+    return allIds;
   }
 
   getDataChildren(data: any) {
@@ -279,9 +281,9 @@ export class UprtclService {
   async createCommits(
     commits: Secured<Commit>[],
     _loggedUserId: string | null
-  ): Promise<void> {
+  ): Promise<string[]> {
     console.log('[UPRTCL-SERVICE] createCommits', commits);
-    let commitId = await this.uprtclRepo.createCommits(commits);
+    return await this.uprtclRepo.createCommits(commits);
   }
 
   async getCommit(
