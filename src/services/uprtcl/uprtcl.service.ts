@@ -14,6 +14,7 @@ import { UprtclRepository } from './uprtcl.repository';
 import { PermissionType } from '../access/access.schema';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
 import { DataService } from '../data/data.service';
+import { ipldService } from '../ipld/ipldService';
 
 export class UprtclService {
   constructor(
@@ -116,7 +117,18 @@ export class UprtclService {
     );
 
     /** find perspectives whose parent is NOT in the batch of new perspectives */
-    const allIds = perspectivesData.map((p) => p.perspective.id);
+    const idPromises = await perspectivesData.map(async (p) => {
+        return (p.perspective.id !== '') ? p.perspective.id : (await ipldService.validateSecured(p.perspective))
+      }
+    );
+
+    const allIds = await Promise.all(idPromises);
+    perspectivesData.map((p, i) => { 
+      if (p.perspective.id === '') {
+        p.perspective.id = allIds[i];
+      } 
+    });
+
     const external = perspectivesData.filter((p) => {
       return !p.parentId || !allIds.includes(p.parentId);
     });
