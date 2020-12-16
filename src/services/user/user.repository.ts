@@ -19,7 +19,7 @@ export class UserRepository {
   constructor(protected db: DGraphService) {}
 
   formatDid(did: string): String {
-    return did.replace(/-|[|]/g, '');
+    return did.replace(/-|[|]|:/g, '');
   }
 
   upsertQueries(did: string): QuerySegment {
