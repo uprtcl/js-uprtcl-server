@@ -20,6 +20,9 @@ process.on('unhandledRejection', (e) => {
 
 export const createApp = async () => {
   const router = express();
+  router.use(express.json({limit: '50mb'}));
+  router.use(express.urlencoded({limit: '50mb'}));
+
   const routes = await getRoutes();
   applyMiddleware(middleware, router);
   applyRoutes(routes, router);
