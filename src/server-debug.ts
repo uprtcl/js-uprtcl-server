@@ -19,7 +19,6 @@ process.on('unhandledRejection', (e) => {
 
 const router = express();
 router.use(express.json({limit: '50mb'}));
-router.use(express.urlencoded({limit: '50mb'}));
 applyMiddleware(middleware, router);
 applyRoutes(routes, router);
 applyMiddleware(errorHandlers, router);
