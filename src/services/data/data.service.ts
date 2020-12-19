@@ -1,28 +1,9 @@
 import { DGraphService } from '../../db/dgraph.service';
 import { DataRepository } from '../data/data.repository';
 import {
-  Hashed,
-  Secured,
-  Commit,
-  Signed,
-  NewPerspectiveData,
-  Perspective,
+  Hashed
 } from '../uprtcl/types';
 
-const propertyOrder = [
-  'creatorsIds',
-  'dataId',
-  'message',
-  'timestamp',
-  'parentsIds',
-];
-const perspectivePropertyOrder = [
-  'remote',
-  'path',
-  'creatorId',
-  'context',
-  'timestamp',
-];
 
 export class DataService {
   constructor(
@@ -30,13 +11,12 @@ export class DataService {
     protected dataRepo: DataRepository
   ) {}
 
-  async createData(
-    data: Hashed<Object>,
+  async createDatas(
+    datas: Hashed<Object>[],
     _loggedUserId: string | null
-  ): Promise<string> {
-    console.log('[UPRTCL-SERVICE] createData', data);
-    let dataId = await this.dataRepo.createData(data);
-    return dataId;
+  ): Promise<string[]> {
+    console.log('[UPRTCL-SERVICE] createDatas', datas);
+    return await this.dataRepo.createDatas(datas);
   }
 
   async getData(dataId: string): Promise<any> {

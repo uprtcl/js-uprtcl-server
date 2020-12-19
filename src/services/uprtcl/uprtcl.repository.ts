@@ -71,53 +71,70 @@ export class UprtclRepository {
     protected dataRepo: DataRepository
   ) {}
 
-  async createPerspective(securedPerspective: Secured<Perspective>) {
+  async createPerspectives(securedPerspectives: Secured<Perspective>[]) {
+    if (securedPerspectives.length === 0) return;
     await this.db.ready();
 
-    const id = await ipldService.validateSecured(securedPerspective);
+    let query = ``;
+    let nquads = ``;
+    let upsertedProfiles: string[] = [];
+    for (const securedPerspective of securedPerspectives) {
+      const id = await ipldService.validateSecured(securedPerspective);
 
-    const perspective = securedPerspective.object.payload;
-    const proof = securedPerspective.object.proof;
+      const perspective = securedPerspective.object.payload;
+      const proof = securedPerspective.object.proof;
 
-    if (getAuthority(perspective) !== LOCAL_EVEES_PROVIDER) {
-      throw new Error(
-        `Should I store perspectives with authority ${getAuthority(
-          perspective
-        )}? I thought I was ${LOCAL_EVEES_PROVIDER}`
+      if (!upsertedProfiles.includes(perspective.creatorId)) {
+        upsertedProfiles.push(perspective.creatorId);
+        const creatorSegment = this.userRepo.upsertQueries(
+          perspective.creatorId
+        );
+        query = query.concat(creatorSegment.query);
+        nquads = nquads.concat(creatorSegment.nquads);
+      }
+
+      query = query.concat(`\npersp${id} as var(func: eq(xid, "${id}"))`);
+
+      nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
+      nquads = nquads.concat(`\nuid(persp${id}) <stored> "true" .`);
+      nquads = nquads.concat(
+        `\nuid(persp${id}) <creator> uid(profile${this.userRepo.formatDid(perspective.creatorId)}) .`
       );
+      nquads = nquads.concat(
+        `\nuid(persp${id}) <timextamp> "${perspective.timestamp}"^^<xs:int> .`
+      );
+      nquads = nquads.concat(
+        `\nuid(persp${id}) <context> "${perspective.context}" .`
+      );
+      nquads = nquads.concat(`\nuid(persp${id}) <deleted> "false" .`);
+      nquads = nquads.concat(
+        `\nuid(persp${id}) <remote> "${perspective.remote}" .`
+      );
+      nquads = nquads.concat(
+        `\nuid(persp${id}) <path> "${perspective.path}" .`
+      );
+      nquads = nquads.concat(
+        `\nuid(persp${id}) <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`
+      );
+
+      nquads = nquads.concat(
+        `\n_:proof${id} <dgraph.type> "${PROOF_SCHEMA_NAME}" .`
+      );
+      nquads = nquads.concat(
+        `\n_:proof${id} <signature> "${proof.signature}" .`
+      );
+      nquads = nquads.concat(`\n_:proof${id} <proof_type> "${proof.type}" .`);
+
+      nquads = nquads.concat(`\nuid(persp${id}) <proof> _:proof${id} .`);
+
+      /** add itself as its ecosystem */
+      nquads = nquads.concat(`\nuid(persp${id}) <ecosystem> uid(persp${id}) .`);
     }
 
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    /** make sure creatorId exist */
-    await this.userRepo.upsertProfile(perspective.creatorId);
-
-    let query = `profile as var(func: eq(did, "${perspective.creatorId.toLowerCase()}"))`;
-    query = query.concat(`persp as var(func: eq(xid, "${id}"))`);
-
     req.setQuery(`query{${query}}`);
-
-    let nquads = `uid(persp) <xid> "${id}" .`;
-    nquads = nquads.concat(`\nuid(persp) <stored> "true" .`);
-    nquads = nquads.concat(`\nuid(persp) <creator> uid(profile) .`);
-    nquads = nquads.concat(
-      `\nuid(persp) <timextamp> "${perspective.timestamp}"^^<xs:int> .`
-    );
-    nquads = nquads.concat(`\nuid(persp) <context> "${perspective.context}" .`);
-    nquads = nquads.concat(`\nuid(persp) <deleted> "false" .`);
-    nquads = nquads.concat(`\nuid(persp) <remote> "${perspective.remote}" .`);
-    nquads = nquads.concat(`\nuid(persp) <path> "${perspective.path}" .`);
-    nquads = nquads.concat(
-      `\nuid(persp) <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`
-    );
-
-    nquads = nquads.concat(`\n_:proof <dgraph.type> "${PROOF_SCHEMA_NAME}" .`);
-    nquads = nquads.concat(`\n_:proof <signature> "${proof.signature}" .`);
-    nquads = nquads.concat(`\n_:proof <proof_type> "${proof.type}" .`);
-
-    nquads = nquads.concat(`\nuid(persp) <proof> _:proof .`);
-
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);
 
@@ -128,85 +145,91 @@ export class UprtclRepository {
       { nquads },
       result.getUidsMap().toArray()
     );
-
-    // Add ecosystem to itself
-    const mu1 = new dgraph.Mutation();
-    const req1 = new dgraph.Request();
-
-    const query1 = `perspective as var(func: eq(xid, "${id}"))`;
-    req1.setQuery(`query{${query1}}`);
-
-    const nquads1 = `uid(perspective) <ecosystem> uid(perspective) .`;
-
-    mu1.setSetNquads(nquads1);
-    req1.setMutationsList([mu1]);
-
-    await this.db.callRequest(req1);
-
-    return id;
   }
 
-  async createCommit(securedCommit: Secured<Commit>) {
+  async createCommits(commits: Secured<Commit>[]): Promise<string[]> {
+    if (commits.length === 0) return [];
     await this.db.ready();
 
-    const id = await ipldService.validateSecured(securedCommit);
+    let query = ``;
+    let nquads = ``;
+    let elementIds = [];
 
-    const commit = securedCommit.object.payload;
-    const proof = securedCommit.object.proof;
+    for (let securedCommit of commits) {
+      const commit = securedCommit.object.payload;
+      const proof = securedCommit.object.proof;
+      // Why?
+      //const id = securedCommit.id;
+      const id = await ipldService.validateSecured(securedCommit);
+      
+      /** make sure creatorId exist */
+      const addedUsers: string[] = [];
+      for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
+        const did = commit.creatorsIds[ix];
+        if (!addedUsers.includes(did)) {
+          addedUsers.push(did);
+          const segment = this.userRepo.upsertQueries(did);
+          query = query.concat(segment.query);
+          nquads = nquads.concat(segment.nquads);
+        }
+      }
+
+      /** commit object might exist because of parallel update head call */
+      query = query.concat(`\ncommit${id} as var(func: eq(xid, ${id}))`);
+      query = query.concat(
+        `\ndataof${id} as var(func: eq(xid, "${commit.dataId}"))`
+      );
+      nquads = nquads.concat(`\nuid(dataof${id}) <xid> "${commit.dataId}" .`);
+
+      nquads = nquads.concat(`\nuid(commit${id}) <xid> "${id}" .`);
+      nquads = nquads.concat(`\nuid(commit${id}) <stored> "true" .`);
+      nquads = nquads.concat(
+        `\nuid(commit${id}) <dgraph.type> "${COMMIT_SCHEMA_NAME}" .`
+      );
+      nquads = nquads.concat(
+        `\nuid(commit${id}) <message> "${commit.message}" .`
+      );
+
+      for (let creatorDid of commit.creatorsIds) {
+        nquads = nquads.concat(
+          `\nuid(commit${id}) <creators> uid(profile${this.userRepo.formatDid(creatorDid)}) .`
+        );
+      }
+
+      nquads = nquads.concat(
+        `\nuid(commit${id}) <timextamp> "${commit.timestamp}"^^<xs:int> .`
+      );
+      nquads = nquads.concat(`\nuid(commit${id}) <data> uid(dataof${id}) .`);
+
+      nquads = nquads.concat(
+        `\n_:proof${id} <dgraph.type> "${PROOF_SCHEMA_NAME}" .`
+      );
+      nquads = nquads.concat(
+        `\n_:proof${id} <signature> "${proof.signature}" .`
+      );
+      nquads = nquads.concat(`\n_:proof${id} <proof_type> "${proof.type}" .`);
+
+      nquads = nquads.concat(`\nuid(commit${id}) <proof> _:proof${id} .`);
+
+      /** get and set the uids of the links */
+      for (let ix = 0; ix < commit.parentsIds.length; ix++) {
+        query = query.concat(
+          `\nparents${id}${ix} as var(func: eq(xid, ${commit.parentsIds[ix]}))`
+        );
+        nquads = nquads.concat(
+          `\nuid(commit${id}) <parents> uid(parents${id}${ix}) .`
+        );
+        /** set the parent xid in case it was not created */
+        nquads = nquads.concat(
+          `\nuid(parents${id}${ix}) <xid> "${commit.parentsIds[ix]}" .`
+        );
+      }
+
+      elementIds.push(id);
+    }
 
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
-
-    /** make sure creatorId exist */
-    for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
-      await this.userRepo.upsertProfile(commit.creatorsIds[ix]);
-    }
-
-    /** commit object might exist because of parallel update head call */
-    let query = `\ncommit as var(func: eq(xid, ${id}))`;
-
-    query = query.concat(`\ndata as var(func: eq(xid, "${commit.dataId}"))`);
-
-    let nquads = `uid(commit) <xid> "${id}" .`;
-    nquads = nquads.concat(`\nuid(commit) <stored> "true" .`);
-    nquads = nquads.concat(
-      `\nuid(commit) <dgraph.type> "${COMMIT_SCHEMA_NAME}" .`
-    );
-    nquads = nquads.concat(`\nuid(commit) <message> "${commit.message}" .`);
-
-    for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
-      await this.userRepo.upsertProfile(commit.creatorsIds[ix]);
-      query = query.concat(
-        `\ncreator${ix} as var(func: eq(did, "${commit.creatorsIds[
-          ix
-        ].toLowerCase()}"))`
-      );
-      nquads = nquads.concat(`\nuid(commit) <creators> uid(creator${ix}) .`);
-    }
-
-    nquads = nquads.concat(
-      `\nuid(commit) <timextamp> "${commit.timestamp}"^^<xs:int> .`
-    );
-    nquads = nquads.concat(`\nuid(commit) <data> uid(data) .`);
-    nquads = nquads.concat(`\nuid(data) <xid> "${commit.dataId}" .`);
-
-    nquads = nquads.concat(`\n_:proof <dgraph.type> "${PROOF_SCHEMA_NAME}" .`);
-    nquads = nquads.concat(`\n_:proof <signature> "${proof.signature}" .`);
-    nquads = nquads.concat(`\n_:proof <proof_type> "${proof.type}" .`);
-
-    nquads = nquads.concat(`\nuid(commit) <proof> _:proof .`);
-
-    /** get and set the uids of the links */
-    for (let ix = 0; ix < commit.parentsIds.length; ix++) {
-      query = query.concat(
-        `\nparents${ix} as var(func: eq(xid, ${commit.parentsIds[ix]}))`
-      );
-      nquads = nquads.concat(`\nuid(commit) <parents> uid(parents${ix}) .`);
-      /** set the parent xid in case it was not created */
-      nquads = nquads.concat(
-        `\nuid(parents${ix}) <xid> "${commit.parentsIds[ix]}" .`
-      );
-    }
 
     req.setQuery(`query{${query}}`);
     mu.setSetNquads(nquads);
@@ -219,7 +242,8 @@ export class UprtclRepository {
       { nquads },
       result.getUidsMap().toArray()
     );
-    return id;
+
+    return elementIds;
   }
 
   async updatePerspective(

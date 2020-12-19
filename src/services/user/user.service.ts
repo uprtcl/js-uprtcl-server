@@ -8,7 +8,7 @@ require('dotenv').config();
 export const C1_ETH_AUTH = 'C1_ETH_AUTH';
 
 export const loginMessage = (nonce: string) => {
-  return `Login to Intercreativiy \n\nnonce:${nonce}`;
+  return `Login to Intercreativity \n\nnonce:${nonce}`;
 };
 
 export class UserService {

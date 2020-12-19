@@ -135,13 +135,17 @@ export const createPerspective = async (
   const router = await createApp();
   const post = await request(router)
     .post('/uprtcl/1/persp')
-    .send({ perspective: secured, details: { headId }, parentId: parentId })
+    .send({ perspectives: [
+              { perspective: secured, 
+                details: { headId }, 
+                parentId: parentId 
+              }
+            ]
+          })
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
-  let result: any = JSON.parse(post.text).elementIds[0];
-  ((expect(result) as unknown) as ExtendedMatchers).toBeValidCid();
-
-  return result;
+  expect(post.status).toEqual(200);
+  return JSON.parse(post.text).elementIds[0];
 };
 
 export const updatePerspective = async (
@@ -190,10 +194,8 @@ export const createCommit = async (
     .send(secured)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
-  let result: any = JSON.parse(post.text).elementIds[0];
-  ((expect(result) as unknown) as ExtendedMatchers).toBeValidCid();
-
-  return result;
+  expect(post.status).toEqual(200);
+  return JSON.parse(post.text).elementIds[0];
 };
 
 export const getPerspectiveRelatives = async (

@@ -36,15 +36,15 @@ export class UprtclController {
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const elementId = await this.uprtclService.createAndInitPerspective(
-              req.body,
+            const elementIds = await this.uprtclService.createAndInitPerspectives(
+              req.body.perspectives,
               getUserFromReq(req)
             );
 
             let result: PostResult = {
               result: SUCCESS,
               message: '',
-              elementIds: [elementId],
+              elementIds,
             };
             res.status(200).send(result);
           },
@@ -147,15 +147,14 @@ export class UprtclController {
       },
 
       {
-        path: '/uprtcl/1/persp/:perspectiveId/details',
+        path: '/uprtcl/1/persp/details',
         method: 'put',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
             try {
-              await this.uprtclService.updatePerspective(
-                req.params.perspectiveId,
-                req.body,
+              await this.uprtclService.updatePerspectives(
+                req.body.details,
                 getUserFromReq(req)
               );
 
@@ -290,14 +289,14 @@ export class UprtclController {
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const elementId = await this.uprtclService.createCommit(
-              req.body,
+            const elementIds = await this.uprtclService.createCommits(
+              [req.body],
               getUserFromReq(req)
             );
             let result: PostResult = {
               result: SUCCESS,
               message: '',
-              elementIds: [elementId],
+              elementIds,
             };
             res.status(200).send(result);
           },
