@@ -98,7 +98,9 @@ export class UprtclRepository {
       nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
       nquads = nquads.concat(`\nuid(persp${id}) <stored> "true" .`);
       nquads = nquads.concat(
-        `\nuid(persp${id}) <creator> uid(profile${this.userRepo.formatDid(perspective.creatorId)}) .`
+        `\nuid(persp${id}) <creator> uid(profile${this.userRepo.formatDid(
+          perspective.creatorId
+        )}) .`
       );
       nquads = nquads.concat(
         `\nuid(persp${id}) <timextamp> "${perspective.timestamp}"^^<xs:int> .`
@@ -154,6 +156,7 @@ export class UprtclRepository {
     let query = ``;
     let nquads = ``;
     let elementIds = [];
+    const addedUsers: string[] = [];
 
     for (let securedCommit of commits) {
       const commit = securedCommit.object.payload;
@@ -161,9 +164,8 @@ export class UprtclRepository {
       // Why?
       //const id = securedCommit.id;
       const id = await ipldService.validateSecured(securedCommit);
-      
+
       /** make sure creatorId exist */
-      const addedUsers: string[] = [];
       for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
         const did = commit.creatorsIds[ix];
         if (!addedUsers.includes(did)) {
@@ -192,7 +194,9 @@ export class UprtclRepository {
 
       for (let creatorDid of commit.creatorsIds) {
         nquads = nquads.concat(
-          `\nuid(commit${id}) <creators> uid(profile${this.userRepo.formatDid(creatorDid)}) .`
+          `\nuid(commit${id}) <creators> uid(profile${this.userRepo.formatDid(
+            creatorDid
+          )}) .`
         );
       }
 
