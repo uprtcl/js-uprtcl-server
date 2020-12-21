@@ -18,7 +18,7 @@ export interface QuerySegment {
 export class UserRepository {
   constructor(protected db: DGraphService) {}
 
-  formatDid(did: string): String {
+  formatDid(did: string): string {
     return did.replace(/-|[|]|:/g, '');
   }
 
