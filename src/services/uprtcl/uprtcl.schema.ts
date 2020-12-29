@@ -1,4 +1,4 @@
-import { ACCESS_CONFIG_SCHEMA_NAME } from "../access/access.schema";
+import { ACCESS_CONFIG_SCHEMA_NAME } from '../access/access.schema';
 
 export const PERSPECTIVE_SCHEMA_NAME = 'Perspective';
 export const PROOF_SCHEMA_NAME = 'Proof';
@@ -15,8 +15,12 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   name: string
   context: string
   stored: bool
+  path: string
+  remote: string
   accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
   proof: ${PROOF_SCHEMA_NAME}
+  ecosystem: [uid]
+  children: [uid]
   deleted: bool
 }
 
@@ -37,7 +41,7 @@ type ${PROOF_SCHEMA_NAME} {
 }
 
 stored: bool @index(bool) . 
-xid: string @index(exact) @upsert .
+xid: string @index(hash) .
 authority: string .
 timextamp: int .
 message: string .
@@ -51,6 +55,10 @@ creator: uid .
 creators: [uid] .
 data: uid .
 proof: uid .
+ecosystem: [uid] @reverse .
+children: [uid] @reverse .
 deleted: bool @index(bool) . 
+remote: string .
+path: string .
 
 `;

@@ -1,61 +1,83 @@
-import { Request, Response } from "express";
-import { DataService } from "./data.service";
-import { checkJwt } from "../../middleware/jwtCheck";
-import { getUserFromReq, SUCCESS, PostResult, GetResult } from "../../utils";
+import { Request, Response } from 'express';
+import { DataService } from './data.service';
+import { UprtclService } from '../uprtcl/uprtcl.service';
+import { checkJwt } from '../../middleware/jwtCheck';
+import { Secured, Commit, Signed, Hashed } from '../uprtcl/types';
+import { getUserFromReq, SUCCESS, PostResult, GetResult } from '../../utils';
 
+const propertyOrder = [
+  'creatorsIds',
+  'dataId',
+  'message',
+  'timestamp',
+  'parentsIds',
+];
 declare global {
   namespace Express {
     interface Request {
-      user: string
+      user: string;
     }
   }
 }
 
-export class DataController {
+const commitFilter = (data: any) => {
+  return (
+    data.object.payload !== undefined &&
+    propertyOrder.every((p) => data.object.payload.hasOwnProperty(p))
+  );
+};
 
-  constructor(protected dataService: DataService) {
-  }
+export class DataController {
+  constructor(
+    protected dataService: DataService,
+    protected uprtclService: UprtclService
+  ) {}
 
   routes() {
     return [
-
       {
-        path: "/uprtcl/1/data",
-        method: "post",
+        path: '/uprtcl/1/data',
+        method: 'post',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const elementId = await this.dataService.createData(
-              req.body, 
-              getUserFromReq(req));
+            const allDatas = req.body.datas;
+
+            const commits = allDatas.filter((data: any) => commitFilter(data));
+            const datas = allDatas.filter((data: any) => !commitFilter(data));
+
+            const resultDatas = await this.dataService.createDatas(datas, getUserFromReq(req));
+            const resultCommits = await this.uprtclService.createCommits(
+              commits,
+              getUserFromReq(req)
+            );
 
             let result: PostResult = {
               result: SUCCESS,
               message: '',
-              elementIds: [elementId]
-            }
+              elementIds: [resultDatas.toString(), resultCommits.toString()]
+            };
             res.status(200).send(result);
-          }
-        ]
+          },
+        ],
       },
 
       {
-        path: "/uprtcl/1/data/:dataId",
-        method: "get",
+        path: '/uprtcl/1/data/:dataId',
+        method: 'get',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const data = await this.dataService.getData(
-              req.params.dataId);
+            const data = await this.dataService.getData(req.params.dataId);
             let result: GetResult<any> = {
               result: SUCCESS,
               message: '',
-              data: data
-            }
+              data: data,
+            };
             res.status(200).send(result);
-          }
-        ]
-      }
-    ]
+          },
+        ],
+      },
+    ];
   }
-};
+}

@@ -1,6 +1,5 @@
 import request from 'supertest';
 import { createApp } from '../../server';
-import { ExtendedMatchers } from '../../utils';
 import { Hashed } from '../uprtcl/types';
 
 export const createData = async (
@@ -14,14 +13,11 @@ export const createData = async (
   const router = await createApp();
   const post = await request(router)
     .post('/uprtcl/1/data')
-    .send(hashedData)
+    .send({datas:[hashedData]})
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   expect(post.status).toEqual(200);
-  let result: any = JSON.parse(post.text).elementIds[0];
-  ((expect(result) as unknown) as ExtendedMatchers).toBeValidCid();
-
-  return result;
+  return JSON.parse(post.text).elementIds[0];
 };
 
 export const getData = async (

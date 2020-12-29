@@ -19,7 +19,7 @@ const getJwtToken = async (
 
   let nonce: string = JSON.parse(get.text).data;
 
-  var data = `Login to Uprtcl Evees HTTP Server \n\nnonce:${nonce}`;
+  var data = `Login to Intercreativity \n\nnonce:${nonce}`;
   var message = '0x' + Buffer.from(data, 'utf8').toString('hex');
   var messageBuffer = ethUtil.toBuffer(message);
   var msgHash = ethUtil.hashPersonalMessage(messageBuffer);
@@ -48,7 +48,7 @@ export const createUser = async (seed: string): Promise<TestUser> => {
 
   let jwt: string = await getJwtToken(userDid, account.privateKey);
   console.log('[TEST] createUser', { userDid, jwt });
-
+  
   return {
     userId: userDid,
     jwt: jwt,
