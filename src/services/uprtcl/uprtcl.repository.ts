@@ -9,6 +9,7 @@ import {
   Commit,
   Secured,
   Proof,
+  NewPerspectiveData,
   getAuthority,
   EcosystemUpdates,
 } from './types';
@@ -58,10 +59,10 @@ interface DgCommit {
   proof: DgProof;
 }
 
-interface DbContent {
+interface Upsert {
   query: string;
   nquads: string;
-  delNquads: string;
+  delNquads?: string;
 }
 
 export class UprtclRepository {
@@ -71,80 +72,135 @@ export class UprtclRepository {
     protected dataRepo: DataRepository
   ) {}
 
-  async createPerspectives(securedPerspectives: Secured<Perspective>[]) {
-    if (securedPerspectives.length === 0) return;
+  async createPerspectiveUpsert(
+    upsertedProfiles: string[],
+    {
+      upsert: {
+        query,
+        nquads
+      }
+    } : { upsert: Upsert },
+    { 
+      newPerspective: { 
+        perspective: securedPerspective, 
+        details 
+      } 
+    } : { newPerspective: NewPerspectiveData }) {
+    const id = await ipldService.validateSecured(securedPerspective);
+
+    const {
+      object: {
+        payload: {
+          creatorId,
+          timestamp,
+          context,
+          remote,
+          path
+        },
+        proof
+      }
+    } = securedPerspective;
+
+    if (!upsertedProfiles.includes(creatorId)) {
+      upsertedProfiles.push(creatorId);
+      const creatorSegment = this.userRepo.upsertQueries(
+        creatorId
+      );
+      query = query.concat(creatorSegment.query);
+      nquads = nquads.concat(creatorSegment.nquads);
+    }
+
+    query = query.concat(`\npersp${id} as var(func: eq(xid, "${id}"))`);
+
+    // Sets query for head
+    if(details?.headId) {
+      query = query.concat(`\nhead${details.headId} as var(func: eq(xid, "${details.headId}"))`);
+    }
+
+    nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
+    nquads = nquads.concat(`\nuid(persp${id}) <stored> "true" .`);
+    nquads = nquads.concat(
+      `\nuid(persp${id}) <creator> uid(profile${this.userRepo.formatDid(
+        creatorId
+      )}) .`
+    );
+    nquads = nquads.concat(
+      `\nuid(persp${id}) <timextamp> "${timestamp}"^^<xs:int> .`
+    );
+    nquads = nquads.concat(
+      `\nuid(persp${id}) <context> "${context}" .`
+    );
+    nquads = nquads.concat(`\nuid(persp${id}) <deleted> "false" .`);
+    nquads = nquads.concat(
+      `\nuid(persp${id}) <remote> "${remote}" .`
+    );
+    nquads = nquads.concat(
+      `\nuid(persp${id}) <path> "${path}" .`
+    );
+    nquads = nquads.concat(
+      `\nuid(persp${id}) <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`
+    );
+
+    nquads = nquads.concat(
+      `\n_:proof${id} <dgraph.type> "${PROOF_SCHEMA_NAME}" .`
+    );
+    nquads = nquads.concat(
+      `\n_:proof${id} <signature> "${proof.signature}" .`
+    );
+    nquads = nquads.concat(`\n_:proof${id} <proof_type> "${proof.type}" .`);
+
+    nquads = nquads.concat(`\nuid(persp${id}) <proof> _:proof${id} .`);
+
+    /** add itself as its ecosystem */
+    nquads = nquads.concat(`\nuid(persp${id}) <ecosystem> uid(persp${id}) .`);
+
+    /** adds head */
+    if (details?.headId) {
+      nquads = nquads.concat(`\nuid(head${details.headId}) <xid> "${details.headId}" .`);
+      nquads = nquads.concat(`\nuid(persp${id}) <head> uid(head${details.headId}) .`);
+    }
+
+    if (details?.name)
+      nquads = nquads.concat(`\nuid(persp${id}) <name> "${details.name}" .`);
+
+    return { query, nquads };
+  }
+
+  async createPerspectives(newPerspectives: NewPerspectiveData[]) {
+    if(newPerspectives.length === 0) return;
+
     await this.db.ready();
 
-    let query = ``;
-    let nquads = ``;
-    let upsertedProfiles: string[] = [];
-    for (const securedPerspective of securedPerspectives) {
-      const id = await ipldService.validateSecured(securedPerspective);
-
-      const perspective = securedPerspective.object.payload;
-      const proof = securedPerspective.object.proof;
-
-      if (!upsertedProfiles.includes(perspective.creatorId)) {
-        upsertedProfiles.push(perspective.creatorId);
-        const creatorSegment = this.userRepo.upsertQueries(
-          perspective.creatorId
-        );
-        query = query.concat(creatorSegment.query);
-        nquads = nquads.concat(creatorSegment.nquads);
-      }
-
-      query = query.concat(`\npersp${id} as var(func: eq(xid, "${id}"))`);
-
-      nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
-      nquads = nquads.concat(`\nuid(persp${id}) <stored> "true" .`);
-      nquads = nquads.concat(
-        `\nuid(persp${id}) <creator> uid(profile${this.userRepo.formatDid(
-          perspective.creatorId
-        )}) .`
-      );
-      nquads = nquads.concat(
-        `\nuid(persp${id}) <timextamp> "${perspective.timestamp}"^^<xs:int> .`
-      );
-      nquads = nquads.concat(
-        `\nuid(persp${id}) <context> "${perspective.context}" .`
-      );
-      nquads = nquads.concat(`\nuid(persp${id}) <deleted> "false" .`);
-      nquads = nquads.concat(
-        `\nuid(persp${id}) <remote> "${perspective.remote}" .`
-      );
-      nquads = nquads.concat(
-        `\nuid(persp${id}) <path> "${perspective.path}" .`
-      );
-      nquads = nquads.concat(
-        `\nuid(persp${id}) <dgraph.type> "${PERSPECTIVE_SCHEMA_NAME}" .`
-      );
-
-      nquads = nquads.concat(
-        `\n_:proof${id} <dgraph.type> "${PROOF_SCHEMA_NAME}" .`
-      );
-      nquads = nquads.concat(
-        `\n_:proof${id} <signature> "${proof.signature}" .`
-      );
-      nquads = nquads.concat(`\n_:proof${id} <proof_type> "${proof.type}" .`);
-
-      nquads = nquads.concat(`\nuid(persp${id}) <proof> _:proof${id} .`);
-
-      /** add itself as its ecosystem */
-      nquads = nquads.concat(`\nuid(persp${id}) <ecosystem> uid(persp${id}) .`);
+    let upsert: Upsert = {
+      query: ``,
+      nquads: ``
     }
+    let upsertedProfiles: string[] = [];
+
+    const upsertResult = await Promise.all(
+      newPerspectives.map(async (newPerspective: NewPerspectiveData) => {
+        return await this.createPerspectiveUpsert(
+          upsertedProfiles,
+          { upsert },
+          { newPerspective }
+        );
+      })
+    );
+
+    upsert.query += upsertResult.map(res => res.query).join('');
+    upsert.nquads += upsertResult.map(res => res.nquads).join('');
 
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    req.setQuery(`query{${query}}`);
-    mu.setSetNquads(nquads);
+    req.setQuery(`query{${upsert.query}}`);
+    mu.setSetNquads(upsert.nquads);
     req.setMutationsList([mu]);
 
     let result = await this.db.callRequest(req);
     console.log(
       '[DGRAPH] createPerspective',
-      { query },
-      { nquads },
+      { upsert },
       result.getUidsMap().toArray()
     );
   }
@@ -295,17 +351,17 @@ export class UprtclRepository {
     if (details.name !== undefined)
       nquads = nquads.concat(`\nuid(perspective) <name> "${details.name}" .`);
 
-    const dbContent: DbContent = {
+    const upsert: Upsert = {
       query: query,
       nquads: nquads,
       delNquads: delNquads,
     };
 
     // Updates the ecosystem and children
-    const ecosystemUpdated = await this.updateEcosystem(
+    const ecosystemUpdated = this.updateEcosystem(
       ecosystem,
       perspectiveId,
-      dbContent
+      upsert
     );
 
     req.setQuery(`query{${ecosystemUpdated.query}}`);
@@ -324,12 +380,12 @@ export class UprtclRepository {
     );
   }
 
-  async updateEcosystem(
+  updateEcosystem(
     ecosystem: EcosystemUpdates,
     perspectiveId: string,
-    dbContent: DbContent
+    upsert: Upsert
   ) {
-    let { query, nquads, delNquads } = dbContent;
+    let { query, nquads, delNquads } = upsert;
 
     ecosystem.addedChildren.map((addedChild, i) => {
       query = query.concat(`\n
@@ -363,10 +419,10 @@ export class UprtclRepository {
           ecoDelete${i} as ecosystem            
         }
       `);
-      delNquads = delNquads.concat(
+      delNquads = delNquads?.concat(
         `\nuid(perspective) <ecosystem> uid(ecoDelete${i}) .`
       );
-      delNquads = delNquads.concat(
+      delNquads = delNquads?.concat(
         `\nuid(perspective) <children> uid(removedChild${i}) .`
       );
 
@@ -376,7 +432,7 @@ export class UprtclRepository {
           revEcoDelete${i} as ~ecosystem            
         }
       `);
-      delNquads = delNquads.concat(
+      delNquads = delNquads?.concat(
         `\nuid(revEcoDelete${i}) <ecosystem> uid(ecoDelete${i}) .`
       );
     });
