@@ -113,7 +113,7 @@ export class UprtclService {
       throw new Error('Anonymous user. Cant create a perspective');
 
     await this.uprtclRepo.createPerspectives(
-      perspectivesData.map((p) => p.perspective)
+      perspectivesData.map((p) => p)
     );
 
     /** find perspectives whose parent is NOT in the batch of new perspectives */
@@ -189,7 +189,7 @@ export class UprtclService {
       ))
     )
       throw new Error(NOT_AUTHORIZED_MSG);
-
+      
     const oldDetails = await this.getPerspectiveDetails(
       perspectiveId,
       loggedUserId
