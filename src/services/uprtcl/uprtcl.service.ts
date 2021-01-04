@@ -143,20 +143,6 @@ export class UprtclService {
       );
     }
 
-    // update needs to be done one by one to manipulate the ecosystem links
-    await Promise.all(
-      perspectivesData.map(async (perspectiveData) => {
-        if (perspectiveData.details) {
-          /** Bypass update perspective ACL because this is perspective inception */
-          await this.updatePerspective(
-            perspectiveData.perspective.id,
-            perspectiveData.details,
-            loggedUserId
-          );
-        }
-      })
-    );
-
     return allIds;
   }
 
