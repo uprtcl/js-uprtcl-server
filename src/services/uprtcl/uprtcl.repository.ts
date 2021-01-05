@@ -10,7 +10,7 @@ import {
   Secured,
   Proof,
   NewPerspectiveData,
-  getAuthority,
+  Upsert,
   EcosystemUpdates,
 } from './types';
 import {
@@ -57,12 +57,6 @@ interface DgCommit {
   'dgraph.type'?: string;
   stored: boolean;
   proof: DgProof;
-}
-
-interface Upsert {
-  query: string;
-  nquads: string;
-  delNquads?: string;
 }
 
 export class UprtclRepository {
@@ -162,6 +156,14 @@ export class UprtclRepository {
 
     if (details?.name)
       nquads = nquads.concat(`\nuid(persp${id}) <name> "${details.name}" .`);
+
+    /**
+     * TODO:
+     * Create defaultPermissionsUpsert
+     * Make it resusable
+     * Create accessConfigUpsert
+     * Make it resusable
+     */
 
     return { query, nquads };
   }

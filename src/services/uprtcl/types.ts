@@ -5,6 +5,12 @@ export enum ProposalState {
   Declined = 'DECLINED',
 }
 
+export interface Upsert {
+  query: string;
+  nquads: string;
+  delNquads?: string;
+}
+
 export interface PerspectiveDetails {
   name?: string;
   headId?: string | undefined;
