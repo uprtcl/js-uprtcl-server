@@ -87,7 +87,7 @@ export class AccessRepository {
         query = query.concat(`\ncanRead${ix} as var(func: eq(did, "${profiles[ix].toLowerCase()}"))` )
         nquads = nquads.concat(`\n_:permissions <canRead> uid(canRead${ix}) .`);
       } else if (ix > profiles.indexOf(PermissionType.Write) && ix < profiles.indexOf(PermissionType.Admin)){
-        query = query.concat(`\canWrite${ix} as var(func: eq(did, "${profiles[ix].toLowerCase()}"))` )
+        query = query.concat(`\ncanWrite${ix} as var(func: eq(did, "${profiles[ix].toLowerCase()}"))` )
         nquads = nquads.concat(`\n_:permissions <canWrite> uid(canWrite${ix}) .`);
       } else {
         query = query.concat(`\ncanAdmin${ix} as var(func: eq(did, "${profiles[ix].toLowerCase()}"))` )
