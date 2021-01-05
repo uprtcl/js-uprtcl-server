@@ -18,6 +18,7 @@ import {
   PROOF_SCHEMA_NAME,
   COMMIT_SCHEMA_NAME,
 } from './uprtcl.schema';
+import { PERMISSIONS_SCHEMA_NAME } from '../access/access.schema';
 
 const dgraph = require('dgraph-js');
 
@@ -104,7 +105,14 @@ export class UprtclRepository {
       nquads = nquads.concat(creatorSegment.nquads);
     }
 
-    query = query.concat(`\npersp${id} as var(func: eq(xid, "${id}"))`);
+    const did = this.userRepo.formatDid(creatorId);
+
+    query = query.concat(`
+      \npersp${id} as var(func: eq(xid, "${id}"))
+      \ncanRead${id} as var(func: eq(did, "${did.toLowerCase()}"))
+      \ncanWrite${id} as var(func: eq(did, "${did.toLowerCase()}"))
+      \ncanAdmin${id} as var(func: eq(did, "${did.toLowerCase()}"))
+    `);
 
     // Sets query for head
     if(details?.headId) {
@@ -114,9 +122,7 @@ export class UprtclRepository {
     nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
     nquads = nquads.concat(`\nuid(persp${id}) <stored> "true" .`);
     nquads = nquads.concat(
-      `\nuid(persp${id}) <creator> uid(profile${this.userRepo.formatDid(
-        creatorId
-      )}) .`
+      `\nuid(persp${id}) <creator> uid(profile${did}) .`
     );
     nquads = nquads.concat(
       `\nuid(persp${id}) <timextamp> "${timestamp}"^^<xs:int> .`
@@ -157,10 +163,17 @@ export class UprtclRepository {
     if (details?.name)
       nquads = nquads.concat(`\nuid(persp${id}) <name> "${details.name}" .`);
 
+    // Set default permissions
+    nquads = nquads.concat(
+      `\n_:permissions <publicRead> "false" .
+       \n_:permissions <dgraph.type> "${PERMISSIONS_SCHEMA_NAME}" .
+       \n_:permissions <publicWrite> "false" .
+       \n_:permissions <canRead> uid(canRead${id}) .
+       \n_:permissions <canWrite> uid(canWrite${id}) .
+       \n_:permissions <canAdmin> uid(canAdmin${id}) .`
+    );
     /**
      * TODO:
-     * Create defaultPermissionsUpsert
-     * Make it resusable
      * Create accessConfigUpsert
      * Make it resusable
      */
