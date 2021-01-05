@@ -98,6 +98,43 @@ export class AccessRepository {
     return { query, nquads }
   }
 
+  createAccessConfigUpsert(
+    accessConfig: AccessConfig,
+    {
+      upsert: {
+        query,
+        nquads
+      }
+    } : { upsert: Upsert }
+  ) {
+    if (accessConfig.delegateTo)
+      query = query.concat(
+        `\ndelegateToEl as var(func: eq(xid, "${accessConfig.delegateTo}"))`
+      );
+    if (accessConfig.finDelegatedTo)
+      query = query.concat(
+        `\nfinDelegatedToEl as var(func: eq(xid, "${accessConfig.finDelegatedTo}"))`
+      );
+
+    nquads = `_:accessConfig <permissions> <${accessConfig.permissionsUid}> .`;
+    nquads = nquads.concat(
+      `\n_:accessConfig <dgraph.type> "${ACCESS_CONFIG_SCHEMA_NAME}" .`
+    );
+    nquads = nquads.concat(
+      `\n_:accessConfig <delegate> "${accessConfig.delegate}" .`
+    );
+    if (accessConfig.delegateTo)
+      nquads = nquads.concat(
+        `\n_:accessConfig <delegateTo> uid(delegateToEl) .`
+      );
+    if (accessConfig.finDelegatedTo)
+      nquads = nquads.concat(
+        `\n_:accessConfig <finDelegatedTo> uid(finDelegatedToEl) .`
+      );
+
+    return { query, nquads }
+  }
+
   async createPermissionsConfig(permissions: PermissionConfig) {
     await this.db.ready();
 
@@ -477,31 +514,12 @@ export class AccessRepository {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    let query = '';
-    if (accessConfig.delegateTo)
-      query = query.concat(
-        `\ndelegateToEl as var(func: eq(xid, "${accessConfig.delegateTo}"))`
-      );
-    if (accessConfig.finDelegatedTo)
-      query = query.concat(
-        `\nfinDelegatedToEl as var(func: eq(xid, "${accessConfig.finDelegatedTo}"))`
-      );
+    let upsert: Upsert = {
+      query: '',
+      nquads: ''
+    }
 
-    let nquads = `_:accessConfig <permissions> <${accessConfig.permissionsUid}> .`;
-    nquads = nquads.concat(
-      `\n_:accessConfig <dgraph.type> "${ACCESS_CONFIG_SCHEMA_NAME}" .`
-    );
-    nquads = nquads.concat(
-      `\n_:accessConfig <delegate> "${accessConfig.delegate}" .`
-    );
-    if (accessConfig.delegateTo)
-      nquads = nquads.concat(
-        `\n_:accessConfig <delegateTo> uid(delegateToEl) .`
-      );
-    if (accessConfig.finDelegatedTo)
-      nquads = nquads.concat(
-        `\n_:accessConfig <finDelegatedTo> uid(finDelegatedToEl) .`
-      );
+    const { query, nquads } = this.createAccessConfigUpsert(accessConfig, { upsert });
 
     if (query !== '') req.setQuery(`query{${query}}`);
 
