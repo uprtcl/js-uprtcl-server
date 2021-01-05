@@ -5,6 +5,7 @@ import {
   PermissionType,
   ACCESS_CONFIG_SCHEMA_NAME,
 } from './access.schema';
+import { Upsert } from '../uprtcl/types';
 
 const dgraph = require('dgraph-js');
 
@@ -49,6 +50,54 @@ export class AccessRepository {
     protected userRepo: UserRepository
   ) {}
 
+  createPermissionsConfigUpsert(
+    permissions: PermissionConfig,
+    {
+      upsert: {
+        query,
+        nquads
+      }
+    } : { upsert: Upsert }
+  ) {
+
+    nquads = nquads.concat(
+      `\n_:permissions <publicRead> "${permissions.publicRead}" .
+       \n_:permissions <dgraph.type> "${PERMISSIONS_SCHEMA_NAME}" .
+       \n_:permissions <publicWrite> "${permissions.publicWrite}" .`
+    );
+
+    const canRead = permissions.canRead ? permissions.canRead : [];
+    const canWrite = permissions.canWrite ? permissions.canWrite : [];
+    const canAdmin = permissions.canAdmin ? permissions.canAdmin : [];
+
+    let profiles: string[] = [];
+
+    profiles.push( ...canRead,
+                   PermissionType.Write, ...canWrite,
+                   PermissionType.Admin, ...canAdmin );
+
+    // Upsert profiles just once per user
+    [...new Set(profiles)].map(did => {
+      query.concat(this.userRepo.upsertQueries(did).query);
+      nquads.concat(this.userRepo.upsertQueries(did).nquads);
+    });
+
+    for (let ix = 0; ix < profiles.length; ix++) {
+      if (ix < profiles.indexOf(PermissionType.Write)) {
+        query = query.concat(`\ncanRead${ix} as var(func: eq(did, "${profiles[ix].toLowerCase()}"))` )
+        nquads = nquads.concat(`\n_:permissions <canRead> uid(canRead${ix}) .`);
+      } else if (ix > profiles.indexOf(PermissionType.Write) && ix < profiles.indexOf(PermissionType.Admin)){
+        query = query.concat(`\canWrite${ix} as var(func: eq(did, "${profiles[ix].toLowerCase()}"))` )
+        nquads = nquads.concat(`\n_:permissions <canWrite> uid(canWrite${ix}) .`);
+      } else {
+        query = query.concat(`\ncanAdmin${ix} as var(func: eq(did, "${profiles[ix].toLowerCase()}"))` )
+        nquads = nquads.concat(`\n_:permissions <canAdmin> uid(canAdmin${ix}) .`);
+      }
+    }
+
+    return { query, nquads }
+  }
+
   async createPermissionsConfig(permissions: PermissionConfig) {
     await this.db.ready();
 
@@ -57,54 +106,17 @@ export class AccessRepository {
 
     /** commit object might exist because of parallel update head call */
     let query = ``;
+    let nquads = ``;
 
-    let nquads = `_:permissions <publicRead> "${permissions.publicRead}" .`;
-    nquads = nquads.concat(
-      `\n_:permissions <dgraph.type> "${PERMISSIONS_SCHEMA_NAME}" .`
-    );
-    nquads = nquads.concat(
-      `\n_:permissions <publicWrite> "${permissions.publicWrite}" .`
-    );
-
-    if (permissions.canRead) {
-      for (let ix = 0; ix < permissions.canRead.length; ix++) {
-        await this.userRepo.upsertProfile(permissions.canRead[ix]);
-        query = query.concat(
-          `\ncanRead${ix} as var(func: eq(did, "${permissions.canRead[
-            ix
-          ].toLowerCase()}"))`
-        );
-        nquads = nquads.concat(`\n_:permissions <canRead> uid(canRead${ix}) .`);
-      }
+    const upsert: Upsert = {
+      query,
+      nquads
     }
 
-    if (permissions.canWrite) {
-      for (let ix = 0; ix < permissions.canWrite.length; ix++) {
-        await this.userRepo.upsertProfile(permissions.canWrite[ix]);
-        query = query.concat(
-          `\ncanWrite${ix} as var(func: eq(did, "${permissions.canWrite[
-            ix
-          ].toLowerCase()}"))`
-        );
-        nquads = nquads.concat(
-          `\n_:permissions <canWrite> uid(canWrite${ix}) .`
-        );
-      }
-    }
+    const upsertResult = this.createPermissionsConfigUpsert(permissions, { upsert });
 
-    if (permissions.canAdmin) {
-      for (let ix = 0; ix < permissions.canAdmin.length; ix++) {
-        await this.userRepo.upsertProfile(permissions.canAdmin[ix]);
-        query = query.concat(
-          `\ncanAdmin${ix} as var(func: eq(did, "${permissions.canAdmin[
-            ix
-          ].toLowerCase()}"))`
-        );
-        nquads = nquads.concat(
-          `\n_:permissions <canAdmin> uid(canAdmin${ix}) .`
-        );
-      }
-    }
+    query = upsertResult.query;
+    nquads = upsertResult.nquads;
 
     if (query !== '') req.setQuery(`query{${query}}`);
     mu.setSetNquads(nquads);
