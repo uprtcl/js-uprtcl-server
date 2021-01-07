@@ -1,7 +1,6 @@
 import { DGraphService } from '../../db/dgraph.service';
 import { ipldService } from '../ipld/ipldService';
 import { UserRepository } from '../user/user.repository';
-import { LOCAL_EVEES_PROVIDER } from '../providers';
 import { DataRepository } from '../data/data.repository';
 import {
   Perspective,
@@ -18,7 +17,7 @@ import {
   PROOF_SCHEMA_NAME,
   COMMIT_SCHEMA_NAME,
 } from './uprtcl.schema';
-import { PERMISSIONS_SCHEMA_NAME } from '../access/access.schema';
+import { ACCESS_CONFIG_SCHEMA_NAME, PERMISSIONS_SCHEMA_NAME } from '../access/access.schema';
 
 const dgraph = require('dgraph-js');
 
@@ -78,7 +77,8 @@ export class UprtclRepository {
     { 
       newPerspective: { 
         perspective: securedPerspective, 
-        details 
+        details,
+        parentId
       } 
     } : { newPerspective: NewPerspectiveData }) {
     const id = await ipldService.validateSecured(securedPerspective);
@@ -109,9 +109,6 @@ export class UprtclRepository {
 
     query = query.concat(`
       \npersp${id} as var(func: eq(xid, "${id}"))
-      \ncanRead${id} as var(func: eq(did, "${did.toLowerCase()}"))
-      \ncanWrite${id} as var(func: eq(did, "${did.toLowerCase()}"))
-      \ncanAdmin${id} as var(func: eq(did, "${did.toLowerCase()}"))
     `);
 
     // Sets query for head
@@ -156,27 +153,65 @@ export class UprtclRepository {
 
     /** adds head */
     if (details?.headId) {
-      nquads = nquads.concat(`\nuid(head${details.headId}) <xid> "${details.headId}" .`);
+      nquads = nquads.concat(`
+        \nuid(head${details.headId}) <xid> "${details.headId}" .
+        \nuid(head${details.headId}) <dgraph.type> "${COMMIT_SCHEMA_NAME}" .
+      `);
       nquads = nquads.concat(`\nuid(persp${id}) <head> uid(head${details.headId}) .`);
     }
 
     if (details?.name)
       nquads = nquads.concat(`\nuid(persp${id}) <name> "${details.name}" .`);
 
-    // Set default permissions
+    // Permissions and ACL
+    //-----------------------------//
+
+    /** Sets default permissions */
     nquads = nquads.concat(
-      `\n_:permissions <publicRead> "false" .
-       \n_:permissions <dgraph.type> "${PERMISSIONS_SCHEMA_NAME}" .
-       \n_:permissions <publicWrite> "false" .
-       \n_:permissions <canRead> uid(canRead${id}) .
-       \n_:permissions <canWrite> uid(canWrite${id}) .
-       \n_:permissions <canAdmin> uid(canAdmin${id}) .`
+      `\n_:permissions${id} <publicRead> "false" .
+       \n_:permissions${id} <dgraph.type> "${PERMISSIONS_SCHEMA_NAME}" .
+       \n_:permissions${id} <publicWrite> "false" .
+       \n_:permissions${id} <canRead> uid(profile${did}) .
+       \n_:permissions${id} <canWrite> uid(profile${did}) .
+       \n_:permissions${id} <canAdmin> uid(profile${did}) .`
     );
-    /**
-     * TODO:
-     * Create accessConfigUpsert
-     * Make it resusable
-     */
+
+    if(parentId) {
+      // Considering all finalDelegated to nodes will always have delegate predicate false...
+      query = query.concat(
+        `\ndelegateToEl${id} as var(func: eq(xid, "${parentId}")) {
+          xid
+          accessConfig @filter(eq(delegate, "true")){
+            founder${id} as finDelegatedTo
+          }
+        }
+        \nrealFounder${id} as var(func: has(context)) 
+                                  @filter(uid(founder${id}) OR uid(delegateToEl${id})) 
+                                  @cascade {
+                                    xid
+                                    accessConfig @filter(eq(delegate, "false")) {
+                                      uid
+                                    }
+                                  }`
+      );
+
+      nquads = nquads.concat(
+        `\n_:accessConfig${id} <delegateTo> uid(delegateToEl${id}) .
+         \n_:accessConfig${id} <finDelegatedTo> uid(realFounder${id}) .
+         \n_:accessConfig${id} <dgraph.type> "${ACCESS_CONFIG_SCHEMA_NAME}" .
+         \n_:accessConfig${id} <permissions> _:permissions${id} .
+         \n_:accessConfig${id} <delegate> "true" .`
+      );
+    } else {
+      nquads = nquads.concat(
+        `\n_:accessConfig${id} <finDelegatedTo> uid(persp${id}) .
+         \n_:accessConfig${id} <dgraph.type> "${ACCESS_CONFIG_SCHEMA_NAME}" .
+         \n_:accessConfig${id} <permissions> _:permissions${id} .
+         \n_:accessConfig${id} <delegate> "false" .`
+      );
+    }
+    nquads = nquads.concat(`\nuid(persp${id}) <accessConfig> _:accessConfig${id} .`);
+    // Finishes ACL and permissions
 
     return { query, nquads };
   }
