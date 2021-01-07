@@ -129,20 +129,6 @@ export class UprtclService {
       } 
     });
 
-    const external = perspectivesData.filter((p) => {
-      return !p.parentId || !allIds.includes(p.parentId);
-    });
-
-    /** recursively create acls starting from external perspectives until
-     * all perspectives have been created */
-    for (const newPerspective of external) {
-      await this.createAclRecursively(
-        newPerspective,
-        perspectivesData,
-        loggedUserId
-      );
-    }
-
     return allIds;
   }
 
