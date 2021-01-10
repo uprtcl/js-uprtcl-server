@@ -101,7 +101,7 @@ export class AccessService {
     }
 
     const accessConfig = await this.getAccessConfig(elementId);
-
+    
     let permissionsElement: string = elementId;
     if (accessConfig.delegate) {
       if (!accessConfig.finDelegatedTo)
@@ -213,7 +213,7 @@ export class AccessService {
     if (accessConfig.delegate) {
       if (!accessConfig.finDelegatedTo)
         throw new Error(
-          `undefined delegateTo but accessConfig delegate of ${elementId} is true`
+          `undefined finDelegatedTo but accessConfig delegate of ${elementId} is true`
         );
       permissionsElement = accessConfig.finDelegatedTo;
     }
