@@ -66,7 +66,7 @@ export class UprtclRepository {
     protected dataRepo: DataRepository
   ) {}
 
-  async createPerspectiveUpsert(
+  createPerspectiveUpsert(
     upsertedProfiles: string[],
     {
       upsert: {
@@ -81,9 +81,8 @@ export class UprtclRepository {
         parentId
       } 
     } : { newPerspective: NewPerspectiveData }) {
-    const id = await ipldService.validateSecured(securedPerspective);
-
     const {
+      id,
       object: {
         payload: {
           creatorId,
@@ -177,28 +176,46 @@ export class UprtclRepository {
     );
 
     if(parentId) {
-      // Considering all finalDelegated to nodes will always have delegate predicate false...
-      query = query.concat(
-        `\ndelegateToEl${id} as var(func: eq(xid, "${parentId}")) {
-          xid
-          accessConfig @filter(eq(delegate, "true")){
-            founder${id} as finDelegatedTo
+      nquads = nquads.concat(
+        `\n_:accessConfig${id} <delegateTo> uid(persp${parentId}) .`
+      )
+
+      if(nquads.includes(`_:accessConfig${parentId} <delegate> "false" .`)) {
+        nquads = nquads.concat(
+          `\n_:accessConfig${id} <finDelegatedTo> uid(persp${parentId}) .`
+        );
+      } else if(nquads.includes(`_:accessConfig${parentId} <delegate> "true" .`)) {
+        const finalDelegatedTo = nquads.split(`_:accessConfig${parentId} <finDelegatedTo> `)[1].split('.')[0];
+        nquads = nquads.concat(
+          `\n_:accessConfig${id} <finDelegatedTo> ${finalDelegatedTo} .`
+        );
+      } else {
+        // Considering all finalDelegated to nodes will always have delegate predicate false...
+        query = query.concat(
+          `\ndelegateToEl${id} as var(func: eq(xid, "${parentId}")) {
+            xid
+            accessConfig @filter(eq(delegate, "true")){
+              founder${id} as finDelegatedTo
+            }
           }
-        }
-        \nrealFounder${id} as var(func: has(context)) 
-                                  @filter(uid(founder${id}) OR uid(delegateToEl${id})) 
-                                  @cascade {
-                                    xid
-                                    accessConfig @filter(eq(delegate, "false")) {
-                                      uid
-                                    }
-                                  }`
-      );
+          \nrealFounder${id} as var(func: has(context)) 
+                                    @filter(uid(founder${id}) OR uid(delegateToEl${id})) 
+                                    @cascade {
+                                      xid
+                                      accessConfig @filter(eq(delegate, "false")) {
+                                        uid
+                                      }
+                                    }`
+        );
+
+        nquads = nquads.concat(
+          `\n_:accessConfig${id} <delegateTo> uid(delegateToEl${id}) .
+          \n_:accessConfig${id} <finDelegatedTo> uid(realFounder${id}) .`
+        );
+      }
 
       nquads = nquads.concat(
-        `\n_:accessConfig${id} <delegateTo> uid(delegateToEl${id}) .
-         \n_:accessConfig${id} <finDelegatedTo> uid(realFounder${id}) .
-         \n_:accessConfig${id} <dgraph.type> "${ACCESS_CONFIG_SCHEMA_NAME}" .
+        `\n_:accessConfig${id} <dgraph.type> "${ACCESS_CONFIG_SCHEMA_NAME}" .
          \n_:accessConfig${id} <permissions> _:permissions${id} .
          \n_:accessConfig${id} <delegate> "true" .`
       );
@@ -227,18 +244,24 @@ export class UprtclRepository {
     }
     let upsertedProfiles: string[] = [];
 
-    const upsertResult = await Promise.all(
-      newPerspectives.map(async (newPerspective: NewPerspectiveData) => {
-        return await this.createPerspectiveUpsert(
+    // Put perspectives with no parentId as priority.
+    newPerspectives.sort((a, b) => (a.parentId !== null) ? 1 : (b.parentId !== null) ? -1 : 1);
+
+    for(let i = 0; i < newPerspectives.length; i++) {
+        const newPerspective = newPerspectives[i];
+        const upsertString = this.createPerspectiveUpsert(
           upsertedProfiles,
           { upsert },
           { newPerspective }
         );
-      })
-    );
 
-    upsert.query += upsertResult.map(res => res.query).join('');
-    upsert.nquads += upsertResult.map(res => res.nquads).join('');
+        if(i < 1) {
+          upsert.query = upsert.query.concat(upsertString.query);
+          upsert.nquads = upsert.nquads.concat(upsertString.nquads);
+        }
+
+        upsert = upsertString;
+    }
 
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
