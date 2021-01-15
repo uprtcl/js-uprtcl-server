@@ -68,6 +68,7 @@ export class UprtclRepository {
 
   createPerspectiveUpsert(
     upsertedProfiles: string[],
+    externalParentIds: string[],
     {
       upsert: {
         query,
@@ -106,9 +107,9 @@ export class UprtclRepository {
 
     const did = this.userRepo.formatDid(creatorId);
 
-    query = query.concat(`
-      \npersp${id} as var(func: eq(xid, "${id}"))
-    `);
+    query = query.concat(
+      `\npersp${id} as var(func: eq(xid, "${id}"))`
+    );
 
     // Sets query for head
     if(details?.headId) {
@@ -123,7 +124,7 @@ export class UprtclRepository {
     nquads = nquads.concat(
       `\nuid(persp${id}) <timextamp> "${timestamp}"^^<xs:int> .`
     );
-    nquads = nquads.concat(
+    nquads = nquads.concat( 
       `\nuid(persp${id}) <context> "${context}" .`
     );
     nquads = nquads.concat(`\nuid(persp${id}) <deleted> "false" .`);
@@ -174,60 +175,33 @@ export class UprtclRepository {
        \n_:permissions${id} <canWrite> uid(profile${did}) .
        \n_:permissions${id} <canAdmin> uid(profile${did}) .`
     );
-
+    
     if(parentId) {
-      nquads = nquads.concat(
-        `\n_:accessConfig${id} <delegateTo> uid(persp${parentId}) .`
-      )
-
-      if(nquads.includes(`_:accessConfig${parentId} <delegate> "false" .`)) {
-        nquads = nquads.concat(
-          `\n_:accessConfig${id} <finDelegatedTo> uid(persp${parentId}) .`
-        );
-      } else if(nquads.includes(`_:accessConfig${parentId} <delegate> "true" .`)) {
-        const finalDelegatedTo = nquads.split(`_:accessConfig${parentId} <finDelegatedTo> `)[1].split('.')[0];
-        nquads = nquads.concat(
-          `\n_:accessConfig${id} <finDelegatedTo> ${finalDelegatedTo} .`
-        );
+      // We need to bring that parentId if it is external
+      if(externalParentIds.includes(parentId)) {
+        // Avoid possible duplication
+        if(!query.includes(`eq(xid, ${parentId})`)) {
+          query = query.concat(`\nparent${parentId} as var(func: eq(xid, ${parentId}))`);
+        }
+        nquads = nquads.concat(`\n_:accessConfig${id} <delegateTo> uid(parent${parentId}) .`)
       } else {
-        // Considering all finalDelegated to nodes will always have delegate predicate false...
-        query = query.concat(
-          `\ndelegateToEl${id} as var(func: eq(xid, "${parentId}")) {
-            xid
-            accessConfig @filter(eq(delegate, "true")){
-              founder${id} as finDelegatedTo
-            }
-          }
-          \nrealFounder${id} as var(func: has(context)) 
-                                    @filter(uid(founder${id}) OR uid(delegateToEl${id})) 
-                                    @cascade {
-                                      xid
-                                      accessConfig @filter(eq(delegate, "false")) {
-                                        uid
-                                      }
-                                    }`
-        );
-
-        nquads = nquads.concat(
-          `\n_:accessConfig${id} <delegateTo> uid(delegateToEl${id}) .
-          \n_:accessConfig${id} <finDelegatedTo> uid(realFounder${id}) .`
-        );
+        nquads = nquads.concat(`\n_:accessConfig${id} <delegateTo> uid(persp${parentId}) .`);
       }
 
-      nquads = nquads.concat(
-        `\n_:accessConfig${id} <dgraph.type> "${ACCESS_CONFIG_SCHEMA_NAME}" .
-         \n_:accessConfig${id} <permissions> _:permissions${id} .
-         \n_:accessConfig${id} <delegate> "true" .`
-      );
+      nquads = nquads.concat(`\n_:accessConfig${id} <delegate> "true" .`);
     } else {
+      // Assings itself as finalDelegatedTo
       nquads = nquads.concat(
         `\n_:accessConfig${id} <finDelegatedTo> uid(persp${id}) .
-         \n_:accessConfig${id} <dgraph.type> "${ACCESS_CONFIG_SCHEMA_NAME}" .
-         \n_:accessConfig${id} <permissions> _:permissions${id} .
          \n_:accessConfig${id} <delegate> "false" .`
       );
     }
-    nquads = nquads.concat(`\nuid(persp${id}) <accessConfig> _:accessConfig${id} .`);
+    
+    nquads = nquads.concat(
+      `\n_:accessConfig${id} <dgraph.type> "${ACCESS_CONFIG_SCHEMA_NAME}" .
+       \n_:accessConfig${id} <permissions> _:permissions${id} .
+       \nuid(persp${id}) <accessConfig> _:accessConfig${id} .`
+    );
     // Finishes ACL and permissions
 
     return { query, nquads };
@@ -243,14 +217,30 @@ export class UprtclRepository {
       nquads: ``
     }
     let upsertedProfiles: string[] = [];
+    let perspectiveIds = newPerspectives.map((p) => p.perspective.id);
 
-    // Put perspectives with no parentId as priority.
-    newPerspectives.sort((a, b) => (a.parentId !== null) ? 1 : (b.parentId !== null) ? -1 : 1);
+    //Top level hierarchy
+    const externalParentPerspectives = newPerspectives.filter((p) => {
+      if(p.parentId !== null) {
+        if(p.parentId !== undefined) {
+          if(!perspectiveIds.includes(p.parentId)) {
+            return p;
+          }
+        } else {
+          return p;
+        }
+      } else {
+        return p;
+      }
+    });
+
+    const externalParentIds = [...new Set(externalParentPerspectives.map((p) => p.parentId))];
 
     for(let i = 0; i < newPerspectives.length; i++) {
         const newPerspective = newPerspectives[i];
         const upsertString = this.createPerspectiveUpsert(
           upsertedProfiles,
+          externalParentIds as string[],
           { upsert },
           { newPerspective }
         );
@@ -271,11 +261,96 @@ export class UprtclRepository {
     req.setMutationsList([mu]);
 
     let result = await this.db.callRequest(req);
+
+    // Keep the ACL layer updated.
+    let ACLupsert = {
+      query: ``,
+      nquads: ``
+    };
+
+    for(let i = 0; i < externalParentPerspectives.length; i++) {
+      const externalPerspective = externalParentPerspectives[i];
+      const aclUpsertString = this.recurseACLupdateUpsert(
+        externalPerspective.perspective.id,
+        externalPerspective.parentId,
+        { ACLupsert }
+      ); 
+
+      if(i < 1) {
+        ACLupsert.query = ACLupsert.query.concat(aclUpsertString.query);
+        ACLupsert.nquads = ACLupsert.nquads.concat(aclUpsertString.nquads);
+      }
+
+      ACLupsert = aclUpsertString;
+    }
+
+    const ACLmu = new dgraph.Mutation();
+    const ACLreq = new dgraph.Request();
+
+    ACLreq.setQuery(`query{${ACLupsert.query}}`);
+    ACLmu.setSetNquads(ACLupsert.nquads);
+    ACLreq.setMutationsList([ACLmu]);
+
+    let ACLresult = await this.db.callRequest(ACLreq);
+    debugger;
     console.log(
       '[DGRAPH] createPerspective',
-      { upsert },
-      result.getUidsMap().toArray()
+      { upsert, ACLupsert },
+      result.getUidsMap().toArray(),
+      ACLresult.getUidsMap().toArray()
     );
+  }
+
+  recurseACLupdateUpsert(externalPerspectiveId: string, parentId: string | undefined, {
+    ACLupsert: {
+      query,
+      nquads
+    }
+  } : { ACLupsert: Upsert }) {
+    if(parentId === null || undefined) {
+      query = query.concat(
+        `\nexternal${externalPerspectiveId} as var(func: eq(xid, ${externalPerspectiveId}))
+          @recurse {
+            ~accessConfig
+              child${externalPerspectiveId} as ~delegateTo
+                uid
+          }`
+      );
+
+      nquads = nquads.concat(
+        `\nuid(child${externalPerspectiveId}) <finDelegatedTo> uid(external${externalPerspectiveId}) .`
+      );
+    } else if(!query.includes(`eq(xid, ${parentId})`)) {
+      query = query.concat(
+        `\nparent${parentId} as var(func: eq(xid, ${parentId})){
+          xid
+          accessConfig @filter(eq(delegate, true)) {
+            uid
+            final${parentId} as finDelegatedTo
+            }
+          }
+        \nfinalDelegated${parentId} as var(func: has(context))
+          @filter(uid(final${parentId}) OR uid(parent${parentId})) 
+          @cascade {
+            xid
+            accessConfig @filter(eq(delegate, "false")) {
+              uid
+            }
+          }
+        \nchildren${parentId}(func: uid(finalDelegated${parentId}))
+          @recurse {
+            ~accessConfig
+              child${parentId} as ~delegateTo
+              uid
+          }`
+      );
+      
+      nquads = nquads.concat(
+        `\nuid(child${parentId}) <finDelegatedTo> uid(finalDelegated${parentId}) .`
+      );
+    }
+
+    return { query, nquads };
   }
 
   async createCommits(commits: Secured<Commit>[]): Promise<string[]> {
