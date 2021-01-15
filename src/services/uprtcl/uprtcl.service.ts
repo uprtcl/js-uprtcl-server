@@ -111,25 +111,12 @@ export class UprtclService {
   ): Promise<string[]> {
     if (loggedUserId === null)
       throw new Error('Anonymous user. Cant create a perspective');
-
-    await this.uprtclRepo.createPerspectives(
-      perspectivesData.map((p) => p)
-    );
-
     /** find perspectives whose parent is NOT in the batch of new perspectives */
-    const idPromises = await perspectivesData.map(async (p) => {
-        return (p.perspective.id !== '') ? p.perspective.id : (await ipldService.validateSecured(p.perspective))
-      }
+    await this.uprtclRepo.createPerspectives(
+      perspectivesData
     );
 
-    const allIds = await Promise.all(idPromises);
-    perspectivesData.map((p, i) => { 
-      if (p.perspective.id === '') {
-        p.perspective.id = allIds[i];
-      } 
-    });
-
-    return allIds;
+    return [];
   }
 
   getDataChildren(data: any) {
