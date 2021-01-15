@@ -292,7 +292,6 @@ export class UprtclRepository {
     ACLreq.setMutationsList([ACLmu]);
 
     let ACLresult = await this.db.callRequest(ACLreq);
-    debugger;
     console.log(
       '[DGRAPH] createPerspective',
       { upsert, ACLupsert },
