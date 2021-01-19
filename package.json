@@ -70,7 +70,6 @@
   "jest": {
     "verbose": true,
     "setupFilesAfterEnv": [],
-    "testTimeout": 20000,
     "transform": {
       "^.+\\.tsx?$": "ts-jest"
     },
