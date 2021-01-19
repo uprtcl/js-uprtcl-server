@@ -10,6 +10,9 @@ import {
 import { createData } from '../data/support.data';
 import { DocNodeType } from '../data/types';
 import { uprtclRepo } from '../access/access.testsupport';
+import { ipldService } from '../ipld/ipldService';
+import { localCidConfig } from '../ipld';
+import { TestUser } from '../user/user.testsupport';
 
 interface PerspectiveData {
   persp: string;
@@ -18,12 +21,12 @@ interface PerspectiveData {
 
 export const forkPerspective = async (
   perspectiveId: string,
-  jwt: string,
+  user: TestUser,
   parent?: PerspectiveData
 ): Promise<any> => {
   const timestamp = Math.floor(100000 + Math.random() * 900000);
 
-  const persp = await getPerspective(perspectiveId, jwt);
+  const persp = await getPerspective(perspectiveId, user.jwt);
   const {
     data: {
       object: {
@@ -35,8 +38,7 @@ export const forkPerspective = async (
   const forkedPersp = await createAndInitPerspective(
     '',
     false,
-    creatorId,
-    jwt,
+    user,
     timestamp,
     context
   );
@@ -47,7 +49,7 @@ export const forkPerspective = async (
       parent.persp,
       parent.commit,
       false,
-      jwt
+      user
     );
   }
 
@@ -55,7 +57,7 @@ export const forkPerspective = async (
     await getPerspectiveRelatives(perspectiveId, 'children')
   ).map(async (child) => {
     try {
-      return await forkPerspective(child, jwt, forkedPersp);
+      return await forkPerspective(child, user, forkedPersp);
     } catch {
       return;
     }
@@ -71,13 +73,13 @@ export const addChildToPerspective = async (
   parentId: string,
   parentCommit: string,
   pages: boolean,
-  jwt: string
+  user: TestUser
 ): Promise<void> => {
   const commitChild = await addPagesOrLinks(
     [childId],
     pages,
     [parentCommit],
-    jwt
+    user
   );
 
   await updatePerspective(
@@ -86,66 +88,71 @@ export const addChildToPerspective = async (
       headId: commitChild,
       name: '',
     },
-    jwt
+    user.jwt
   );
 };
 
 export const createAndInitPerspective = async (
   content: string,
   pages: boolean,
-  creatorId: string,
-  jwt: string,
+  user: TestUser,
   timestamp: number,
   context: string
 ): Promise<PerspectiveData> => {
-  const commit = await createCommitAndData(content, pages, jwt);
+  const commit = await createCommitAndData(content, pages, user);
 
   return {
-    persp: await createPerspective(creatorId, timestamp, context, jwt, commit),
+    persp: await createPerspective(user, timestamp, context, user.jwt, commit),
     commit: commit,
   };
 };
 
 export const createPerspective = async (
-  creatorId: string,
+  user: TestUser,
   timestamp: number,
   context: string,
-  jwt: string,
   headId?: string,
   parentId?: string
 ): Promise<string> => {
   const perspective: Perspective = {
     remote: LOCAL_EVEES_REMOTE,
     path: LOCAL_EVEES_PATH,
-    creatorId: creatorId,
+    creatorId: user.userId.toLowerCase(),
     timestamp: timestamp,
     context: context,
   };
 
-  const secured: Secured<Perspective> = {
-    id: '',
-    object: {
-      payload: perspective,
+  const securedObject = {
+    payload: perspective,
       proof: {
         signature: '',
         type: '',
       },
-    },
+  }
+
+  const perspectiveId = await ipldService.generateCidOrdered(
+    securedObject,
+    localCidConfig
+  );
+
+  const secured: Secured<Perspective> = {
+    id: perspectiveId,
+    object: securedObject
   };
   const router = await createApp();
   const post = await request(router)
     .post('/uprtcl/1/persp')
     .send({ perspectives: [
               { perspective: secured, 
-                details: { headId }, 
+                details: { headId: headId }, 
                 parentId: parentId 
               }
             ]
           })
-    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+    .set('Authorization', user.jwt ? `Bearer ${user.jwt}` : '');
 
   expect(post.status).toEqual(200);
-  return JSON.parse(post.text).elementIds[0];
+  return perspectiveId;
 };
 
 export const updatePerspective = async (
@@ -155,10 +162,16 @@ export const updatePerspective = async (
 ): Promise<PostResult> => {
   const router = await createApp();
   const put = await request(router)
-    .put(`/uprtcl/1/persp/${perspectiveId}/details`)
-    .send(details)
+    .put(`/uprtcl/1/persp/details`)
+    .send({
+      details: [
+        {
+          id: perspectiveId,
+          details
+        }
+      ]
+    })
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
-
   return JSON.parse(put.text);
 };
 
@@ -178,16 +191,23 @@ export const createCommit = async (
     dataId: dataId,
   };
 
-  const secured: Secured<Commit> = {
-    id: '',
-    object: {
-      payload: commit,
+  const securedObject = {
+    payload: commit,
       proof: {
         signature: '',
         type: '',
-      },
-    },
+      }
+  }
+  const commitId = await ipldService.generateCidOrdered(
+    securedObject,
+    localCidConfig
+  );
+
+  const secured: Secured<Commit> = {
+    id: commitId,
+    object: securedObject,
   };
+
   const router = await createApp();
   const post = await request(router)
     .post(`/uprtcl/1/commit`)
@@ -195,7 +215,7 @@ export const createCommit = async (
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   expect(post.status).toEqual(200);
-  return JSON.parse(post.text).elementIds[0];
+  return commitId;
 };
 
 export const getPerspectiveRelatives = async (
@@ -222,9 +242,8 @@ export const addPagesOrLinks = async (
   addedContent: Array<string>,
   pages: boolean,
   parents: Array<string>,
-  jwt: string
+  user: TestUser
 ): Promise<string> => {
-  const creatorId = 'did:method:12345';
   const timestamp = Math.round(Math.random() * 100000);
 
   let data = {};
@@ -235,14 +254,14 @@ export const addPagesOrLinks = async (
     data = { text: '', type: DocNodeType.paragraph, links: addedContent };
   }
 
-  const dataId = await createData(data, jwt);
+  const dataId = await createData(data, user.jwt);
   let commitId = await createCommit(
-    [creatorId],
+    [user.userId.toLowerCase()],
     timestamp,
     'sample message',
     parents,
     dataId,
-    jwt
+    user.jwt
   );
   return commitId;
 };
@@ -250,9 +269,8 @@ export const addPagesOrLinks = async (
 export const createCommitAndData = async (
   content: string,
   page: boolean,
-  jwt: string
+  user: TestUser 
 ): Promise<string> => {
-  const creatorId = 'did:method:12345';
   const timestamp = Math.round(Math.random() * 100000);
 
   let data = {};
@@ -263,14 +281,14 @@ export const createCommitAndData = async (
     data = { text: content, type: DocNodeType.paragraph, links: [] };
   }
 
-  const dataId = await createData(data, jwt);
+  const dataId = await createData(data, user.jwt);
   let commitId = await createCommit(
-    [creatorId],
+    [user.userId.toLowerCase()],
     timestamp,
     'sample message',
     [],
     dataId,
-    jwt
+    user.jwt
   );
   return commitId;
 };
@@ -295,7 +313,6 @@ export const getPerspectiveDetails = async (
   const get = await request(router)
     .get(`/uprtcl/1/persp/${perspectiveId}/details`)
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
-
   return JSON.parse(get.text);
 };
 
