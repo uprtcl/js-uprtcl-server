@@ -78,7 +78,7 @@ export class UprtclRepository {
     { 
       newPerspective: { 
         perspective: securedPerspective, 
-        details,
+        details: perspectiveDetails,
         parentId
       } 
     } : { newPerspective: NewPerspectiveData }) {
@@ -110,10 +110,9 @@ export class UprtclRepository {
     query = query.concat(
       `\npersp${id} as var(func: eq(xid, "${id}"))`
     );
-
     // Sets query for head
-    if(details?.headId) {
-      query = query.concat(`\nhead${details.headId} as var(func: eq(xid, "${details.headId}"))`);
+    if(perspectiveDetails?.headId) {
+      query = query.concat(`\nhead${perspectiveDetails.headId} as var(func: eq(xid, "${perspectiveDetails.headId}"))`);
     }
 
     nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
@@ -152,16 +151,16 @@ export class UprtclRepository {
     nquads = nquads.concat(`\nuid(persp${id}) <ecosystem> uid(persp${id}) .`);
 
     /** adds head */
-    if (details?.headId) {
+    if (perspectiveDetails?.headId) {
       nquads = nquads.concat(`
-        \nuid(head${details.headId}) <xid> "${details.headId}" .
-        \nuid(head${details.headId}) <dgraph.type> "${COMMIT_SCHEMA_NAME}" .
+        \nuid(head${perspectiveDetails.headId}) <xid> "${perspectiveDetails.headId}" .
+        \nuid(head${perspectiveDetails.headId}) <dgraph.type> "${COMMIT_SCHEMA_NAME}" .
       `);
-      nquads = nquads.concat(`\nuid(persp${id}) <head> uid(head${details.headId}) .`);
+      nquads = nquads.concat(`\nuid(persp${id}) <head> uid(head${perspectiveDetails.headId}) .`);
     }
 
-    if (details?.name)
-      nquads = nquads.concat(`\nuid(persp${id}) <name> "${details.name}" .`);
+    if (perspectiveDetails?.name)
+      nquads = nquads.concat(`\nuid(persp${id}) <name> "${perspectiveDetails.name}" .`);
 
     // Permissions and ACL
     //-----------------------------//
@@ -209,7 +208,6 @@ export class UprtclRepository {
 
   async createPerspectives(newPerspectives: NewPerspectiveData[]) {
     if(newPerspectives.length === 0) return;
-
     await this.db.ready();
 
     let upsert: Upsert = {
@@ -306,7 +304,7 @@ export class UprtclRepository {
       nquads
     }
   } : { ACLupsert: Upsert }) {
-    if(parentId === null || undefined) {
+    if(parentId === null || parentId === undefined) {
       query = query.concat(
         `\nexternal${externalPerspectiveId} as var(func: eq(xid, ${externalPerspectiveId}))
           @recurse {
