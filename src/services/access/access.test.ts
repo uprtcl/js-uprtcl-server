@@ -17,8 +17,6 @@ import {
 describe('delegate behavior', () => {
   expect.extend({ toBeValidCid });
 
-  const creatorId = 'did:method:12345';
-
   let user1: any = {};
 
   let perspectiveA = '';
@@ -37,7 +35,7 @@ describe('delegate behavior', () => {
       user1.jwt
     );
     perspectiveA = await createPerspective(
-      creatorId,
+      user1,
       454545,
       'barack_obama',
       user1.jwt,
@@ -50,10 +48,9 @@ describe('delegate behavior', () => {
       user1.jwt
     );
     perspectiveB = await createPerspective(
-      creatorId,
+      user1,
       846851,
       'barack_obama',
-      user1.jwt,
       commitB,
       perspectiveA
     );
@@ -64,10 +61,9 @@ describe('delegate behavior', () => {
       user1.jwt
     );
     perspectiveC1 = await createPerspective(
-      creatorId,
+      user1,
       458765,
       'barack_obama',
-      user1.jwt,
       commitC1,
       perspectiveB
     );
@@ -78,10 +74,9 @@ describe('delegate behavior', () => {
       user1.jwt
     );
     const perspectiveC2 = await createPerspective(
-      creatorId,
+      user1,
       123456,
       'cold_war',
-      user1.jwt,
       commitC2,
       perspectiveB
     );
@@ -92,10 +87,9 @@ describe('delegate behavior', () => {
       user1.jwt
     );
     const perspectiveD1 = await createPerspective(
-      creatorId,
+      user1,
       789456,
       'cold_war',
-      user1.jwt,
       commitD1,
       perspectiveC1
     );
