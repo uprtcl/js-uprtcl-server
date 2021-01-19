@@ -1,13 +1,19 @@
 import request from 'supertest';
 import { createApp } from '../../server';
 import { Hashed } from '../uprtcl/types';
+import { ipldService } from '../ipld/ipldService';
+import { localCidConfig } from '../ipld';
 
 export const createData = async (
   data: Object,
   jwt: string
 ): Promise<string> => {
+  const dataId = await ipldService.generateCidOrdered(
+    data,
+    localCidConfig
+  );
   const hashedData: Hashed<Object> = {
-    id: '',
+    id: dataId,
     object: data,
   };
   const router = await createApp();
@@ -17,7 +23,7 @@ export const createData = async (
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   expect(post.status).toEqual(200);
-  return JSON.parse(post.text).elementIds[0];
+  return dataId;
 };
 
 export const getData = async (
