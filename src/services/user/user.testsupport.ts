@@ -4,7 +4,7 @@ import { createApp } from '../../server';
 var ethUtil = require('ethereumjs-util');
 var Web3 = require('web3');
 
-export interface TestUser {
+interface TestUser {
   userId: string;
   jwt: string;
 }
