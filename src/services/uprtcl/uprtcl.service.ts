@@ -163,68 +163,65 @@ export class UprtclService {
     )
       throw new Error(NOT_AUTHORIZED_MSG);
       
-    const oldDetails = await this.getPerspectiveDetails(
-      perspectiveId,
-      loggedUserId
-    );
-    let addedChildren: Array<string> = [];
-    let removedChildren: Array<string> = [];
+    // const oldDetails = await this.getPerspectiveDetails(
+    //   perspectiveId,
+    //   loggedUserId
+    // );
+    // let addedChildren: Array<string> = [];
+    // let removedChildren: Array<string> = [];
 
-    let currentChildren: Array<string> = [];
-    let updatedChildren: Array<string> = [];
+    // let currentChildren: Array<string> = [];
+    // let updatedChildren: Array<string> = [];
 
-    if(details.headId) {
-      if (oldDetails.headId && oldDetails.headId !== '') {
-        const oldDataId = (await this.getCommit(oldDetails.headId, loggedUserId))
-          .object.payload.dataId;
-        const newDataId = (await this.getCommit(details.headId, loggedUserId))
-          .object.payload.dataId;
+    // if(details.headId) {
+    //   if (oldDetails.headId && oldDetails.headId !== '') {
+    //     const oldDataId = (await this.getCommit(oldDetails.headId, loggedUserId))
+    //       .object.payload.dataId;
+    //     const newDataId = (await this.getCommit(details.headId, loggedUserId))
+    //       .object.payload.dataId;
 
-        const oldData = (await this.dataService.getData(oldDataId)).object;
-        const newData = (await this.dataService.getData(newDataId)).object;
+    //     const oldData = (await this.dataService.getData(oldDataId)).object;
+    //     const newData = (await this.dataService.getData(newDataId)).object;
 
-        currentChildren = oldData.pages
-          ? oldData.pages
-          : oldData.links;
-        updatedChildren = newData.pages
-          ? newData.pages
-          : newData.links;
-      } else if(!oldDetails.headId) {
-        const perspTimestamp = (await this.getPerspective(perspectiveId, loggedUserId)).object.payload.timestamp;
+    //     currentChildren = oldData.pages
+    //       ? oldData.pages
+    //       : oldData.links;
+    //     updatedChildren = newData.pages
+    //       ? newData.pages
+    //       : newData.links;
+    //   } else if(!oldDetails.headId) {
+    //     const perspTimestamp = (await this.getPerspective(perspectiveId, loggedUserId)).object.payload.timestamp;
 
-        if(perspTimestamp === 0) {   
-          const newDataId = (await this.getCommit(details.headId, loggedUserId))
-          .object.payload.dataId;
-          const newData = (await this.dataService.getData(newDataId)).object;
-          updatedChildren = newData.pages
-          ? newData.pages
-          : newData.links;
-        }
-      }
+    //     if(perspTimestamp === 0) {   
+    //       const newDataId = (await this.getCommit(details.headId, loggedUserId))
+    //       .object.payload.dataId;
+    //       const newData = (await this.dataService.getData(newDataId)).object;
+    //       updatedChildren = newData.pages
+    //       ? newData.pages
+    //       : newData.links;
+    //     }
+    //   }
 
-      const difference = currentChildren
-              .filter((oldChild: string) => !updatedChildren.includes(oldChild))
-              .concat(
-                updatedChildren.filter(
-                  (newChild: string) => !currentChildren.includes(newChild)
-                )
-              );
+    //   const difference = currentChildren
+    //           .filter((oldChild: string) => !updatedChildren.includes(oldChild))
+    //           .concat(
+    //             updatedChildren.filter(
+    //               (newChild: string) => !currentChildren.includes(newChild)
+    //             )
+    //           );
 
-      difference.map((child) => {
-        if (currentChildren.includes(child)) {
-          removedChildren.push(child);
-        }
+    //   difference.map((child) => {
+    //     if (currentChildren.includes(child)) {
+    //       removedChildren.push(child);
+    //     }
 
-        if (updatedChildren.includes(child)) {
-          addedChildren.push(child);
-        }
-      });
-    }
+    //     if (updatedChildren.includes(child)) {
+    //       addedChildren.push(child);
+    //     }
+    //   });
+    // }
 
-    await this.uprtclRepo.updatePerspective(perspectiveId, details, {
-      addedChildren: addedChildren,
-      removedChildren: removedChildren,
-    });
+    await this.uprtclRepo.updatePerspective(perspectiveId, details);
   }
 
   async deletePerspective(
