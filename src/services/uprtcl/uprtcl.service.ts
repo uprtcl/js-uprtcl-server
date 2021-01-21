@@ -14,6 +14,7 @@ import { PermissionType } from '../access/access.schema';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
 import { DataService } from '../data/data.service';
 import { ipldService } from '../ipld/ipldService';
+import { Entity } from '@uprtcl/evees';
 
 export class UprtclService {
   constructor(
@@ -215,31 +216,24 @@ export class UprtclService {
     let updatedChildren: Array<string> = [];
 
     if (details.headId) {
+      /** Compare the children to update ecosystem */
+      // Get the old/current children
       if (oldDetails.headId && oldDetails.headId !== '') {
         const oldDataId = (
           await this.getCommit(oldDetails.headId, loggedUserId)
         ).object.payload.dataId;
-        const newDataId = (await this.getCommit(details.headId, loggedUserId))
-          .object.payload.dataId;
 
         const oldData = (await this.dataService.getData(oldDataId)).object;
-        const newData = (await this.dataService.getData(newDataId)).object;
-
         currentChildren = oldData.pages ? oldData.pages : oldData.links;
-        updatedChildren = newData.pages ? newData.pages : newData.links;
-      } else if (!oldDetails.headId) {
-        const perspTimestamp = (
-          await this.getPerspective(perspectiveId, loggedUserId)
-        ).object.payload.timestamp;
-
-        if (perspTimestamp === 0) {
-          const newDataId = (await this.getCommit(details.headId, loggedUserId))
-            .object.payload.dataId;
-          const newData = (await this.dataService.getData(newDataId)).object;
-          updatedChildren = newData.pages ? newData.pages : newData.links;
-        }
       }
 
+      // Get the new children
+      const newDataId = (await this.getCommit(details.headId, loggedUserId))
+        .object.payload.dataId;
+      const newData = (await this.dataService.getData(newDataId)).object;
+      updatedChildren = newData.pages ? newData.pages : newData.links;
+
+      // identify added and removed children
       const difference = currentChildren
         .filter((oldChild: string) => !updatedChildren.includes(oldChild))
         .concat(
@@ -307,7 +301,7 @@ export class UprtclService {
   async createCommits(
     commits: Secured<Commit>[],
     _loggedUserId: string | null
-  ): Promise<string[]> {
+  ): Promise<Entity<any>[]> {
     console.log('[UPRTCL-SERVICE] createCommits', commits);
     return await this.uprtclRepo.createCommits(commits);
   }

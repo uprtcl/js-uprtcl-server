@@ -17,6 +17,7 @@ import {
   PROOF_SCHEMA_NAME,
   COMMIT_SCHEMA_NAME,
 } from './uprtcl.schema';
+import { Entity } from '@uprtcl/evees';
 
 const dgraph = require('dgraph-js');
 
@@ -149,13 +150,13 @@ export class UprtclRepository {
     );
   }
 
-  async createCommits(commits: Secured<Commit>[]): Promise<string[]> {
+  async createCommits(commits: Secured<Commit>[]): Promise<Entity<any>[]> {
     if (commits.length === 0) return [];
     await this.db.ready();
 
     let query = ``;
     let nquads = ``;
-    let elementIds = [];
+    let enitites: Entity<any>[] = [];
     const addedUsers: string[] = [];
 
     for (let securedCommit of commits) {
@@ -229,7 +230,10 @@ export class UprtclRepository {
         );
       }
 
-      elementIds.push(id);
+      enitites.push({
+        id,
+        object: securedCommit.object,
+      });
     }
 
     const mu = new dgraph.Mutation();
@@ -247,7 +251,7 @@ export class UprtclRepository {
       result.getUidsMap().toArray()
     );
 
-    return elementIds;
+    return enitites;
   }
 
   async updatePerspective(

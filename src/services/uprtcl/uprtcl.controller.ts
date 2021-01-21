@@ -209,8 +209,8 @@ export class UprtclController {
       },
 
       {
-        path: "/uprtcl/1/persp/:perspectiveId/others",
-        method: "get",
+        path: '/uprtcl/1/persp/:perspectiveId/others',
+        method: 'get',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
@@ -279,46 +279,6 @@ export class UprtclController {
               };
               res.status(400).send(result);
             }
-          },
-        ],
-      },
-
-      {
-        path: '/uprtcl/1/commit',
-        method: 'post',
-        handler: [
-          checkJwt,
-          async (req: Request, res: Response) => {
-            const elementIds = await this.uprtclService.createCommits(
-              [req.body],
-              getUserFromReq(req)
-            );
-            let result: PostResult = {
-              result: SUCCESS,
-              message: '',
-              elementIds,
-            };
-            res.status(200).send(result);
-          },
-        ],
-      },
-
-      {
-        path: '/uprtcl/1/commit/:commitId',
-        method: 'get',
-        handler: [
-          checkJwt,
-          async (req: Request, res: Response) => {
-            const data = await this.uprtclService.getCommit(
-              req.params.commitId,
-              getUserFromReq(req)
-            );
-            let result: GetResult<Secured<Commit>> = {
-              result: SUCCESS,
-              message: '',
-              data: data,
-            };
-            res.status(200).send(result);
           },
         ],
       },
