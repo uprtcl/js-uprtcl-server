@@ -5,7 +5,6 @@ import {
   Secured,
   NewPerspectiveData,
   DgUpdate,
-  UpdateRequest,
   UpdateDetails,
 } from './types';
 import { DGraphService } from '../../db/dgraph.service';
@@ -118,15 +117,16 @@ export class UprtclService {
 
     /** find perspectives whose parent is NOT in the batch of new perspectives */
     const idPromises = await perspectivesData.map(async (p) => {
-        return (p.perspective.id !== '') ? p.perspective.id : (await ipldService.validateSecured(p.perspective))
-      }
-    );
+      return p.perspective.id !== ''
+        ? p.perspective.id
+        : await ipldService.validateSecured(p.perspective);
+    });
 
     const allIds = await Promise.all(idPromises);
-    perspectivesData.map((p, i) => { 
+    perspectivesData.map((p, i) => {
       if (p.perspective.id === '') {
         p.perspective.id = allIds[i];
-      } 
+      }
     });
 
     const external = perspectivesData.filter((p) => {
@@ -214,42 +214,39 @@ export class UprtclService {
     let currentChildren: Array<string> = [];
     let updatedChildren: Array<string> = [];
 
-    if(details.headId) {
+    if (details.headId) {
       if (oldDetails.headId && oldDetails.headId !== '') {
-        const oldDataId = (await this.getCommit(oldDetails.headId, loggedUserId))
-          .object.payload.dataId;
+        const oldDataId = (
+          await this.getCommit(oldDetails.headId, loggedUserId)
+        ).object.payload.dataId;
         const newDataId = (await this.getCommit(details.headId, loggedUserId))
           .object.payload.dataId;
 
         const oldData = (await this.dataService.getData(oldDataId)).object;
         const newData = (await this.dataService.getData(newDataId)).object;
 
-        currentChildren = oldData.pages
-          ? oldData.pages
-          : oldData.links;
-        updatedChildren = newData.pages
-          ? newData.pages
-          : newData.links;
-      } else if(!oldDetails.headId) {
-        const perspTimestamp = (await this.getPerspective(perspectiveId, loggedUserId)).object.payload.timestamp;
+        currentChildren = oldData.pages ? oldData.pages : oldData.links;
+        updatedChildren = newData.pages ? newData.pages : newData.links;
+      } else if (!oldDetails.headId) {
+        const perspTimestamp = (
+          await this.getPerspective(perspectiveId, loggedUserId)
+        ).object.payload.timestamp;
 
-        if(perspTimestamp === 0) {   
+        if (perspTimestamp === 0) {
           const newDataId = (await this.getCommit(details.headId, loggedUserId))
-          .object.payload.dataId;
+            .object.payload.dataId;
           const newData = (await this.dataService.getData(newDataId)).object;
-          updatedChildren = newData.pages
-          ? newData.pages
-          : newData.links;
+          updatedChildren = newData.pages ? newData.pages : newData.links;
         }
       }
 
       const difference = currentChildren
-              .filter((oldChild: string) => !updatedChildren.includes(oldChild))
-              .concat(
-                updatedChildren.filter(
-                  (newChild: string) => !currentChildren.includes(newChild)
-                )
-              );
+        .filter((oldChild: string) => !updatedChildren.includes(oldChild))
+        .concat(
+          updatedChildren.filter(
+            (newChild: string) => !currentChildren.includes(newChild)
+          )
+        );
 
       difference.map((child) => {
         if (currentChildren.includes(child)) {
@@ -295,6 +292,15 @@ export class UprtclService {
       throw new Error(NOT_AUTHORIZED_MSG);
     }
     let details = await this.uprtclRepo.getPerspectiveDetails(perspectiveId);
+    let canUpdate = await this.access.can(
+      perspectiveId,
+      loggedUserId,
+      PermissionType.Write
+    );
+    details = {
+      ...details,
+      canUpdate,
+    };
     return details;
   }
 

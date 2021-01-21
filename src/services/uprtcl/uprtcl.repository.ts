@@ -465,7 +465,9 @@ export class UprtclRepository {
       }
     }`);
 
-    let result = (await this.db.client.newTxn().query(`query{${query}}`)).getJson();   
+    let result = (
+      await this.db.client.newTxn().query(`query{${query}}`)
+    ).getJson();
 
     return result.noParent
       .map((p: any) => p.xid)

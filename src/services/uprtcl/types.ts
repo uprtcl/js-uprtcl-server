@@ -6,6 +6,7 @@ export enum ProposalState {
 }
 
 export interface PerspectiveDetails {
+  canUpdate?: boolean;
   name?: string;
   headId?: string | undefined;
 }
