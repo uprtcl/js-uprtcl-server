@@ -311,14 +311,15 @@ export class UprtclRepository {
       query = query.concat(
         `\nexternal${externalPerspectiveId} as var(func: eq(xid, ${externalPerspectiveId}))
           @recurse {
-            ~accessConfig
+            childPerspExt${externalPerspectiveId} as ~accessConfig
               child${externalPerspectiveId} as ~delegateTo
                 uid
           }`
       );
 
       nquads = nquads.concat(
-        `\nuid(child${externalPerspectiveId}) <finDelegatedTo> uid(external${externalPerspectiveId}) .`
+        `\nuid(child${externalPerspectiveId}) <finDelegatedTo> uid(external${externalPerspectiveId}) .
+         \nuid(external${externalPerspectiveId}) <ecosystem> uid(childPerspExt${externalPerspectiveId}) .`
       );
     } else if(!query.includes(`eq(xid, ${parentId})`)) {
       query = query.concat(
@@ -339,7 +340,7 @@ export class UprtclRepository {
           }
         \nchildren${parentId}(func: uid(finalDelegated${parentId}))
           @recurse {
-            ownerPersp${parentId} as ~accessConfig
+            childPersp${parentId} as ~accessConfig
               child${parentId} as ~delegateTo
               uid
           }`
@@ -347,7 +348,7 @@ export class UprtclRepository {
       
       nquads = nquads.concat(
         `\nuid(child${parentId}) <finDelegatedTo> uid(finalDelegated${parentId}) .
-         \nuid(finalDelegated${parentId}) <ecosystem> uid(ownerPersp${parentId}) .`
+         \nuid(finalDelegated${parentId}) <ecosystem> uid(childPersp${parentId}) .`
       );
     }
 
