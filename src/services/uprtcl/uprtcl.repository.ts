@@ -174,7 +174,6 @@ export class UprtclRepository {
        \n_:permissions${id} <canWrite> uid(profile${did}) .
        \n_:permissions${id} <canAdmin> uid(profile${did}) .`
     );
-    
     if(parentId) {
       // We need to bring that parentId if it is external
       if(externalParentIds.includes(parentId)) {
@@ -183,8 +182,12 @@ export class UprtclRepository {
           query = query.concat(`\nparent${parentId} as var(func: eq(xid, ${parentId}))`);
         }
         nquads = nquads.concat(`\n_:accessConfig${id} <delegateTo> uid(parent${parentId}) .`)
+        // Set children to parent elements
+        nquads = nquads.concat(`\nuid(parent${parentId}) <children> uid(persp${id}) .`);
       } else {
         nquads = nquads.concat(`\n_:accessConfig${id} <delegateTo> uid(persp${parentId}) .`);
+        // Set children to parent elements
+        nquads = nquads.concat(`\nuid(persp${parentId}) <children> uid(persp${id}) .`);
       }
 
       nquads = nquads.concat(`\n_:accessConfig${id} <delegate> "true" .`);
@@ -336,14 +339,15 @@ export class UprtclRepository {
           }
         \nchildren${parentId}(func: uid(finalDelegated${parentId}))
           @recurse {
-            ~accessConfig
+            ownerPersp${parentId} as ~accessConfig
               child${parentId} as ~delegateTo
               uid
           }`
       );
       
       nquads = nquads.concat(
-        `\nuid(child${parentId}) <finDelegatedTo> uid(finalDelegated${parentId}) .`
+        `\nuid(child${parentId}) <finDelegatedTo> uid(finalDelegated${parentId}) .
+         \nuid(finalDelegated${parentId}) <ecosystem> uid(ownerPersp${parentId}) .`
       );
     }
 
@@ -362,10 +366,8 @@ export class UprtclRepository {
     for (let securedCommit of commits) {
       const commit = securedCommit.object.payload;
       const proof = securedCommit.object.proof;
-      // Why?
-      //const id = securedCommit.id;
-      const id = await ipldService.validateSecured(securedCommit);
 
+      const id = securedCommit.id;
       /** make sure creatorId exist */
       for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
         const did = commit.creatorsIds[ix];
@@ -453,8 +455,7 @@ export class UprtclRepository {
 
   async updatePerspective(
     perspectiveId: string,
-    details: PerspectiveDetails,
-    ecosystem: EcosystemUpdates
+    details: PerspectiveDetails
   ): Promise<void> {
     await this.db.ready();
 
@@ -503,15 +504,15 @@ export class UprtclRepository {
     };
 
     // Updates the ecosystem and children
-    const ecosystemUpdated = this.updateEcosystem(
-      ecosystem,
-      perspectiveId,
-      upsert
-    );
+    // const ecosystemUpdated = this.updateEcosystem(
+    //   ecosystem,
+    //   perspectiveId,
+    //   upsert
+    // );
 
-    req.setQuery(`query{${ecosystemUpdated.query}}`);
-    mu.setSetNquads(ecosystemUpdated.nquads);
-    mu.setDelNquads(ecosystemUpdated.delNquads);
+    req.setQuery(`query{${upsert.query}}`);
+    mu.setSetNquads(upsert.nquads);
+    mu.setDelNquads(upsert.delNquads);
 
     req.setMutationsList([mu]);
 
