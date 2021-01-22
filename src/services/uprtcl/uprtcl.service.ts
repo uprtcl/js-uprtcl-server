@@ -15,6 +15,7 @@ import { NOT_AUTHORIZED_MSG } from '../../utils';
 import { DataService } from '../data/data.service';
 import { ipldService } from '../ipld/ipldService';
 import { Entity } from '@uprtcl/evees';
+import { getDataChildren } from './TEMP.childs';
 
 export class UprtclService {
   constructor(
@@ -149,9 +150,11 @@ export class UprtclService {
       perspectivesData.map(async (perspectiveData) => {
         if (perspectiveData.details) {
           /** Bypass update perspective ACL because this is perspective inception */
-          await this.updatePerspective(
-            perspectiveData.perspective.id,
-            perspectiveData.details,
+          await this.deriveChildrentAndUpdatePerspective(
+            {
+              id: perspectiveData.perspective.id,
+              details: perspectiveData.details,
+            },
             loggedUserId
           );
         }
@@ -179,16 +182,62 @@ export class UprtclService {
   ): Promise<void> {
     // update needs to be done one by one to manipulate the ecosystem links
     await Promise.all(
-      updates.map(async (update) => {
-        /** Bypass update perspective ACL because this is perspective inception */
-        await this.updatePerspective(update.id, update.details, loggedUserId);
-      })
+      updates.map((update) =>
+        this.deriveChildrentAndUpdatePerspective(update, loggedUserId)
+      )
+    );
+  }
+
+  async deriveChildrentAndUpdatePerspective(
+    update: UpdateDetails,
+    loggedUserId: string | null
+  ) {
+    /** *************************************************************************/
+    /*** TEMPORARY PATCH TO COMPUTE THE CHILDREN (THEY SHOULD COME FROM THE FE) */
+    /** *************************************************************************/
+
+    let currentChildren: Array<string> = [];
+    let updatedChildren: Array<string> = [];
+
+    const oldDetails = await this.getPerspectiveDetails(
+      update.id,
+      loggedUserId
+    );
+
+    if (update.details.headId) {
+      /** Compare the children to update ecosystem */
+      // Get the old/current children
+      if (oldDetails.headId && oldDetails.headId !== '') {
+        const oldDataId = (
+          await this.getCommit(oldDetails.headId, loggedUserId)
+        ).object.payload.dataId;
+
+        const oldData = (await this.dataService.getData(oldDataId)).object;
+        currentChildren = getDataChildren(oldData);
+      }
+
+      // Get the new children
+      const newDataId = (
+        await this.getCommit(update.details.headId, loggedUserId)
+      ).object.payload.dataId;
+      const newData = (await this.dataService.getData(newDataId)).object;
+      updatedChildren = getDataChildren(newData);
+    }
+    /************************ */
+    await this.updatePerspective(
+      update.id,
+      update.details,
+      currentChildren,
+      updatedChildren,
+      loggedUserId
     );
   }
 
   async updatePerspective(
     perspectiveId: string,
     details: PerspectiveDetails,
+    currentChildren: string[],
+    updatedChildren: string[],
     loggedUserId: string | null
   ): Promise<void> {
     console.log(
@@ -205,53 +254,27 @@ export class UprtclService {
     )
       throw new Error(NOT_AUTHORIZED_MSG);
 
-    const oldDetails = await this.getPerspectiveDetails(
-      perspectiveId,
-      loggedUserId
-    );
     let addedChildren: Array<string> = [];
     let removedChildren: Array<string> = [];
 
-    let currentChildren: Array<string> = [];
-    let updatedChildren: Array<string> = [];
+    // identify added and removed children
+    const difference = currentChildren
+      .filter((oldChild: string) => !updatedChildren.includes(oldChild))
+      .concat(
+        updatedChildren.filter(
+          (newChild: string) => !currentChildren.includes(newChild)
+        )
+      );
 
-    if (details.headId) {
-      /** Compare the children to update ecosystem */
-      // Get the old/current children
-      if (oldDetails.headId && oldDetails.headId !== '') {
-        const oldDataId = (
-          await this.getCommit(oldDetails.headId, loggedUserId)
-        ).object.payload.dataId;
-
-        const oldData = (await this.dataService.getData(oldDataId)).object;
-        currentChildren = oldData.pages ? oldData.pages : oldData.links;
+    difference.map((child) => {
+      if (currentChildren.includes(child)) {
+        removedChildren.push(child);
       }
 
-      // Get the new children
-      const newDataId = (await this.getCommit(details.headId, loggedUserId))
-        .object.payload.dataId;
-      const newData = (await this.dataService.getData(newDataId)).object;
-      updatedChildren = newData.pages ? newData.pages : newData.links;
-
-      // identify added and removed children
-      const difference = currentChildren
-        .filter((oldChild: string) => !updatedChildren.includes(oldChild))
-        .concat(
-          updatedChildren.filter(
-            (newChild: string) => !currentChildren.includes(newChild)
-          )
-        );
-
-      difference.map((child) => {
-        if (currentChildren.includes(child)) {
-          removedChildren.push(child);
-        }
-
-        if (updatedChildren.includes(child)) {
-          addedChildren.push(child);
-        }
-      });
-    }
+      if (updatedChildren.includes(child)) {
+        addedChildren.push(child);
+      }
+    });
 
     await this.uprtclRepo.updatePerspective(perspectiveId, details, {
       addedChildren: addedChildren,

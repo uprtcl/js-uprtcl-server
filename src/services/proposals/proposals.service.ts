@@ -257,11 +257,12 @@ export class ProposalsService {
         headId: newHeadId,
       };
 
-      await this.uprtclService.updatePerspective(
-        perspectiveId,
-        details,
-        loggedUserId
-      );
+      // Proposal acceptace is frontend orchestrated from now on.
+      // await this.uprtclService.updatePerspective(
+      //   perspectiveId,
+      //   details,
+      //   loggedUserId
+      // );
     });
 
     // Updates perspective

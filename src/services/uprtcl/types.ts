@@ -1,3 +1,5 @@
+import { PerspectiveLinks } from '@uprtcl/evees';
+
 export enum ProposalState {
   Open = 'OPEN',
   Rejected = 'REJECTED',
@@ -9,6 +11,7 @@ export interface PerspectiveDetails {
   canUpdate?: boolean;
   name?: string;
   headId?: string | undefined;
+  links?: PerspectiveLinks;
 }
 
 export interface Perspective {
