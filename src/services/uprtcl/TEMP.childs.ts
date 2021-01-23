@@ -7,5 +7,5 @@ export const getDataChildren = (data: any): string[] => {
       (name) => data.sections[name]
     );
 
-  throw new Error(`Unexpected data object ${data}`);
+  throw new Error(`Unexpected data object ${JSON.stringify(data)}`);
 };
