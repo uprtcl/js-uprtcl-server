@@ -147,9 +147,6 @@ export class UprtclRepository {
 
     nquads = nquads.concat(`\nuid(persp${id}) <proof> _:proof${id} .`);
 
-    /** add itself as its ecosystem */
-    nquads = nquads.concat(`\nuid(persp${id}) <ecosystem> uid(persp${id}) .`);
-
     /** adds head */
     if (perspectiveDetails?.headId) {
       nquads = nquads.concat(`
@@ -174,6 +171,12 @@ export class UprtclRepository {
        \n_:permissions${id} <canWrite> uid(profile${did}) .
        \n_:permissions${id} <canAdmin> uid(profile${did}) .`
     );
+
+    if(!externalParentIds.includes(id)) {
+      /** add itself as its ecosystem */
+      nquads = nquads.concat(`\nuid(persp${id}) <ecosystem> uid(persp${id}) .`);
+    }
+
     if(parentId) {
       // We need to bring that parentId if it is external
       if(externalParentIds.includes(parentId)) {
@@ -188,6 +191,8 @@ export class UprtclRepository {
         nquads = nquads.concat(`\n_:accessConfig${id} <delegateTo> uid(persp${parentId}) .`);
         // Set children to parent elements
         nquads = nquads.concat(`\nuid(persp${parentId}) <children> uid(persp${id}) .`);
+        // Set ecosystem to parent elements
+        nquads = nquads.concat(`\nuid(persp${parentId}) <ecosystem> uid(persp${id}) .`);
       }
 
       nquads = nquads.concat(`\n_:accessConfig${id} <delegate> "true" .`);
@@ -216,7 +221,13 @@ export class UprtclRepository {
     let upsert: Upsert = {
       query: ``,
       nquads: ``
-    }
+    };
+
+    let ACLupsert: Upsert = {
+      query: ``,
+      nquads: ``
+    };
+
     let upsertedProfiles: string[] = [];
     let perspectiveIds = newPerspectives.map((p) => p.perspective.id);
 
@@ -264,11 +275,6 @@ export class UprtclRepository {
     let result = await this.db.callRequest(req);
 
     // Keep the ACL layer updated.
-    let ACLupsert = {
-      query: ``,
-      nquads: ``
-    };
-
     for(let i = 0; i < externalParentPerspectives.length; i++) {
       const externalPerspective = externalParentPerspectives[i];
       const aclUpsertString = this.recurseACLupdateUpsert(
@@ -311,7 +317,7 @@ export class UprtclRepository {
       query = query.concat(
         `\nexternal${externalPerspectiveId} as var(func: eq(xid, ${externalPerspectiveId}))
           @recurse {
-            childPerspExt${externalPerspectiveId} as ~accessConfig
+            childPersp${externalPerspectiveId} as ~accessConfig
               child${externalPerspectiveId} as ~delegateTo
                 uid
           }`
@@ -319,12 +325,15 @@ export class UprtclRepository {
 
       nquads = nquads.concat(
         `\nuid(child${externalPerspectiveId}) <finDelegatedTo> uid(external${externalPerspectiveId}) .
-         \nuid(external${externalPerspectiveId}) <ecosystem> uid(childPerspExt${externalPerspectiveId}) .`
+         \nuid(external${externalPerspectiveId}) <ecosystem> uid(childPersp${externalPerspectiveId}) .`
       );
     } else if(!query.includes(`eq(xid, ${parentId})`)) {
       query = query.concat(
         `\nparent${parentId} as var(func: eq(xid, ${parentId})){
           xid
+          children {
+            childEco${parentId} as ecosystem
+          }
           accessConfig @filter(eq(delegate, true)) {
             uid
             final${parentId} as finDelegatedTo
@@ -338,7 +347,7 @@ export class UprtclRepository {
               uid
             }
           }
-        \nchildren${parentId}(func: uid(finalDelegated${parentId}))
+        \nel${parentId}(func: uid(finalDelegated${parentId}))
           @recurse {
             childPersp${parentId} as ~accessConfig
               child${parentId} as ~delegateTo
@@ -348,7 +357,8 @@ export class UprtclRepository {
       
       nquads = nquads.concat(
         `\nuid(child${parentId}) <finDelegatedTo> uid(finalDelegated${parentId}) .
-         \nuid(finalDelegated${parentId}) <ecosystem> uid(childPersp${parentId}) .`
+         \nuid(finalDelegated${parentId}) <ecosystem> uid(childPersp${parentId}) .
+         \nuid(parent${parentId}) <ecosystem> uid(childEco${parentId}) .`
       );
     }
 
