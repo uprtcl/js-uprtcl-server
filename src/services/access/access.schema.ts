@@ -9,32 +9,32 @@ export enum PermissionType {
   Admin = 'Admin',
 }
 
-export const ACCESS_SCHEMA = `
+// export const ACCESS_SCHEMA = `
 
-type ${PERMISSIONS_SCHEMA_NAME} {
-  publicRead: bool
-  publicWrite: bool
-  can${PermissionType.Read}: [${PROFILE_SCHEMA_NAME}]
-  can${PermissionType.Write}: [${PROFILE_SCHEMA_NAME}]
-  can${PermissionType.Admin}: [${PROFILE_SCHEMA_NAME}]
-}
+// type ${PERMISSIONS_SCHEMA_NAME} {
+//   publicRead: bool
+//   publicWrite: bool
+//   can${PermissionType.Read}: [${PROFILE_SCHEMA_NAME}]
+//   can${PermissionType.Write}: [${PROFILE_SCHEMA_NAME}]
+//   can${PermissionType.Admin}: [${PROFILE_SCHEMA_NAME}]
+// }
 
-type ${ACCESS_CONFIG_SCHEMA_NAME} {
-  delegate: bool
-  delegateTo: uid
-  finDelegatedTo: uid
-  permissions: ${PERMISSIONS_SCHEMA_NAME}
-}
+// type ${ACCESS_CONFIG_SCHEMA_NAME} {
+//   delegate: bool
+//   delegateTo: uid
+//   finDelegatedTo: uid
+//   permissions: ${PERMISSIONS_SCHEMA_NAME}
+// }
 
-canRead: [uid] .
-canWrite: [uid] .
-canAdmin: [uid] .
-accessConfig: uid @reverse .
-permissions: uid .
-publicRead: bool @index(bool) .
-publicWrite: bool @index(bool) .
-delegate: bool .
-delegateTo: uid @reverse .
-finDelegatedTo: uid @reverse .
+// canRead: [uid] .
+// canWrite: [uid] .
+// canAdmin: [uid] .
+// accessConfig: uid @reverse .
+// permissions: uid .
+// publicRead: bool @index(bool) .
+// publicWrite: bool @index(bool) .
+// delegate: bool .
+// delegateTo: uid @reverse .
+// finDelegatedTo: uid @reverse .
 
-`;
+// `;
