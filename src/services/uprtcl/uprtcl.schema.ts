@@ -1,8 +1,15 @@
 import { ACCESS_CONFIG_SCHEMA_NAME } from '../access/access.schema';
+import { PROFILE_SCHEMA_NAME } from '../user/user.schema';
 
 export const PERSPECTIVE_SCHEMA_NAME = 'Perspective';
 export const PROOF_SCHEMA_NAME = 'Proof';
 export const COMMIT_SCHEMA_NAME = 'Commit';
+
+export enum PermissionType {
+  Read = 'Read',
+  Write = 'Write',
+  Admin = 'Admin',
+}
 
 export const UPRTCL_SCHEMA = `
 
@@ -17,11 +24,18 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   stored: bool
   path: string
   remote: string
-  accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
   proof: ${PROOF_SCHEMA_NAME}
   ecosystem: [uid]
   children: [uid]
   deleted: bool
+  delegate: bool
+  delegateTo: uid
+  finDelegatedTo: uid
+  publicRead: bool
+  publicWrite: bool
+  can${PermissionType.Read}: [${PROFILE_SCHEMA_NAME}]
+  can${PermissionType.Write}: [${PROFILE_SCHEMA_NAME}]
+  can${PermissionType.Admin}: [${PROFILE_SCHEMA_NAME}]
 }
 
 type ${COMMIT_SCHEMA_NAME} {
@@ -32,7 +46,6 @@ type ${COMMIT_SCHEMA_NAME} {
   parents: [uid]
   data: uid
   stored: bool
-  accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
 }
 
 type ${PROOF_SCHEMA_NAME} {
@@ -60,5 +73,13 @@ children: [uid] @reverse .
 deleted: bool @index(bool) . 
 remote: string .
 path: string .
+canRead: [uid] .
+canWrite: [uid] .
+canAdmin: [uid] .
+publicRead: bool @index(bool) .
+publicWrite: bool @index(bool) .
+delegate: bool .
+delegateTo: uid @reverse .
+finDelegatedTo: uid @reverse .
 
 `;
