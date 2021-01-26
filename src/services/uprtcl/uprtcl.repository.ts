@@ -10,14 +10,14 @@ import {
   Proof,
   NewPerspectiveData,
   Upsert,
-  EcosystemUpdates,
+  UpdateRequest
 } from './types';
 import {
   PERSPECTIVE_SCHEMA_NAME,
   PROOF_SCHEMA_NAME,
   COMMIT_SCHEMA_NAME,
 } from './uprtcl.schema';
-import { ACCESS_CONFIG_SCHEMA_NAME, PERMISSIONS_SCHEMA_NAME } from '../access/access.schema';
+import { format } from 'path';
 
 const dgraph = require('dgraph-js');
 
@@ -69,20 +69,11 @@ export class UprtclRepository {
   createPerspectiveUpsert(
     upsertedProfiles: string[],
     externalParentIds: string[],
-    {
-      upsert: {
-        query,
-        nquads
-      }
-    } : { upsert: Upsert },
-    { 
-      newPerspective: { 
-        perspective: securedPerspective, 
-        details: perspectiveDetails,
-        parentId
-      } 
-    } : { newPerspective: NewPerspectiveData }) {
-    const {
+    upsert: Upsert,
+    newPerspective: NewPerspectiveData) {
+
+    // Perspective object destructuring
+    const {    
       id,
       object: {
         payload: {
@@ -94,8 +85,10 @@ export class UprtclRepository {
         },
         proof
       }
-    } = securedPerspective;
-
+    } = newPerspective.perspective;
+    
+    let { query, nquads } = upsert;
+ 
     if (!upsertedProfiles.includes(creatorId)) {
       upsertedProfiles.push(creatorId);
       const creatorSegment = this.userRepo.upsertQueries(
@@ -110,10 +103,6 @@ export class UprtclRepository {
     query = query.concat(
       `\npersp${id} as var(func: eq(xid, "${id}"))`
     );
-    // Sets query for head
-    if(perspectiveDetails?.headId) {
-      query = query.concat(`\nhead${perspectiveDetails.headId} as var(func: eq(xid, "${perspectiveDetails.headId}"))`);
-    }
 
     nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
     nquads = nquads.concat(`\nuid(persp${id}) <stored> "true" .`);
@@ -147,70 +136,48 @@ export class UprtclRepository {
 
     nquads = nquads.concat(`\nuid(persp${id}) <proof> _:proof${id} .`);
 
-    /** adds head */
-    if (perspectiveDetails?.headId) {
-      nquads = nquads.concat(`
-        \nuid(head${perspectiveDetails.headId}) <xid> "${perspectiveDetails.headId}" .
-        \nuid(head${perspectiveDetails.headId}) <dgraph.type> "${COMMIT_SCHEMA_NAME}" .
-      `);
-      nquads = nquads.concat(`\nuid(persp${id}) <head> uid(head${perspectiveDetails.headId}) .`);
-    }
-
-    if (perspectiveDetails?.name)
-      nquads = nquads.concat(`\nuid(persp${id}) <name> "${perspectiveDetails.name}" .`);
-
     // Permissions and ACL
     //-----------------------------//
 
     /** Sets default permissions */
     nquads = nquads.concat(
-      `\n_:permissions${id} <publicRead> "false" .
-       \n_:permissions${id} <dgraph.type> "${PERMISSIONS_SCHEMA_NAME}" .
-       \n_:permissions${id} <publicWrite> "false" .
-       \n_:permissions${id} <canRead> uid(profile${did}) .
-       \n_:permissions${id} <canWrite> uid(profile${did}) .
-       \n_:permissions${id} <canAdmin> uid(profile${did}) .`
+      `\nuid(persp${id}) <publicRead> "false" .
+       \nuid(persp${id}) <publicWrite> "false" .
+       \nuid(persp${id}) <canRead> uid(profile${did}) .
+       \nuid(persp${id}) <canWrite> uid(profile${did}) .
+       \nuid(persp${id}) <canAdmin> uid(profile${did}) .`
     );
 
-    if(!externalParentIds.includes(id)) {
-      /** add itself as its ecosystem */
-      nquads = nquads.concat(`\nuid(persp${id}) <ecosystem> uid(persp${id}) .`);
-    }
+    /** add itself as its ecosystem */
+    nquads = nquads.concat(`\nuid(persp${id}) <ecosystem> uid(persp${id}) .`);
 
-    if(parentId) {
+    if(newPerspective.parentId) {
       // We need to bring that parentId if it is external
-      if(externalParentIds.includes(parentId)) {
-        // Avoid possible duplication
-        if(!query.includes(`eq(xid, ${parentId})`)) {
-          query = query.concat(`\nparent${parentId} as var(func: eq(xid, ${parentId}))`);
-        }
-        nquads = nquads.concat(`\n_:accessConfig${id} <delegateTo> uid(parent${parentId}) .`)
-        // Set children to parent elements
-        nquads = nquads.concat(`\nuid(parent${parentId}) <children> uid(persp${id}) .`);
+      if(externalParentIds.includes(newPerspective.parentId)) {
+        /** This perspective is an external perspective and has a parentId that already 
+         * exists on the database */ 
+          
+        query = query.concat(`\nparentOfExt${id} as var(func: eq(xid, ${newPerspective.parentId})) {
+          finDelOfParentOfExt${id} as finDelegateTo
+        }`);
+
+        nquads = nquads.concat(`\nuid(persp${id}) <delegateTo> uid(parentOfExt${newPerspective.parentId}) .`);
+        nquads = nquads.concat(`\nuid(persp${id}) <finDelegateTo> finDelOfParentOfExt${id}`);        
       } else {
-        nquads = nquads.concat(`\n_:accessConfig${id} <delegateTo> uid(persp${parentId}) .`);
-        // Set children to parent elements
-        nquads = nquads.concat(`\nuid(persp${parentId}) <children> uid(persp${id}) .`);
-        // Set ecosystem to parent elements
-        nquads = nquads.concat(`\nuid(persp${parentId}) <ecosystem> uid(persp${id}) .`);
+        nquads = nquads.concat(`\nuid(persp${id}) <delegateTo> uid(persp${newPerspective.parentId}) .`);
+        /** because the parent is in the batch, we cannot set the finDelegateTo and  
+         * have to postpone it to another subsequent query */ 
       }
 
-      nquads = nquads.concat(`\n_:accessConfig${id} <delegate> "true" .`);
+      nquads = nquads.concat(`\nuid(persp${id}) <delegate> "true" .`);
     } else {
       // Assings itself as finalDelegatedTo
       nquads = nquads.concat(
-        `\n_:accessConfig${id} <finDelegatedTo> uid(persp${id}) .
-         \n_:accessConfig${id} <delegate> "false" .`
+        `\nuid(persp${id}) <finDelegatedTo> uid(persp${id}) .
+         \nuid(persp${id}) <delegate> "false" .`
       );
     }
     
-    nquads = nquads.concat(
-      `\n_:accessConfig${id} <dgraph.type> "${ACCESS_CONFIG_SCHEMA_NAME}" .
-       \n_:accessConfig${id} <permissions> _:permissions${id} .
-       \nuid(persp${id}) <accessConfig> _:accessConfig${id} .`
-    );
-    // Finishes ACL and permissions
-
     return { query, nquads };
   }
 
@@ -231,7 +198,6 @@ export class UprtclRepository {
     let upsertedProfiles: string[] = [];
     let perspectiveIds = newPerspectives.map((p) => p.perspective.id);
 
-    //Top level hierarchy
     const externalParentPerspectives = newPerspectives.filter((p) => {
       if(p.parentId !== null) {
         if(p.parentId !== undefined) {
@@ -247,14 +213,14 @@ export class UprtclRepository {
     });
 
     const externalParentIds = [...new Set(externalParentPerspectives.map((p) => p.parentId))];
-
+    
     for(let i = 0; i < newPerspectives.length; i++) {
         const newPerspective = newPerspectives[i];
         const upsertString = this.createPerspectiveUpsert(
           upsertedProfiles,
           externalParentIds as string[],
-          { upsert },
-          { newPerspective }
+          upsert,
+          newPerspective
         );
 
         if(i < 1) {
@@ -274,13 +240,12 @@ export class UprtclRepository {
 
     let result = await this.db.callRequest(req);
 
-    // Keep the ACL layer updated.
+    // Keep the ACL redundant layer updated.
     for(let i = 0; i < externalParentPerspectives.length; i++) {
       const externalPerspective = externalParentPerspectives[i];
       const aclUpsertString = this.recurseACLupdateUpsert(
         externalPerspective.perspective.id,
-        externalPerspective.parentId,
-        { ACLupsert }
+        ACLupsert
       ); 
 
       if(i < 1) {
@@ -307,62 +272,252 @@ export class UprtclRepository {
     );
   }
 
-  recurseACLupdateUpsert(externalPerspectiveId: string, parentId: string | undefined, {
-    ACLupsert: {
-      query,
-      nquads
-    }
-  } : { ACLupsert: Upsert }) {
-    if(parentId === null || parentId === undefined) {
-      query = query.concat(
-        `\nexternal${externalPerspectiveId} as var(func: eq(xid, ${externalPerspectiveId}))
-          @recurse {
-            childPersp${externalPerspectiveId} as ~accessConfig
-              child${externalPerspectiveId} as ~delegateTo
-                uid
-          }`
-      );
+  recurseACLupdateUpsert(externalPerspectiveId: string, upsert: Upsert) {
+    let { query, nquads } = upsert;
+    query = query.concat(
+      `\nexternal${externalPerspectiveId} as var(func: eq(xid, ${externalPerspectiveId}))
+        @recurse {
+          inheritingFrom${externalPerspectiveId} as ~delegateTo
+          uid
+        }`
+    );
 
-      nquads = nquads.concat(
-        `\nuid(child${externalPerspectiveId}) <finDelegatedTo> uid(external${externalPerspectiveId}) .
-         \nuid(external${externalPerspectiveId}) <ecosystem> uid(childPersp${externalPerspectiveId}) .`
-      );
-    } else if(!query.includes(`eq(xid, ${parentId})`)) {
-      query = query.concat(
-        `\nparent${parentId} as var(func: eq(xid, ${parentId})){
-          xid
-          children {
-            childEco${parentId} as ecosystem
-          }
-          accessConfig @filter(eq(delegate, true)) {
-            uid
-            final${parentId} as finDelegatedTo
-            }
-          }
-        \nfinalDelegated${parentId} as var(func: has(context))
-          @filter(uid(final${parentId}) OR uid(parent${parentId})) 
-          @cascade {
-            xid
-            accessConfig @filter(eq(delegate, "false")) {
-              uid
-            }
-          }
-        \nel${parentId}(func: uid(finalDelegated${parentId}))
-          @recurse {
-            childPersp${parentId} as ~accessConfig
-              child${parentId} as ~delegateTo
-              uid
-          }`
-      );
-      
-      nquads = nquads.concat(
-        `\nuid(child${parentId}) <finDelegatedTo> uid(finalDelegated${parentId}) .
-         \nuid(finalDelegated${parentId}) <ecosystem> uid(childPersp${parentId}) .
-         \nuid(parent${parentId}) <ecosystem> uid(childEco${parentId}) .`
-      );
-    }
+    query = query.concat(`\nexternalForFinDel${externalPerspectiveId} as var(func: eq(xid, ${externalPerspectiveId})) {
+      finalDelegateOf${externalPerspectiveId} as finDelegateTo
+    }`);
+  
+    nquads = nquads.concat(
+      `\nuid(inheritingFrom${externalPerspectiveId}) <finDelegatedTo> uid(finalDelegateOf${externalPerspectiveId}) .`
+    );
 
     return { query, nquads };
+
+  }
+
+  async updatePerspectives(
+    updates: UpdateRequest[]
+  ): Promise<void> {
+
+    let childrenUpsert: Upsert = {nquads: ``, delNquads: ``, query: ``};
+    let ecoUpsert: Upsert = { query: ``, nquads: ``, delNquads: `` };
+
+    // const allIds = updates.map((update) => update.perspectiveId);
+
+    // let externalAddedChildren: string[] = [];
+    // let externalDeletedChildren: string[] = [];
+
+    /**
+     * I don't think we need the external children, because the internal, the ones inside the batch
+     * would be already created as well, since this is a consecutive transaction.
+     * 
+     */
+    // /** We need to loop throughout every perspective (updates), to see the added children
+    //  * coming from the front-end.
+    //  */
+    // for(let i = 0; i < updates.length; i++) {
+    //   // In here, we check for every child to see if it is actually outside the batch (updates)
+    //   updates[i].addedChildren?.forEach((child, xi) => {
+    //     if(allIds.includes(child)) {
+    //       // We collect those children to query them in the db afterwards.
+    //       externalAddedChildren.push(child);
+    //       /**
+    //        * We remove the external child from the original array
+    //        * so we can keep the internal ones in the addedChildren array.
+    //        */
+    //       updates[i].addedChildren?.splice(xi, 1);
+    //     }
+    //   })
+
+    //   // We do the same with the deletedChildren
+    //   updates[i].deletedChildren?.forEach((child, xi) => {
+    //     if(allIds.includes(child)) {
+    //       externalDeletedChildren.push(child);
+    //       updates[i].deletedChildren?.splice(xi, 1);
+    //     }
+    //   })
+    // }
+
+    /**
+     * The reason why we have a second loop, is beacuse the first one
+     * is to collect the external children. Once collected,
+     * we'll resuse that data inside this loop.
+     */
+    for(let i = 0; i < updates.length; i++) {
+      /**
+       * We start building the DB query by calling the upsert function.
+       * First, we start by the children.
+       */
+      const childrenUpsertString = this.updatePerspectiveUpsert(
+        updates[i],
+        // externalAddedChildren,
+        // externalDeletedChildren,
+        childrenUpsert
+      );
+
+      /**
+       * Consequently, we start calling the ecosystem upsert function.
+       */
+      const ecoUpsertString = this.updateEcosystem(
+        updates[i],
+        ecoUpsert
+      );
+
+      /**
+       * To have in mind: The 2 previous functions are synchronous, which 
+       * means that, we do not actually talk to the db, we just build the
+       * strings that will be send to perform the actual transactions.
+       */
+
+       //--------- 
+
+      /**
+       * We start concatenating the strings after having initialized the variables
+       * with the first call, so we accumulate as the loop goes forward.
+       */
+      if(i < 1) {
+        childrenUpsert.query = childrenUpsert.query.concat(childrenUpsertString.query);
+        childrenUpsert.nquads = childrenUpsert.nquads.concat(childrenUpsertString.nquads);
+
+        ecoUpsert.query = ecoUpsert.query.concat(ecoUpsertString.query);
+        ecoUpsert.nquads = ecoUpsert.nquads.concat(ecoUpsertString.nquads);
+      }
+
+      childrenUpsert = childrenUpsertString;
+      ecoUpsert = ecoUpsertString;
+    }
+
+    // We call the db to be prepared for transactions
+    await this.db.ready();
+
+    // We perform first, the children transaction | TRX #3
+    const childrenMutation = new dgraph.Mutation();
+    const childrenRequest = new dgraph.Request();
+
+    childrenRequest.setQuery(`query{${childrenUpsert.query}}`);
+    childrenMutation.setSetNquads(childrenUpsert.nquads);
+    childrenMutation.setDelNquads(childrenUpsert.delNquads);
+
+    childrenRequest.setMutationsList([childrenMutation]);
+
+    await this.db.callRequest(childrenRequest);
+
+    // Secondly, we perform the ecosystem transaction | TRX #4
+    /**
+     * We need to perforn TXR #4 after TXR #3, because the ecosystem query will rely
+     * on the children of each perspective that already exists inside the database.
+     * Think of the ecosystem as the geonological tree of a human.
+     */
+    const ecoMutation = new dgraph.Mutation();
+    const ecoRequest = new dgraph.Request();
+
+    ecoRequest.setQuery(`query{${ecoUpsert.query}}`);
+    ecoMutation.setSetNquads(ecoUpsert.nquads);
+    ecoMutation.setDelNquads(ecoUpsert.delNquads);
+
+    ecoRequest.setMutationsList([ecoMutation]);
+
+    await this.db.callRequest(ecoRequest);
+  }
+
+  updatePerspectiveUpsert(
+    update: UpdateRequest,
+    // externalAddedChildren: string[],
+    // externalDeletedChildren: string[],
+    upsert: Upsert
+  ) {
+    let { query, nquads, delNquads } = upsert;
+    const { perspectiveId, newHeadId } = update;
+
+    // WARNING: IF THE PERSPECTIVE ENDS UP HAVING TWO HEADS, CHECK DGRAPH DOCS FOR RECENT UPDATES
+    // IF NO SOLUTION, THEN BATCH DELETE ALL HEADS BEFORE BATCH UPDATE THEM
+
+    // We update the current xid.
+    query = `persp${perspectiveId} as var(func: eq(xid, "${perspectiveId}"))`;
+    nquads = nquads.concat(`\nuid(persp) <xid> "${perspectiveId}" .`);
+
+    // If the current perspective we are seeing isn't headless, we proceed to update the ecosystem and its head.
+    if (newHeadId !== undefined) {
+      // We set the head for previous created perspective.
+      query = query.concat(`\nheadOf${perspectiveId} as var(func: eq(xid, "${newHeadId}"))`);
+      nquads = nquads.concat(`\nuid(headOf${perspectiveId}) <xid> "${newHeadId}" .`);
+      nquads = nquads.concat(`\nuid(persp${perspectiveId} ) <head> uid(headOf${perspectiveId}) .`);
+      
+      // We set the external children for the previous created persvective.
+      update.addedChildren?.forEach((child, ix) => {
+        query = query.concat(`\naddedChildOf${perspectiveId}${ix} as var(func: eq(xid, ${child}))`);
+        nquads = nquads.concat(`\nuid(persp${perspectiveId} ) <children> uid(addedChildOf${perspectiveId}${ix}) .`);
+      });
+
+      // We remove the possible external children for an existing perspective.
+      update.deletedChildren?.forEach((child, ix) => {
+        query = query.concat(`\nremovedChildOf${perspectiveId}${ix} as var(func: eq(xid, ${child}))`);
+        delNquads = delNquads?.concat(`\nuid(persp${perspectiveId} ) <children> uid(removedChildOf${perspectiveId}${ix}) .`);
+      });
+    }
+
+    return { query, nquads, delNquads };
+  }
+
+  updateEcosystem(
+    update: UpdateRequest,
+    upsert: Upsert
+  ) {
+    let { query, nquads, delNquads } = upsert;
+
+    if(update.addedChildren) {
+      update.addedChildren.map((addedChild, i) => {
+        query = query.concat(`\n
+          addedChild${i} as var(func: eq(xid, ${addedChild}))        
+          {
+            ecoAdd${i} as ecosystem            
+          }
+        `);
+        nquads = nquads.concat(
+          `\nuid(perspective) <ecosystem> uid(ecoAdd${i}) .`
+        );
+        nquads = nquads.concat(
+          `\nuid(perspective) <children> uid(addedChild${i}) .`
+        );
+
+        query = query.concat(`\n
+          ecs${i}(func: eq(xid, ${update.perspectiveId}))        
+          {
+            revEcoAdd${i} as ~ecosystem            
+          }
+        `);
+        nquads = nquads.concat(
+          `\nuid(revEcoAdd${i}) <ecosystem> uid(ecoAdd${i}) .`
+        );
+      });
+    }
+
+    if(update.deletedChildren) {
+      update.deletedChildren.map((removedChild, i) => {
+        query = query.concat(`\n
+          removedChild${i} as var(func: eq(xid, ${removedChild}))        
+          {
+            ecoDelete${i} as ecosystem            
+          }
+        `);
+        delNquads = delNquads?.concat(
+          `\nuid(perspective) <ecosystem> uid(ecoDelete${i}) .`
+        );
+        delNquads = delNquads?.concat(
+          `\nuid(perspective) <children> uid(removedChild${i}) .`
+        );
+
+        query = query.concat(`\n
+          qs${i}(func: eq(xid, ${update.perspectiveId}))        
+          {
+            revEcoDelete${i} as ~ecosystem            
+          }
+        `);
+        delNquads = delNquads?.concat(
+          `\nuid(revEcoDelete${i}) <ecosystem> uid(ecoDelete${i}) .`
+        );
+      });
+    }
+    return { query, nquads, delNquads };
   }
 
   async createCommits(commits: Secured<Commit>[]): Promise<string[]> {
@@ -462,138 +617,6 @@ export class UprtclRepository {
     );
 
     return elementIds;
-  }
-
-  async updatePerspective(
-    perspectiveId: string,
-    details: PerspectiveDetails
-  ): Promise<void> {
-    await this.db.ready();
-
-    details.headId = !details.headId ? undefined : details.headId;
-
-    if (details.headId !== undefined) {
-      /** delete the current head */
-      const delMu = new dgraph.Mutation();
-      let queryDel = `perspective as var(func: eq(xid, "${perspectiveId}"))`;
-      let delNquads = `uid(perspective) <head> * .`;
-      delMu.setDelNquads(delNquads);
-
-      const delReq = new dgraph.Request();
-      delReq.setQuery(`query{${queryDel}}`);
-      delReq.setCommitNow(true);
-      delReq.setMutationsList([delMu]);
-
-      await this.db.client.newTxn().doRequest(delReq);
-    }
-
-    /**  */
-    const mu = new dgraph.Mutation();
-    const req = new dgraph.Request();
-
-    let query = `perspective as var(func: eq(xid, "${perspectiveId}"))`;
-    if (details.headId !== undefined)
-      query = query.concat(`\nhead as var(func: eq(xid, "${details.headId}"))`);
-
-    let nquads = '';
-    nquads = nquads.concat(`\nuid(perspective) <xid> "${perspectiveId}" .`);
-
-    let delNquads = '';
-
-    if (details.headId !== undefined) {
-      /** set xid in case the perspective did not existed */
-      nquads = nquads.concat(`\nuid(head) <xid> "${details.headId}" .`);
-      nquads = nquads.concat(`\nuid(perspective) <head> uid(head) .`);
-    }
-    if (details.name !== undefined)
-      nquads = nquads.concat(`\nuid(perspective) <name> "${details.name}" .`);
-
-    const upsert: Upsert = {
-      query: query,
-      nquads: nquads,
-      delNquads: delNquads,
-    };
-
-    // Updates the ecosystem and children
-    // const ecosystemUpdated = this.updateEcosystem(
-    //   ecosystem,
-    //   perspectiveId,
-    //   upsert
-    // );
-
-    req.setQuery(`query{${upsert.query}}`);
-    mu.setSetNquads(upsert.nquads);
-    mu.setDelNquads(upsert.delNquads);
-
-    req.setMutationsList([mu]);
-
-    let result = await this.db.callRequest(req);
-
-    console.log(
-      '[DGRAPH] updatePerspective',
-      { query },
-      { nquads },
-      result.getUidsMap().toArray()
-    );
-  }
-
-  updateEcosystem(
-    ecosystem: EcosystemUpdates,
-    perspectiveId: string,
-    upsert: Upsert
-  ) {
-    let { query, nquads, delNquads } = upsert;
-
-    ecosystem.addedChildren.map((addedChild, i) => {
-      query = query.concat(`\n
-        addedChild${i} as var(func: eq(xid, ${addedChild}))        
-        {
-          ecoAdd${i} as ecosystem            
-        }
-      `);
-      nquads = nquads.concat(
-        `\nuid(perspective) <ecosystem> uid(ecoAdd${i}) .`
-      );
-      nquads = nquads.concat(
-        `\nuid(perspective) <children> uid(addedChild${i}) .`
-      );
-
-      query = query.concat(`\n
-        ecs${i}(func: eq(xid, ${perspectiveId}))        
-        {
-          revEcoAdd${i} as ~ecosystem            
-        }
-      `);
-      nquads = nquads.concat(
-        `\nuid(revEcoAdd${i}) <ecosystem> uid(ecoAdd${i}) .`
-      );
-    });
-
-    ecosystem.removedChildren.map((removedChild, i) => {
-      query = query.concat(`\n
-        removedChild${i} as var(func: eq(xid, ${removedChild}))        
-        {
-          ecoDelete${i} as ecosystem            
-        }
-      `);
-      delNquads = delNquads?.concat(
-        `\nuid(perspective) <ecosystem> uid(ecoDelete${i}) .`
-      );
-      delNquads = delNquads?.concat(
-        `\nuid(perspective) <children> uid(removedChild${i}) .`
-      );
-
-      query = query.concat(`\n
-        qs${i}(func: eq(xid, ${perspectiveId}))        
-        {
-          revEcoDelete${i} as ~ecosystem            
-        }
-      `);
-      delNquads = delNquads?.concat(
-        `\nuid(revEcoDelete${i}) <ecosystem> uid(ecoDelete${i}) .`
-      );
-    });
-    return { query, nquads, delNquads };
   }
 
   async getOtherIndpPerspectives(
