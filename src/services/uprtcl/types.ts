@@ -24,11 +24,6 @@ export interface Perspective {
   context: string;
 }
 
-export interface EcosystemUpdates {
-  addedChildren: Array<string>;
-  removedChildren: Array<string>;
-}
-
 export const getAuthority = (perspective: Perspective): string => {
   return `${perspective.remote}:${perspective.path}`;
 };
@@ -54,8 +49,10 @@ export interface Proposal {
 export interface UpdateRequest {
   fromPerspectiveId?: string;
   oldHeadId?: string;
+  deletedChildren?: string[];
   perspectiveId: string;
-  newHeadId: string;
+  newHeadId: string | undefined;
+  addedChildren?: string[];
 }
 
 export interface UpdateDetails {
@@ -89,6 +86,7 @@ export type Secured<T = any> = Hashed<Signed<T>>;
 export interface NewPerspectiveData {
   perspective: Secured<Perspective>;
   details?: PerspectiveDetails;
+  childrenId?: string[];
   parentId?: string;
 }
 
