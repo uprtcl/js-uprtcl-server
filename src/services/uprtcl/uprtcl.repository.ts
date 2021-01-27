@@ -10,7 +10,7 @@ import {
   Proof,
   NewPerspectiveData,
   Upsert,
-  UpdateRequest
+  UpdateDetails
 } from './types';
 import {
   PERSPECTIVE_SCHEMA_NAME,
@@ -295,47 +295,11 @@ export class UprtclRepository {
   }
 
   async updatePerspectives(
-    updates: UpdateRequest[]
+    updates: UpdateDetails[]
   ): Promise<void> {
 
     let childrenUpsert: Upsert = {nquads: ``, delNquads: ``, query: ``};
     let ecoUpsert: Upsert = { query: ``, nquads: ``, delNquads: `` };
-
-    // const allIds = updates.map((update) => update.perspectiveId);
-
-    // let externalAddedChildren: string[] = [];
-    // let externalDeletedChildren: string[] = [];
-
-    /**
-     * I don't think we need the external children, because the internal, the ones inside the batch
-     * would be already created as well, since this is a consecutive transaction.
-     * 
-     */
-    // /** We need to loop throughout every perspective (updates), to see the added children
-    //  * coming from the front-end.
-    //  */
-    // for(let i = 0; i < updates.length; i++) {
-    //   // In here, we check for every child to see if it is actually outside the batch (updates)
-    //   updates[i].addedChildren?.forEach((child, xi) => {
-    //     if(allIds.includes(child)) {
-    //       // We collect those children to query them in the db afterwards.
-    //       externalAddedChildren.push(child);
-    //       /**
-    //        * We remove the external child from the original array
-    //        * so we can keep the internal ones in the addedChildren array.
-    //        */
-    //       updates[i].addedChildren?.splice(xi, 1);
-    //     }
-    //   })
-
-    //   // We do the same with the deletedChildren
-    //   updates[i].deletedChildren?.forEach((child, xi) => {
-    //     if(allIds.includes(child)) {
-    //       externalDeletedChildren.push(child);
-    //       updates[i].deletedChildren?.splice(xi, 1);
-    //     }
-    //   })
-    // }
 
     /**
      * The reason why we have a second loop, is beacuse the first one
@@ -349,8 +313,6 @@ export class UprtclRepository {
        */
       const childrenUpsertString = this.updatePerspectiveUpsert(
         updates[i],
-        // externalAddedChildren,
-        // externalDeletedChildren,
         childrenUpsert
       );
 
@@ -420,103 +382,69 @@ export class UprtclRepository {
   }
 
   updatePerspectiveUpsert(
-    update: UpdateRequest,
-    // externalAddedChildren: string[],
-    // externalDeletedChildren: string[],
+    update: UpdateDetails,
     upsert: Upsert
   ) {
     let { query, nquads, delNquads } = upsert;
-    const { perspectiveId, newHeadId } = update;
+    const { id } = update;
 
     // WARNING: IF THE PERSPECTIVE ENDS UP HAVING TWO HEADS, CHECK DGRAPH DOCS FOR RECENT UPDATES
     // IF NO SOLUTION, THEN BATCH DELETE ALL HEADS BEFORE BATCH UPDATE THEM
 
     // We update the current xid.
-    query = `persp${perspectiveId} as var(func: eq(xid, "${perspectiveId}"))`;
-    nquads = nquads.concat(`\nuid(persp) <xid> "${perspectiveId}" .`);
+    query = `persp${id} as var(func: eq(xid, "${id}"))`;
+    nquads = nquads.concat(`\nuid(persp) <xid> "${id}" .`);
 
     // If the current perspective we are seeing isn't headless, we proceed to update the ecosystem and its head.
-    if (newHeadId !== undefined) {
-      // We set the head for previous created perspective.
-      query = query.concat(`\nheadOf${perspectiveId} as var(func: eq(xid, "${newHeadId}"))`);
-      nquads = nquads.concat(`\nuid(headOf${perspectiveId}) <xid> "${newHeadId}" .`);
-      nquads = nquads.concat(`\nuid(persp${perspectiveId} ) <head> uid(headOf${perspectiveId}) .`);
-      
-      // We set the external children for the previous created persvective.
-      update.addedChildren?.forEach((child, ix) => {
-        query = query.concat(`\naddedChildOf${perspectiveId}${ix} as var(func: eq(xid, ${child}))`);
-        nquads = nquads.concat(`\nuid(persp${perspectiveId} ) <children> uid(addedChildOf${perspectiveId}${ix}) .`);
-      });
+    if(update.details !== undefined) {
+      if (update.details.headId !== undefined) {
+        const { headId, addedChildren, removedChildren } = update.details;
 
-      // We remove the possible external children for an existing perspective.
-      update.deletedChildren?.forEach((child, ix) => {
-        query = query.concat(`\nremovedChildOf${perspectiveId}${ix} as var(func: eq(xid, ${child}))`);
-        delNquads = delNquads?.concat(`\nuid(persp${perspectiveId} ) <children> uid(removedChildOf${perspectiveId}${ix}) .`);
-      });
+        // We set the head for previous created perspective.
+        query = query.concat(`\nheadOf${id} as var(func: eq(xid, "${headId}"))`);
+        nquads = nquads.concat(`\nuid(headOf${id}) <xid> "${headId}" .`);
+        nquads = nquads.concat(`\nuid(persp${id} ) <head> uid(headOf${id}) .`);
+        
+        // We set the external children for the previous created persvective.
+        addedChildren?.forEach((child, ix) => {
+          query = query.concat(`\naddedChildOf${id}${ix} as var(func: eq(xid, ${child}))`);
+          nquads = nquads.concat(`\nuid(persp${id} ) <children> uid(addedChildOf${id}${ix}) .`);
+        });
+
+        // We remove the possible external children for an existing perspective.
+        removedChildren?.forEach((child, ix) => {
+          query = query.concat(`\nremovedChildOf${id}${ix} as var(func: eq(xid, ${child}))`);
+          delNquads = delNquads?.concat(`\nuid(persp${id} ) <children> uid(removedChildOf${id}${ix}) .`);
+        });
+      }
     }
 
     return { query, nquads, delNquads };
   }
 
   updateEcosystem(
-    update: UpdateRequest,
+    update: UpdateDetails,
     upsert: Upsert
   ) {
     let { query, nquads, delNquads } = upsert;
+    const { id } = update;
 
-    if(update.addedChildren) {
-      update.addedChildren.map((addedChild, i) => {
-        query = query.concat(`\n
-          addedChild${i} as var(func: eq(xid, ${addedChild}))        
-          {
-            ecoAdd${i} as ecosystem            
-          }
-        `);
-        nquads = nquads.concat(
-          `\nuid(perspective) <ecosystem> uid(ecoAdd${i}) .`
-        );
-        nquads = nquads.concat(
-          `\nuid(perspective) <children> uid(addedChild${i}) .`
-        );
+    query = query.concat(
+      `\npersp${id} as var(func: eq(xid, ${id})) 
+       @recurse {
+         revEcosystem${id} as ~children
+       }
+       \nperspEl${id}(func: eq(xid, ${id}))
+       @recurse {
+         ecosystemOfUref${id} as children
+       }`
+    );
 
-        query = query.concat(`\n
-          ecs${i}(func: eq(xid, ${update.perspectiveId}))        
-          {
-            revEcoAdd${i} as ~ecosystem            
-          }
-        `);
-        nquads = nquads.concat(
-          `\nuid(revEcoAdd${i}) <ecosystem> uid(ecoAdd${i}) .`
-        );
-      });
-    }
+    nquads = nquads.concat(
+      `\nuid(persp${id}) <ecosystem> uid(ecosystemOfUref${id}) .
+       \nuid(revEcosystem${id}) <ecosystem> uid(persp${id}) .`
+    );
 
-    if(update.deletedChildren) {
-      update.deletedChildren.map((removedChild, i) => {
-        query = query.concat(`\n
-          removedChild${i} as var(func: eq(xid, ${removedChild}))        
-          {
-            ecoDelete${i} as ecosystem            
-          }
-        `);
-        delNquads = delNquads?.concat(
-          `\nuid(perspective) <ecosystem> uid(ecoDelete${i}) .`
-        );
-        delNquads = delNquads?.concat(
-          `\nuid(perspective) <children> uid(removedChild${i}) .`
-        );
-
-        query = query.concat(`\n
-          qs${i}(func: eq(xid, ${update.perspectiveId}))        
-          {
-            revEcoDelete${i} as ~ecosystem            
-          }
-        `);
-        delNquads = delNquads?.concat(
-          `\nuid(revEcoDelete${i}) <ecosystem> uid(ecoDelete${i}) .`
-        );
-      });
-    }
     return { query, nquads, delNquads };
   }
 
