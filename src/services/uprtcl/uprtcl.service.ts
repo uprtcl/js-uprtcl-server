@@ -5,7 +5,6 @@ import {
   Secured,
   NewPerspectiveData,
   DgUpdate,
-  UpdateRequest,
   UpdateDetails,
 } from './types';
 import { DGraphService } from '../../db/dgraph.service';
@@ -14,7 +13,6 @@ import { UprtclRepository } from './uprtcl.repository';
 import { PermissionType } from '../access/access.schema';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
 import { DataService } from '../data/data.service';
-import { ipldService } from '../ipld/ipldService';
 
 export class UprtclService {
   constructor(
@@ -109,12 +107,21 @@ export class UprtclService {
     perspectivesData: NewPerspectiveData[],
     loggedUserId: string | null
   ): Promise<string[]> {
+    // TEMP 
+
     if (loggedUserId === null)
       throw new Error('Anonymous user. Cant create a perspective');
     /** find perspectives whose parent is NOT in the batch of new perspectives */
     await this.uprtclRepo.createPerspectives(
       perspectivesData
     );
+
+    await this.uprtclRepo.updatePerspectives(perspectivesData.map((newPerspective) : UpdateDetails => {
+      return {
+        id: newPerspective.perspective.id,
+        details: newPerspective.details ? newPerspective.details : undefined
+      }
+    }));
 
     return [];
   }
@@ -135,96 +142,17 @@ export class UprtclService {
     updates: UpdateDetails[],
     loggedUserId: string | null
   ): Promise<void> {
+    /**
+     * What about the access control? We might need to find a way to check
+     * if the user can write a perspective, we used to call access.can(id, userId, permisstions)
+     */
     // update needs to be done one by one to manipulate the ecosystem links
     await Promise.all(
       updates.map(async (update) => {
         /** Bypass update perspective ACL because this is perspective inception */
-        await this.updatePerspective(update.id, update.details, loggedUserId);
+        await this.uprtclRepo.updatePerspectives(updates);
       })
     );
-  }
-
-  async updatePerspective(
-    perspectiveId: string,
-    details: PerspectiveDetails,
-    loggedUserId: string | null
-  ): Promise<void> {
-    console.log(
-      '[UPRTCL-SERVICE] updatePerspective',
-      { perspectiveId },
-      { details }
-    );
-    if (
-      !(await this.access.can(
-        perspectiveId,
-        loggedUserId,
-        PermissionType.Write
-      ))
-    )
-      throw new Error(NOT_AUTHORIZED_MSG);
-      await this.uprtclRepo.updatePerspective(perspectiveId, details);
-    // const oldDetails = await this.getPerspectiveDetails(
-    //   perspectiveId,
-    //   loggedUserId
-    // );
-    // let addedChildren: Array<string> = [];
-    // let removedChildren: Array<string> = [];
-
-    // let currentChildren: Array<string> = [];
-    // let updatedChildren: Array<string> = [];
-
-    // if(details.headId) {
-    //   if (oldDetails.headId && oldDetails.headId !== '') {
-    //     const oldDataId = (await this.getCommit(oldDetails.headId, loggedUserId))
-    //       .object.payload.dataId;
-    //     const newDataId = (await this.getCommit(details.headId, loggedUserId))
-    //       .object.payload.dataId;
-
-    //     const oldData = (await this.dataService.getData(oldDataId)).object;
-    //     const newData = (await this.dataService.getData(newDataId)).object;
-
-    //     currentChildren = oldData.pages
-    //       ? oldData.pages
-    //       : oldData.links;
-    //     updatedChildren = newData.pages
-    //       ? newData.pages
-    //       : newData.links;
-    //   } else if(!oldDetails.headId) {
-    //     const perspTimestamp = (await this.getPerspective(perspectiveId, loggedUserId)).object.payload.timestamp;
-
-    //     if(perspTimestamp === 0) {   
-    //       const newDataId = (await this.getCommit(details.headId, loggedUserId))
-    //       .object.payload.dataId;
-    //       const newData = (await this.dataService.getData(newDataId)).object;
-    //       updatedChildren = newData.pages
-    //       ? newData.pages
-    //       : newData.links;
-    //     }
-    //   }
-
-    //   const difference = currentChildren
-    //           .filter((oldChild: string) => !updatedChildren.includes(oldChild))
-    //           .concat(
-    //             updatedChildren.filter(
-    //               (newChild: string) => !currentChildren.includes(newChild)
-    //             )
-    //           );
-
-    //   difference.map((child) => {
-    //     if (currentChildren.includes(child)) {
-    //       removedChildren.push(child);
-    //     }
-
-    //     if (updatedChildren.includes(child)) {
-    //       addedChildren.push(child);
-    //     }
-    //   });
-    // }
-
-    // await this.uprtclRepo.updatePerspective(perspectiveId, details, {
-    //   addedChildren: addedChildren,
-    //   removedChildren: removedChildren,
-    // });
   }
 
   async deletePerspective(
