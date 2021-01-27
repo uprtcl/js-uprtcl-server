@@ -14,6 +14,8 @@ export interface Upsert {
 export interface PerspectiveDetails {
   name?: string;
   headId?: string | undefined;
+  addedChildren?: string[];
+  removedChildren?: string[];
 }
 
 export interface Perspective {
@@ -49,15 +51,13 @@ export interface Proposal {
 export interface UpdateRequest {
   fromPerspectiveId?: string;
   oldHeadId?: string;
-  deletedChildren?: string[];
   perspectiveId: string;
   newHeadId: string | undefined;
-  addedChildren?: string[];
 }
 
 export interface UpdateDetails {
   id: string;
-  details: PerspectiveDetails;
+  details?: PerspectiveDetails;
 }
 
 export interface Commit {
@@ -86,7 +86,6 @@ export type Secured<T = any> = Hashed<Signed<T>>;
 export interface NewPerspectiveData {
   perspective: Secured<Perspective>;
   details?: PerspectiveDetails;
-  childrenId?: string[];
   parentId?: string;
 }
 
