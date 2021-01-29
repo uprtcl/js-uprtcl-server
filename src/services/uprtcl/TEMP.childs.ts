@@ -1,11 +1,11 @@
-export const getDataChildren = (data: any): string[] => {
-  if (data.pages !== undefined) return data.pages;
-  if (data.links !== undefined) return data.links;
-  if (data.linkedThoughts !== undefined) return [data.linkedThoughts];
-  if (data.sections !== undefined)
-    return Object.getOwnPropertyNames(data.sections).map(
-      (name) => data.sections[name]
+export const getDataChildren = (object: any): string[] => {
+  if (object.pages !== undefined) return object.pages;
+  if (object.links !== undefined) return object.links;
+  if (object.linkedThoughts !== undefined) return [object.linkedThoughts];
+  if (object.sections !== undefined)
+    return Object.getOwnPropertyNames(object.sections).map(
+      (name) => object.sections[name]
     );
 
-  throw new Error(`Unexpected data object ${JSON.stringify(data)}`);
+  throw new Error(`Unexpected object object ${JSON.stringify(object)}`);
 };
