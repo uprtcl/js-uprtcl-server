@@ -7,7 +7,7 @@ import {
   getPermissionsConfig,
   addPermission,
 } from './access.testsupport';
-import { PermissionType } from './access.schema';
+import { PermissionType } from '../uprtcl/types';
 import { createUser } from '../user/user.testsupport';
 import {
   createCommitAndData,
@@ -32,20 +32,19 @@ describe('delegate behavior', () => {
     const commitA = await createCommitAndData(
       'perspective A',
       false,
-      user1.jwt
+      user1
     );
     perspectiveA = await createPerspective(
       user1,
       454545,
       'barack_obama',
-      user1.jwt,
       commitA
     );
 
     const commitB = await createCommitAndData(
       'perspective B',
       false,
-      user1.jwt
+      user1
     );
     perspectiveB = await createPerspective(
       user1,
@@ -58,7 +57,7 @@ describe('delegate behavior', () => {
     const commitC1 = await createCommitAndData(
       'perspective C1',
       false,
-      user1.jwt
+      user1
     );
     perspectiveC1 = await createPerspective(
       user1,
@@ -71,7 +70,7 @@ describe('delegate behavior', () => {
     const commitC2 = await createCommitAndData(
       'perspective C2',
       false,
-      user1.jwt
+      user1
     );
     const perspectiveC2 = await createPerspective(
       user1,
@@ -84,7 +83,7 @@ describe('delegate behavior', () => {
     const commitD1 = await createCommitAndData(
       'perspective D1',
       false,
-      user1.jwt
+      user1
     );
     const perspectiveD1 = await createPerspective(
       user1,
@@ -134,10 +133,6 @@ describe('delegate behavior', () => {
             }
         */
 
-    // Then, get the permissions of the above obtained element
-    const perspAccessConfig = await getAccessConfigOfElement(finDelegatedTo);
-    const perspBAccessConfig = await getAccessConfigOfElement(perspectiveB);
-
     // Add permissions to finDelegatedTo
     await addPermission(
       finDelegatedTo,
@@ -168,16 +163,12 @@ describe('delegate behavior', () => {
       user1.jwt
     );
 
-    const perspPermissions = await getPermissionsConfig(
-      perspAccessConfig.permissionsUid!
-    );
-    const perspBPermissions = await getPermissionsConfig(
-      perspBAccessConfig.permissionsUid!
-    );
+    const perspPermissions = await getPermissionsConfig(finDelegatedTo);
+    const perspBPermissions = await getPermissionsConfig(perspectiveB);
 
     // Permissions before delegating to false
-    expect(perspBPermissions.canWrite![0]).toEqual(user3.userId.toLowerCase());
-    expect(perspBPermissions.canWrite![1]).toEqual(user4.userId.toLowerCase());
+    expect(perspBPermissions.canWrite![1]).toEqual(user3.userId.toLowerCase());
+    expect(perspBPermissions.canWrite![2]).toEqual(user4.userId.toLowerCase());
     expect(perspBPermissions.canAdmin![0]).toEqual(user1.userId.toLowerCase());
 
     // From true to false
@@ -190,9 +181,7 @@ describe('delegate behavior', () => {
     expect(delegateToB.result).toEqual(SUCCESS);
 
     // Permissions of B after delegate false
-    const perspFalsePermissions = await getPermissionsConfig(
-      perspBAccessConfig.permissionsUid!
-    );
+    const perspFalsePermissions = await getPermissionsConfig(finDelegatedTo);
 
     // Checks how permissions are cloned
     // Permissions after delegating to false
