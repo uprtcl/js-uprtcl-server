@@ -6,9 +6,8 @@ import {
   AccessConfigInherited,
   UserPermissions,
 } from './access.repository';
-import { PermissionType } from './access.schema';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
-import { DgUpdate } from '../uprtcl/types';
+import { DgUpdate, PermissionType } from '../uprtcl/types';
 require('dotenv').config();
 
 export class AccessService {
@@ -16,29 +15,6 @@ export class AccessService {
     protected db: DGraphService,
     protected accessRepo: AccessRepository
   ) {}
-
-  async createDefaultPermissions(userId: string | null): Promise<string> {
-    let persmissions: PermissionConfig;
-    if (userId != null) {
-      persmissions = {
-        publicRead: false,
-        publicWrite: false,
-        canRead: [userId],
-        canWrite: [userId],
-        canAdmin: [userId],
-      };
-    } else {
-      /** public elements can be read and writed by anyone and have no admin */
-      persmissions = {
-        publicRead: true,
-        publicWrite: true,
-        canRead: [],
-        canWrite: [],
-        canAdmin: [],
-      };
-    }
-    return this.accessRepo.createPermissionsConfig(persmissions);
-  }
 
   /** if delegateTo is available, set its persmissions as the persissions of elementId
    *  if not, set its permissions as default. */
@@ -51,7 +27,14 @@ export class AccessService {
       throw new Error(`ElementId is empty`);
 
     let accessConfig: AccessConfig;
-    let dftPermUid = await this.createDefaultPermissions(userId);
+    const allowedUsers = (userId !== null) ? [userId] : [];
+    const permissions = {
+      publicRead: false,
+      publicWrite: false,
+      canRead: allowedUsers,
+      canWrite: allowedUsers,
+      canAdmin: allowedUsers
+    }
 
     if (delegateTo) {
       if (userId == null)
@@ -65,21 +48,17 @@ export class AccessService {
         delegate: true,
         delegateTo,
         finDelegatedTo,
-        permissionsUid: dftPermUid,
+        permissions
       };
     } else {
       accessConfig = {
         delegate: false,
         finDelegatedTo: elementId,
-        permissionsUid: dftPermUid,
+        permissions
       };
     }
 
-    let accessConfigUid = await this.accessRepo.createAccessConfig(
-      accessConfig
-    );
-
-    return this.accessRepo.setAccessConfigOf(elementId, accessConfigUid);
+    return this.accessRepo.setAccessConfigOf(elementId, accessConfig);
   }
 
   async getPermissionsConfig(
@@ -122,8 +101,8 @@ export class AccessService {
       delegate: accessConfig.delegate,
       delegateTo: accessConfig.delegateTo || null,
       finDelegatedTo: accessConfig.finDelegatedTo || null,
-      customPermissions: customPermissions,
-      effectivePermissions: effectivePermissions,
+      customPermissions: customPermissions.permissions,
+      effectivePermissions: effectivePermissions.permissions,
     };
   }
 
@@ -135,21 +114,12 @@ export class AccessService {
   }
 
   async getPermissionsConfigOfElement(elementId: string) {
-    const { permissionsUid } = await this.accessRepo.getAccessConfigOfElement(
+    const perspective = await this.accessRepo.getAccessConfigOfElement(
       elementId
     );
-    if (!permissionsUid)
+    if (!perspective)
       throw new Error(`persmissions not found for element ${elementId}`);
-    return this.getPermissionsConfig(permissionsUid);
-  }
-
-  /** Create a new permissions config element and set it in the access config of the element.
-   * It does not change the delegate, delegateTo and finalDelegatedTo.
-   */
-  async createPermissionsConfig(
-    permissions: PermissionConfig
-  ): Promise<string> {
-    return this.accessRepo.createPermissionsConfig(permissions);
+    return perspective;
   }
 
   async toggleDelegate(
