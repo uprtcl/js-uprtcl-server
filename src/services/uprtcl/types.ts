@@ -12,6 +12,7 @@ export interface PerspectiveDetails {
   name?: string;
   headId?: string | undefined;
   links?: PerspectiveLinks;
+  guardianId?: string;
 }
 
 export interface Perspective {

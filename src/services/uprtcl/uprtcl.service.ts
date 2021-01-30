@@ -280,6 +280,16 @@ export class UprtclService {
       addedChildren: addedChildren,
       removedChildren: removedChildren,
     });
+
+    /** if guardianId is set, we must change the delegateTo */
+    if (details.guardianId) {
+      await this.access.toggleDelegate(
+        perspectiveId,
+        true,
+        details.guardianId,
+        loggedUserId
+      );
+    }
   }
 
   async deletePerspective(
