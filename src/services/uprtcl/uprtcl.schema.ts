@@ -1,4 +1,3 @@
-import { ACCESS_CONFIG_SCHEMA_NAME } from '../access/access.schema';
 import { PROFILE_SCHEMA_NAME } from '../user/user.schema';
 
 export const PERSPECTIVE_SCHEMA_NAME = 'Perspective';
