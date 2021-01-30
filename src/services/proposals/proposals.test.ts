@@ -5,7 +5,7 @@ import {
   SUCCESS,
   PostResult,
 } from '../../utils';
-import { PermissionType } from '../access/access.schema';
+import { PermissionType } from '../uprtcl/types';
 
 // Test support
 import { createUser } from '../user/user.testsupport';

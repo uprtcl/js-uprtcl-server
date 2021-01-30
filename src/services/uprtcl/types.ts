@@ -1,3 +1,10 @@
+
+export enum PermissionType {
+  Read = 'Read',
+  Write = 'Write',
+  Admin = 'Admin',
+}
+
 export enum ProposalState {
   Open = 'OPEN',
   Rejected = 'REJECTED',

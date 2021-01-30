@@ -6,11 +6,11 @@ import {
   NewPerspectiveData,
   DgUpdate,
   UpdateDetails,
+  PermissionType
 } from './types';
 import { DGraphService } from '../../db/dgraph.service';
 import { AccessService } from '../access/access.service';
 import { UprtclRepository } from './uprtcl.repository';
-import { PermissionType } from '../access/access.schema';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
 import { DataService } from '../data/data.service';
 

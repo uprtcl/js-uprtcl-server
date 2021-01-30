@@ -18,7 +18,7 @@ import {
   addPermission,
   setPublicPermission,
 } from '../access/access.testsupport';
-import { PermissionType } from '../access/access.schema';
+import { PermissionType } from '../uprtcl/types';
 
 describe('routes', () => {
   expect.extend({ toBeValidCid });
