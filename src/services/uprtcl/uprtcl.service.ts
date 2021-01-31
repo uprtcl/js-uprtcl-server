@@ -319,14 +319,35 @@ export class UprtclService {
       throw new Error(NOT_AUTHORIZED_MSG);
     }
     let details = await this.uprtclRepo.getPerspectiveDetails(perspectiveId);
-    let canUpdate = await this.access.can(
+    const canUpdate = await this.access.can(
       perspectiveId,
       loggedUserId,
       PermissionType.Write
     );
+
+    const canAdmin = await this.access.can(
+      perspectiveId,
+      loggedUserId,
+      PermissionType.Admin
+    );
+
+    let guardianId;
+    if (canAdmin) {
+      const aclDetails = await this.access.getAccessConfigDetails(
+        perspectiveId,
+        loggedUserId as string
+      );
+      guardianId = aclDetails.delegate
+        ? aclDetails.delegateTo
+          ? aclDetails.delegateTo
+          : undefined
+        : undefined;
+    }
+
     details = {
       ...details,
       canUpdate,
+      guardianId,
     };
     return details;
   }
