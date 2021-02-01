@@ -9,13 +9,7 @@ import {
   PostResult,
   ERROR,
 } from '../../utils';
-import {
-  Secured,
-  Perspective,
-  PerspectiveDetails,
-  Commit,
-  Proposal,
-} from './types';
+import { Secured, Perspective, PerspectiveDetails } from './types';
 
 declare global {
   namespace Express {

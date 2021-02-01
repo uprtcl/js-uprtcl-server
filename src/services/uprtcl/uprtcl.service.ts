@@ -1,3 +1,4 @@
+import { Entity } from '@uprtcl/evees';
 import {
   Perspective,
   Commit,
@@ -111,8 +112,8 @@ export class UprtclService {
 
     if (loggedUserId === null)
       throw new Error('Anonymous user. Cant create a perspective');
-    /** find perspectives whose parent is NOT in the batch of new perspectives */
-    await this.uprtclRepo.createPerspectives(perspectivesData);
+
+    await this.uprtclRepo.createPerspectives(perspectivesData, loggedUserId);
 
     await this.uprtclRepo.updatePerspectives(
       perspectivesData.map(

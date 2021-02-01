@@ -4,7 +4,6 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "postinstall": "npm rebuild grpc --target=6.1.0 --target_arch=x64 --target_platform=linux --target_libc=glibc",
     "dev": "tsc-watch --onSuccess \"node --inspect ./dist/server-debug.js\"",
     "test": "node --inspect node_modules/.bin/jest --verbose",
     "start": "npx pm2 start pm2.yaml",

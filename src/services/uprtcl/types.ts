@@ -20,7 +20,8 @@ export interface Upsert {
 export interface PerspectiveDetails {
   canUpdate?: boolean;
   name?: string;
-  headId?: string | undefined;
+  headId?: string;
+  guardianId?: string;
   addedChildren?: string[];
   removedChildren?: string[];
 }

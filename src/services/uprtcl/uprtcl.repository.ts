@@ -1,5 +1,5 @@
+import { Entity } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
-import { ipldService } from '../ipld/ipldService';
 import { UserRepository } from '../user/user.repository';
 import { DataRepository } from '../data/data.repository';
 import {
@@ -18,6 +18,7 @@ import {
   COMMIT_SCHEMA_NAME,
 } from './uprtcl.schema';
 import { format } from 'path';
+import { ipldService } from '../ipld/ipldService';
 
 const dgraph = require('dgraph-js');
 
@@ -70,7 +71,8 @@ export class UprtclRepository {
     upsertedProfiles: string[],
     externalParentIds: string[],
     upsert: Upsert,
-    newPerspective: NewPerspectiveData
+    newPerspective: NewPerspectiveData,
+    loggedUserId: string
   ) {
     // Perspective object destructuring
     const {
@@ -88,6 +90,12 @@ export class UprtclRepository {
       const creatorSegment = this.userRepo.upsertQueries(creatorId);
       query = query.concat(creatorSegment.query);
       nquads = nquads.concat(creatorSegment.nquads);
+    }
+
+    if (loggedUserId !== creatorId) {
+      throw new Error(
+        `Can only store perspectives whose creatorId is the creator, but ${creatorId} is not ${loggedUserId}`
+      );
     }
 
     const did = this.userRepo.formatDid(creatorId);
@@ -167,7 +175,10 @@ export class UprtclRepository {
     return { query, nquads };
   }
 
-  async createPerspectives(newPerspectives: NewPerspectiveData[]) {
+  async createPerspectives(
+    newPerspectives: NewPerspectiveData[],
+    loggedUserId: string | null
+  ) {
     if (newPerspectives.length === 0) return;
     await this.db.ready();
 
@@ -443,7 +454,7 @@ export class UprtclRepository {
     return { query, nquads, delNquads };
   }
 
-  async createCommits(commits: Secured<Commit>[]): Promise<string[]> {
+  async createCommits(commits: Secured<Commit>[]): Promise<Entity<any>[]> {
     if (commits.length === 0) return [];
     await this.db.ready();
 
@@ -456,7 +467,8 @@ export class UprtclRepository {
       const commit = securedCommit.object.payload;
       const proof = securedCommit.object.proof;
 
-      const id = securedCommit.id;
+      const id = await ipldService.validateSecured(securedCommit);
+
       /** make sure creatorId exist */
       for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
         const did = commit.creatorsIds[ix];
