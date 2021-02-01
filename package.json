@@ -5,11 +5,10 @@
   "main": "index.js",
   "scripts": {
     "postinstall": "npm rebuild grpc --target=6.1.0 --target_arch=x64 --target_platform=linux --target_libc=glibc",
-    "dev": "sls offline",
-    "debug": "tsc-watch --onSuccess \"node --inspect ./dist/server-debug.js\"",
+    "dev": "tsc-watch --onSuccess \"node --inspect ./dist/server-debug.js\"",
     "test": "node --inspect node_modules/.bin/jest --verbose",
     "start": "npx pm2 start pm2.yaml",
-    "deploy": "sls deploy --stage prd"
+    "build": "tsc"
   },
   "author": "",
   "license": "ISC",
@@ -22,8 +21,7 @@
     "@types/request-promise": "^4.1.44",
     "@types/supertest": "^2.0.8",
     "@types/swagger-ui-express": "^3.0.1",
-    "@uprtcl/common": "0.0.1-alpha3",
-    "@uprtcl/cortex": "0.0.1-alpha3",
+    "@uprtcl/evees": "0.1.1",
     "aws-serverless-express": "^3.3.8",
     "body-parser": "^1.19.0",
     "buffer": "^5.4.2",

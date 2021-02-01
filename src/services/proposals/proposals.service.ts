@@ -257,12 +257,15 @@ export class ProposalsService {
         headId: newHeadId,
       };
 
-      await this.uprtclService.updatePerspectives([
-        {
-          id: perspectiveId,
-          details: details
-        }
-      ], loggedUserId);
+      await this.uprtclService.updatePerspectives(
+        [
+          {
+            id: perspectiveId,
+            details: details,
+          },
+        ],
+        loggedUserId
+      );
     });
 
     // Updates perspective

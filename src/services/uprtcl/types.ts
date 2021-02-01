@@ -1,4 +1,3 @@
-
 export enum PermissionType {
   Read = 'Read',
   Write = 'Write',
@@ -19,6 +18,7 @@ export interface Upsert {
 }
 
 export interface PerspectiveDetails {
+  canUpdate?: boolean;
   name?: string;
   headId?: string | undefined;
   addedChildren?: string[];

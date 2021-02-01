@@ -6,7 +6,7 @@ import {
   NewPerspectiveData,
   DgUpdate,
   UpdateDetails,
-  PermissionType
+  PermissionType,
 } from './types';
 import { DGraphService } from '../../db/dgraph.service';
 import { AccessService } from '../access/access.service';
@@ -107,21 +107,25 @@ export class UprtclService {
     perspectivesData: NewPerspectiveData[],
     loggedUserId: string | null
   ): Promise<string[]> {
-    // TEMP 
+    // TEMP
 
     if (loggedUserId === null)
       throw new Error('Anonymous user. Cant create a perspective');
     /** find perspectives whose parent is NOT in the batch of new perspectives */
-    await this.uprtclRepo.createPerspectives(
-      perspectivesData
-    );
+    await this.uprtclRepo.createPerspectives(perspectivesData);
 
-    await this.uprtclRepo.updatePerspectives(perspectivesData.map((newPerspective) : UpdateDetails => {
-      return {
-        id: newPerspective.perspective.id,
-        details: newPerspective.details ? newPerspective.details : undefined
-      }
-    }));
+    await this.uprtclRepo.updatePerspectives(
+      perspectivesData.map(
+        (newPerspective): UpdateDetails => {
+          return {
+            id: newPerspective.perspective.id,
+            details: newPerspective.details
+              ? newPerspective.details
+              : undefined,
+          };
+        }
+      )
+    );
 
     return [];
   }
@@ -182,13 +186,43 @@ export class UprtclService {
       throw new Error(NOT_AUTHORIZED_MSG);
     }
     let details = await this.uprtclRepo.getPerspectiveDetails(perspectiveId);
+    const canUpdate = await this.access.can(
+      perspectiveId,
+      loggedUserId,
+      PermissionType.Write
+    );
+
+    const canAdmin = await this.access.can(
+      perspectiveId,
+      loggedUserId,
+      PermissionType.Admin
+    );
+
+    let guardianId;
+    if (canAdmin) {
+      const aclDetails = await this.access.getAccessConfigDetails(
+        perspectiveId,
+        loggedUserId as string
+      );
+      guardianId = aclDetails.delegate
+        ? aclDetails.delegateTo
+          ? aclDetails.delegateTo
+          : undefined
+        : undefined;
+    }
+
+    details = {
+      ...details,
+      canUpdate,
+      guardianId,
+    };
     return details;
   }
 
   async createCommits(
     commits: Secured<Commit>[],
     _loggedUserId: string | null
-  ): Promise<string[]> {
+  ): Promise<Entity<any>[]> {
     console.log('[UPRTCL-SERVICE] createCommits', commits);
     return await this.uprtclRepo.createCommits(commits);
   }

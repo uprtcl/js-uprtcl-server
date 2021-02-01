@@ -1,8 +1,6 @@
 import { SCHEMA } from './schema';
 
 const dgraph = require('dgraph-js');
-const grpc = require('grpc');
-const Url = require('url-parse');
 
 export const requestToObj = (req: any) => {
   return {
@@ -27,7 +25,7 @@ export class DGraphService {
     this.host = _host;
     this.port = _port;
     this.apiKey = _apiKey;
-    this.connectionReady = new Promise(async (resolve) => {
+    this.connectionReady = new Promise<void>(async (resolve) => {
       await this.connect();
       // await this.dropAll();
       await this.setSchema();
