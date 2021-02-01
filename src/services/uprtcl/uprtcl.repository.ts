@@ -158,11 +158,11 @@ export class UprtclRepository {
          * exists on the database */ 
           
         query = query.concat(`\nparentOfExt${id} as var(func: eq(xid, ${newPerspective.parentId})) {
-          finDelOfParentOfExt${id} as finDelegateTo
+          finDelOfParentOfExt${id} as finDelegatedTo
         }`);
 
-        nquads = nquads.concat(`\nuid(persp${id}) <delegateTo> uid(parentOfExt${newPerspective.parentId}) .`);
-        nquads = nquads.concat(`\nuid(persp${id}) <finDelegateTo> finDelOfParentOfExt${id}`);        
+        nquads = nquads.concat(`\nuid(persp${id}) <delegateTo> uid(parentOfExt${id}) .`);
+        nquads = nquads.concat(`\nuid(persp${id}) <finDelegatedTo> uid(finDelOfParentOfExt${id}) .`);        
       } else {
         nquads = nquads.concat(`\nuid(persp${id}) <delegateTo> uid(persp${newPerspective.parentId}) .`);
         /** because the parent is in the batch, we cannot set the finDelegateTo and  
@@ -275,15 +275,15 @@ export class UprtclRepository {
   recurseACLupdateUpsert(externalPerspectiveId: string, upsert: Upsert) {
     let { query, nquads } = upsert;
     query = query.concat(
-      `\nexternal${externalPerspectiveId} as var(func: eq(xid, ${externalPerspectiveId}))
+      `\nexternal${externalPerspectiveId}(func: eq(xid, ${externalPerspectiveId}))
         @recurse {
           inheritingFrom${externalPerspectiveId} as ~delegateTo
           uid
         }`
     );
 
-    query = query.concat(`\nexternalForFinDel${externalPerspectiveId} as var(func: eq(xid, ${externalPerspectiveId})) {
-      finalDelegateOf${externalPerspectiveId} as finDelegateTo
+    query = query.concat(`\nexternalForFinDel${externalPerspectiveId}(func: eq(xid, ${externalPerspectiveId})) {
+      finalDelegateOf${externalPerspectiveId} as finDelegatedTo
     }`);
   
     nquads = nquads.concat(
@@ -348,37 +348,39 @@ export class UprtclRepository {
       ecoUpsert = ecoUpsertString;
     }
 
-    // We call the db to be prepared for transactions
-    await this.db.ready();
+    if(childrenUpsert.query && childrenUpsert.nquads !== '') {
+      // We call the db to be prepared for transactions
+      await this.db.ready();
 
-    // We perform first, the children transaction | TRX #3
-    const childrenMutation = new dgraph.Mutation();
-    const childrenRequest = new dgraph.Request();
+      // We perform first, the children transaction | TRX #3
+      const childrenMutation = new dgraph.Mutation();
+      const childrenRequest = new dgraph.Request();
 
-    childrenRequest.setQuery(`query{${childrenUpsert.query}}`);
-    childrenMutation.setSetNquads(childrenUpsert.nquads);
-    childrenMutation.setDelNquads(childrenUpsert.delNquads);
+      childrenRequest.setQuery(`query{${childrenUpsert.query}}`);
+      childrenMutation.setSetNquads(childrenUpsert.nquads);
+      childrenMutation.setDelNquads(childrenUpsert.delNquads);
 
-    childrenRequest.setMutationsList([childrenMutation]);
+      childrenRequest.setMutationsList([childrenMutation]);
 
-    await this.db.callRequest(childrenRequest);
+      await this.db.callRequest(childrenRequest);
 
-    // Secondly, we perform the ecosystem transaction | TRX #4
-    /**
-     * We need to perforn TXR #4 after TXR #3, because the ecosystem query will rely
-     * on the children of each perspective that already exists inside the database.
-     * Think of the ecosystem as the geonological tree of a human.
-     */
-    const ecoMutation = new dgraph.Mutation();
-    const ecoRequest = new dgraph.Request();
+      // Secondly, we perform the ecosystem transaction | TRX #4
+      /**
+       * We need to perforn TXR #4 after TXR #3, because the ecosystem query will rely
+       * on the children of each perspective that already exists inside the database.
+       * Think of the ecosystem as the geonological tree of a human.
+       */
+      const ecoMutation = new dgraph.Mutation();
+      const ecoRequest = new dgraph.Request();
 
-    ecoRequest.setQuery(`query{${ecoUpsert.query}}`);
-    ecoMutation.setSetNquads(ecoUpsert.nquads);
-    ecoMutation.setDelNquads(ecoUpsert.delNquads);
+      ecoRequest.setQuery(`query{${ecoUpsert.query}}`);
+      ecoMutation.setSetNquads(ecoUpsert.nquads);
+      ecoMutation.setDelNquads(ecoUpsert.delNquads);
 
-    ecoRequest.setMutationsList([ecoMutation]);
+      ecoRequest.setMutationsList([ecoMutation]);
 
-    await this.db.callRequest(ecoRequest);
+      await this.db.callRequest(ecoRequest);
+    }
   }
 
   updatePerspectiveUpsert(
@@ -392,8 +394,8 @@ export class UprtclRepository {
     // IF NO SOLUTION, THEN BATCH DELETE ALL HEADS BEFORE BATCH UPDATE THEM
 
     // We update the current xid.
-    query = `persp${id} as var(func: eq(xid, "${id}"))`;
-    nquads = nquads.concat(`\nuid(persp) <xid> "${id}" .`);
+    query = query.concat(`\npersp${id} as var(func: eq(xid, "${id}"))`);
+    nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
 
     // If the current perspective we are seeing isn't headless, we proceed to update the ecosystem and its head.
     if(update.details !== undefined) {
@@ -431,17 +433,21 @@ export class UprtclRepository {
 
     query = query.concat(
       `\npersp${id} as var(func: eq(xid, ${id})) 
-       @recurse {
+       @recurse
+       @filter(gt(count(~children), 1))  
+       {
          revEcosystem${id} as ~children
        }
-       \nperspEl${id}(func: eq(xid, ${id}))
-       @recurse {
+       \nperspEl${id} as var(func: eq(xid, ${id}))
+       @recurse
+       @filter(gt(count(children), 1)) 
+       {
          ecosystemOfUref${id} as children
        }`
     );
 
     nquads = nquads.concat(
-      `\nuid(persp${id}) <ecosystem> uid(ecosystemOfUref${id}) .
+      `\nuid(perspEl${id}) <ecosystem> uid(ecosystemOfUref${id}) .
        \nuid(revEcosystem${id}) <ecosystem> uid(persp${id}) .`
     );
 
