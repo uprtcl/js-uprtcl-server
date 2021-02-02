@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { checkJwt } from '../../middleware/jwtCheck';
-import { Proposal, Secured } from '../uprtcl/types';
 import { ProposalsService } from './proposals.service';
 import {
   getUserFromReq,
@@ -9,6 +8,7 @@ import {
   PostResult,
   ERROR,
 } from '../../utils';
+import { Proposal } from './types';
 
 export class ProposalsController {
   constructor(protected proposalService: ProposalsService) {}
@@ -105,7 +105,7 @@ export class ProposalsController {
        *  -> Does not return anything  since it is only a remote call procedure.
        * Requires:
        *  -> proposalUid: string
-       * ->  updates: UpdateRequest[]
+       * ->  updates: Update[]
        *  -> Logged user
        */
 

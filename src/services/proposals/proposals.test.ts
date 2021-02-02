@@ -30,7 +30,7 @@ import {
   getPerspective,
   getPerspectiveDetails,
 } from '../uprtcl/uprtcl.testsupport';
-import { NewPerspectiveData } from '../uprtcl/types';
+import { NewPerspective } from '@uprtcl/evees';
 
 describe('Testing proposals controller, service and repo', () => {
   expect.extend({ toBeValidCid });
@@ -80,9 +80,12 @@ describe('Testing proposals controller, service and repo', () => {
       toPerspectiveId,
       user1.jwt
     );
-    const newPersp1Obj: NewPerspectiveData = {
+    const newPersp1Obj: NewPerspective = {
       perspective: newPersp1.data,
-      details: newPersp1Details.data,
+      update: {
+        perspectiveId: newPersp1.data.id,
+        details: newPersp1Details.data,
+      },
     };
 
     const newPersp2 = await getPerspective(fromPerspectiveId, user1.jwt);
@@ -90,9 +93,12 @@ describe('Testing proposals controller, service and repo', () => {
       fromPerspectiveId,
       user1.jwt
     );
-    const newPersp2Obj: NewPerspectiveData = {
+    const newPersp2Obj: NewPerspective = {
       perspective: newPersp2.data,
-      details: newPersp2Details.data,
+      update: {
+        perspectiveId: newPersp2.data.id,
+        details: newPersp2Details.data,
+      },
     };
 
     const proposal = await createProposal(
