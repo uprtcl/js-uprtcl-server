@@ -131,18 +131,6 @@ export class UprtclService {
     return [];
   }
 
-  getDataChildren(data: any) {
-    if (data.pages !== undefined) {
-      return data.pages;
-    }
-    if (data.links !== undefined) {
-      return data.links;
-    }
-    if (data.value !== undefined) {
-      return [data.description];
-    }
-  }
-
   async updatePerspectives(
     updates: UpdateDetails[],
     loggedUserId: string | null

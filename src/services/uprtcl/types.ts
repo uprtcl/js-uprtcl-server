@@ -1,3 +1,5 @@
+import { Entity } from '@uprtcl/evees';
+
 export enum PermissionType {
   Read = 'Read',
   Write = 'Write',
@@ -75,10 +77,6 @@ export interface Commit {
   parentsIds: Array<string>;
   dataId: string;
 }
-export interface Hashed<T> {
-  id: string;
-  object: T;
-}
 
 export interface Proof {
   signature: string;
@@ -89,7 +87,7 @@ export interface Signed<T = any> {
   proof: Proof;
 }
 
-export type Secured<T = any> = Hashed<Signed<T>>;
+export type Secured<T = any> = Entity<Signed<T>>;
 
 export interface NewPerspectiveData {
   perspective: Secured<Perspective>;

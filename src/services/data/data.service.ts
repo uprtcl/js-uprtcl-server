@@ -1,8 +1,6 @@
 import { Entity } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { DataRepository } from '../data/data.repository';
-import { Hashed } from '../uprtcl/types';
-
 export class DataService {
   constructor(
     protected db: DGraphService,
@@ -10,7 +8,7 @@ export class DataService {
   ) {}
 
   async createDatas(
-    datas: Hashed<Object>[],
+    datas: Entity<Object>[],
     _loggedUserId: string | null
   ): Promise<Entity<any>[]> {
     console.log('[UPRTCL-SERVICE] createDatas', datas);

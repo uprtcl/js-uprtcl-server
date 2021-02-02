@@ -1,9 +1,9 @@
+import { Entity } from '@uprtcl/evees';
+
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
 import { DATA_SCHEMA_NAME } from './data.schema';
-import { Hashed } from '../uprtcl/types';
 import { ipldService } from '../ipld/ipldService';
-import { Entity } from '@uprtcl/evees';
 
 const dgraph = require('dgraph-js');
 
@@ -16,7 +16,7 @@ export class DataRepository {
   /** All data objects are stored as textValues, intValues, floatValues and boolValues
    * or links to other objects, if the value is a valid CID string.
    * The path of the property in the JSON object is stored in a facet */
-  async createDatas(datas: Hashed<any>[]): Promise<Entity<any>[]> {
+  async createDatas(datas: Entity<any>[]): Promise<Entity<any>[]> {
     if (datas.length === 0) return [];
     await this.db.ready();
 
@@ -74,7 +74,7 @@ export class DataRepository {
     return entities;
   }
 
-  async getData(dataId: string): Promise<Hashed<Object>> {
+  async getData(dataId: string): Promise<Entity<Object>> {
     await this.db.ready();
 
     const query = `query {
