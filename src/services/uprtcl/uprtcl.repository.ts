@@ -177,7 +177,7 @@ export class UprtclRepository {
 
   async createPerspectives(
     newPerspectives: NewPerspectiveData[],
-    loggedUserId: string | null
+    loggedUserId: string
   ) {
     if (newPerspectives.length === 0) return;
     await this.db.ready();
@@ -219,7 +219,8 @@ export class UprtclRepository {
         upsertedProfiles,
         externalParentIds as string[],
         upsert,
-        newPerspective
+        newPerspective,
+        loggedUserId
       );
 
       if (i < 1) {
