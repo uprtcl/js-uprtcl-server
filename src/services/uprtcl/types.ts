@@ -10,12 +10,6 @@ export interface Upsert {
   delNquads?: string;
 }
 
-interface DgNewPerspective {
-  NEWP_perspectiveId: string;
-  NEWP_parentId: string;
-  NEWP_headId: string;
-}
-
 // Dgraph incoming data types
 export interface xid {
   xid: string;
