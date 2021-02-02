@@ -400,8 +400,8 @@ export class UprtclRepository {
         const { details, linkChanges } = update;
 
         const headId = details.headId;
-        const addedChildren = linkChanges?.children.added;
-        const removedChildren = linkChanges?.children.removed;
+        const addedChildren = linkChanges?.children?.added;
+        const removedChildren = linkChanges?.children?.removed;
 
         // We set the head for previous created perspective.
         query = query.concat(

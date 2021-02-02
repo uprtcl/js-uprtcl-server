@@ -141,14 +141,14 @@ export class UprtclController {
       },
 
       {
-        path: '/uprtcl/1/persp/details',
+        path: '/uprtcl/1/persp/update',
         method: 'put',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
             try {
               await this.uprtclService.updatePerspectives(
-                req.body.details,
+                req.body.updates,
                 getUserFromReq(req)
               );
 
