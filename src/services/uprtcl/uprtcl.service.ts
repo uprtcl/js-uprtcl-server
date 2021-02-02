@@ -1,14 +1,12 @@
-import { Entity } from '@uprtcl/evees';
 import {
+  Entity,
   Perspective,
-  Commit,
-  PerspectiveDetails,
   Secured,
-  NewPerspectiveData,
-  DgUpdate,
-  UpdateDetails,
-  PermissionType,
-} from './types';
+  NewPerspective,
+  PerspectiveDetails,
+} from '@uprtcl/evees';
+
+import { PermissionType } from './types';
 import { DGraphService } from '../../db/dgraph.service';
 import { AccessService } from '../access/access.service';
 import { UprtclRepository } from './uprtcl.repository';
@@ -86,8 +84,8 @@ export class UprtclService {
   }
 
   async createAclRecursively(
-    of: NewPerspectiveData,
-    all: NewPerspectiveData[],
+    of: NewPerspective,
+    all: NewPerspective[],
     loggedUserId: string
   ) {
     /** top first traverse the tree of new perspectives*/
@@ -105,7 +103,7 @@ export class UprtclService {
   }
 
   async createAndInitPerspectives(
-    perspectivesData: NewPerspectiveData[],
+    perspectivesData: NewPerspective[],
     loggedUserId: string | null
   ): Promise<string[]> {
     // TEMP
@@ -132,7 +130,7 @@ export class UprtclService {
   }
 
   async updatePerspectives(
-    updates: UpdateDetails[],
+    updates: Update[],
     loggedUserId: string | null
   ): Promise<void> {
     /**

@@ -5,7 +5,7 @@ import {
   xid,
   did,
   DgUpdate,
-  NewPerspectiveData,
+  NewPerspective,
 } from '../uprtcl/types';
 import { UserRepository } from '../user/user.repository';
 import {
@@ -13,7 +13,7 @@ import {
   HEAD_UPDATE_SCHEMA_NAME,
   NEW_PERSPECTIVE_PROPOSAL_SCHEMA_NAME,
 } from '../proposals/proposals.schema';
-import { UpdateRequest } from '../uprtcl/types';
+import { Update } from '../uprtcl/types';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
 
 const dgraph = require('dgraph-js');
@@ -35,6 +35,20 @@ interface DgProposal {
   toHead: xid;
   updates?: Array<DgUpdate>;
   newPerspectives?: Array<DgNewPerspective>;
+}
+
+export interface DgUpdate {
+  fromPerspective: xid;
+  perspective: xid;
+  oldHead?: xid;
+  newHead: xid;
+}
+
+export interface Update {
+  fromPerspectiveId?: string;
+  oldHeadId?: string;
+  perspectiveId: string;
+  newHeadId: string | undefined;
 }
 
 export class ProposalsRepository {
@@ -105,7 +119,7 @@ export class ProposalsRepository {
 
   async addUpdatesToProposal(
     proposalUid: string,
-    updateRequests: Array<UpdateRequest>,
+    updateRequests: Array<Update>,
     loggedUserId: string
   ): Promise<void> {
     const dproposal = await this.getProposal(proposalUid, false, false);
@@ -142,7 +156,7 @@ export class ProposalsRepository {
     await this.db.callRequest(req);
   }
 
-  async createHeadUpdate(update: UpdateRequest): Promise<string> {
+  async createHeadUpdate(update: Update): Promise<string> {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
@@ -182,7 +196,7 @@ export class ProposalsRepository {
   }
 
   async createNewPerspectiveProposal(
-    newPerspective: NewPerspectiveData
+    newPerspective: NewPerspective
   ): Promise<string> {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
@@ -241,15 +255,15 @@ export class ProposalsRepository {
    */
 
   async setDetails(
-    updates: UpdateRequest[],
-    newPerspectives: NewPerspectiveData[],
+    updates: Update[],
+    newPerspectives: NewPerspective[],
     dgproposal: string,
     nquads: string,
     query: string
   ) {
-    const updatePromises = updates.map(async (updateRequest, i) => {
+    const updatePromises = updates.map(async (Update, i) => {
       // Create HeadUpdates
-      const updateId = await this.createHeadUpdate(updateRequest);
+      const updateId = await this.createHeadUpdate(Update);
 
       // Find HeadUpdates that belongs to the new updates
       query = query.concat(`\nupdate${i} as var(func: uid(${updateId}))`);

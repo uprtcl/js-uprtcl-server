@@ -1,15 +1,15 @@
 import request from 'supertest';
 import { createApp } from '../../server';
 import { PostResult, GetResult } from '../../utils';
-import { NewPerspectiveData, Proposal, UpdateRequest } from '../uprtcl/types';
+import { NewPerspective, Proposal, Update } from '../uprtcl/types';
 
 export const createProposal = async (
   fromPerspectiveId: string,
   toPerspectiveId: string,
   fromHeadId: string,
   toHeadId: string,
-  updates: UpdateRequest[],
-  newPerspectives: NewPerspectiveData[],
+  updates: Update[],
+  newPerspectives: NewPerspective[],
   jwt: string
 ): Promise<string> => {
   const router = await createApp();
@@ -60,8 +60,8 @@ export const createUpdateRequest = async (
   perspectiveId: string,
   oldHeadId: string,
   newHeadId: string
-): Promise<UpdateRequest> => {
-  const update: UpdateRequest = {
+): Promise<Update> => {
+  const update: Update = {
     fromPerspectiveId: fromPerspectiveId,
     oldHeadId: oldHeadId !== '' ? oldHeadId : undefined,
     perspectiveId: perspectiveId,
@@ -72,7 +72,7 @@ export const createUpdateRequest = async (
 };
 
 export const addUpdatesToProposal = async (
-  updates: UpdateRequest[],
+  updates: Update[],
   proposalUid: string,
   jwt: string
 ): Promise<PostResult> => {

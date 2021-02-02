@@ -1,10 +1,10 @@
 import {
   Proposal,
-  UpdateRequest,
+  Update,
   NewProposalData,
   PerspectiveDetails,
   ProposalState,
-  NewPerspectiveData,
+  NewPerspective,
 } from '../uprtcl/types';
 import { UprtclService } from '../uprtcl/uprtcl.service';
 import { ProposalsRepository } from './proposals.repository';
@@ -37,7 +37,7 @@ export class ProposalsService {
     }
 
     let canAuthorize: boolean = false;
-    let updatesArr: UpdateRequest[] = [];
+    let updatesArr: Update[] = [];
 
     const dproposal = await this.proposalRepo.getProposal(
       proposalUid,
@@ -58,7 +58,7 @@ export class ProposalsService {
 
     updatesArr = updates
       ? updates.map(
-          (update): UpdateRequest => {
+          (update): Update => {
             const {
               oldHead,
               newHead: { xid: newHeadId },
@@ -86,7 +86,7 @@ export class ProposalsService {
     const newPerspectivesArr = newPerspectives
       ? await Promise.all(
           newPerspectives.map(
-            async (newPerspective): Promise<NewPerspectiveData> => {
+            async (newPerspective): Promise<NewPerspective> => {
               const perspective = await this.dataService.getData(
                 newPerspective.NEWP_perspectiveId
               );
@@ -134,7 +134,7 @@ export class ProposalsService {
 
   async addUpdatesToProposal(
     proposalUid: string,
-    updates: UpdateRequest[],
+    updates: Update[],
     loggedUserId: string | null
   ): Promise<void> {
     if (loggedUserId === null)

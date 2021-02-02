@@ -3,12 +3,11 @@ import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
 import { DataRepository } from '../data/data.repository';
 import {
-  Perspective,
   PerspectiveDetails,
   Commit,
   Secured,
   Proof,
-  NewPerspectiveData,
+  NewPerspective,
   Upsert,
   UpdateDetails,
 } from './types';
@@ -71,7 +70,7 @@ export class UprtclRepository {
     upsertedProfiles: string[],
     externalParentIds: string[],
     upsert: Upsert,
-    newPerspective: NewPerspectiveData,
+    newPerspective: NewPerspective,
     loggedUserId: string
   ) {
     // Perspective object destructuring
@@ -176,7 +175,7 @@ export class UprtclRepository {
   }
 
   async createPerspectives(
-    newPerspectives: NewPerspectiveData[],
+    newPerspectives: NewPerspective[],
     loggedUserId: string
   ) {
     if (newPerspectives.length === 0) return;

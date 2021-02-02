@@ -105,7 +105,7 @@ export class ProposalsController {
        *  -> Does not return anything  since it is only a remote call procedure.
        * Requires:
        *  -> proposalUid: string
-       * ->  updates: UpdateRequest[]
+       * ->  updates: Update[]
        *  -> Logged user
        */
 

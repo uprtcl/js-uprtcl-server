@@ -7,7 +7,9 @@ import {
   UserPermissions,
 } from './access.repository';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
-import { DgUpdate, PermissionType } from '../uprtcl/types';
+import { PermissionType } from '../uprtcl/types';
+import { DgUpdate } from '../proposals/proposals.repository';
+
 require('dotenv').config();
 
 export class AccessService {
@@ -27,14 +29,14 @@ export class AccessService {
       throw new Error(`ElementId is empty`);
 
     let accessConfig: AccessConfig;
-    const allowedUsers = (userId !== null) ? [userId] : [];
+    const allowedUsers = userId !== null ? [userId] : [];
     const permissions = {
       publicRead: false,
       publicWrite: false,
       canRead: allowedUsers,
       canWrite: allowedUsers,
-      canAdmin: allowedUsers
-    }
+      canAdmin: allowedUsers,
+    };
 
     if (delegateTo) {
       if (userId == null)
@@ -48,13 +50,13 @@ export class AccessService {
         delegate: true,
         delegateTo,
         finDelegatedTo,
-        permissions
+        permissions,
       };
     } else {
       accessConfig = {
         delegate: false,
         finDelegatedTo: elementId,
-        permissions
+        permissions,
       };
     }
 
@@ -80,7 +82,7 @@ export class AccessService {
     }
 
     const accessConfig = await this.getAccessConfig(elementId);
-    
+
     let permissionsElement: string = elementId;
     if (accessConfig.delegate) {
       if (!accessConfig.finDelegatedTo)
