@@ -20,7 +20,7 @@
     "@types/request-promise": "^4.1.44",
     "@types/supertest": "^2.0.8",
     "@types/swagger-ui-express": "^3.0.1",
-    "@uprtcl/evees": "0.1.1",
+    "@uprtcl/evees": "0.2.0",
     "aws-serverless-express": "^3.3.8",
     "body-parser": "^1.19.0",
     "buffer": "^5.4.2",
