@@ -1,3 +1,6 @@
+import { NewPerspective, Update } from '@uprtcl/evees';
+import { did, xid } from '../uprtcl/types';
+
 export enum ProposalState {
   Open = 'OPEN',
   Rejected = 'REJECTED',
@@ -33,4 +36,29 @@ export interface NewProposalData {
     updates: Array<Update>;
     newPerspectives: Array<NewPerspective>;
   };
+}
+
+export interface DgNewPerspective {
+  NEWP_perspectiveId: string;
+  NEWP_parentId: string;
+  NEWP_headId: string;
+}
+
+export interface DgProposal {
+  uid?: string;
+  creator: did;
+  state: ProposalState;
+  fromPerspective: xid;
+  toPerspective: xid;
+  fromHead: xid;
+  toHead: xid;
+  updates?: Array<DgUpdate>;
+  newPerspectives?: Array<DgNewPerspective>;
+}
+
+export interface DgUpdate {
+  fromPerspective: xid;
+  perspective: xid;
+  oldHead?: xid;
+  newHead: xid;
 }

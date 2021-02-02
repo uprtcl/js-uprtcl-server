@@ -8,7 +8,7 @@ import {
 } from './access.repository';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
 import { PermissionType } from '../uprtcl/types';
-import { DgUpdate } from '../proposals/proposals.repository';
+import { DgUpdate } from '../proposals/types';
 
 require('dotenv').config();
 

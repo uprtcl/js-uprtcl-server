@@ -1,10 +1,10 @@
+import { Secured } from '@uprtcl/evees';
 import CID from 'cids';
 const CBOR = require('cbor-js');
 
 import multihashing from 'multihashing-async';
-import { CidConfig } from './cid.config';
-import { Secured } from '../uprtcl/types';
 import { localCidConfig } from '.';
+import { CidConfig } from './cid.config';
 
 type genericObject = {
   [key: string]: any;
@@ -51,7 +51,7 @@ export class IpldService {
     return cid.toString();
   }
 
-  async validateSecured(secured: Secured) {
+  async validateSecured(secured: Secured<any>) {
     if (secured.id !== undefined && secured.id !== '') {
       let valid = await this.validateCid(secured.id, secured.object);
       if (!valid) {

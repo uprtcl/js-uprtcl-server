@@ -1,18 +1,14 @@
-import {
-  Proposal,
-  Update,
-  NewProposalData,
-  PerspectiveDetails,
-  ProposalState,
-  NewPerspective,
-} from '../uprtcl/types';
 import { UprtclService } from '../uprtcl/uprtcl.service';
 import { ProposalsRepository } from './proposals.repository';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
 import { DataService } from '../data/data.service';
+import { DgUpdate, NewProposalData, Proposal, ProposalState } from './types';
+import { AccessService } from '../access/access.service';
+import { NewPerspective, PerspectiveDetails, Update } from '@uprtcl/evees';
 
 export class ProposalsService {
   constructor(
+    protected access: AccessService,
     protected proposalRepo: ProposalsRepository,
     protected dataService: DataService,
     protected uprtclService: UprtclService
@@ -68,19 +64,16 @@ export class ProposalsService {
 
             return {
               fromPerspectiveId: fromPerspectiveId,
-              oldHeadId: oldHead?.xid,
+              oldDetails: { headId: oldHead?.xid },
               perspectiveId: perspectiveId,
-              newHeadId: newHeadId,
+              details: { headId: newHeadId },
             };
           }
         )
       : [];
 
     if (loggedUserId !== null && updates) {
-      canAuthorize = await this.uprtclService.canAuthorizeProposal(
-        updates,
-        loggedUserId
-      );
+      canAuthorize = await this.canAuthorizeProposal(updates, loggedUserId);
     }
 
     const newPerspectivesArr = newPerspectives
@@ -92,8 +85,10 @@ export class ProposalsService {
               );
               return {
                 perspective,
-                parentId: newPerspective.NEWP_parentId,
-                details: { headId: newPerspective.NEWP_headId },
+                update: {
+                  perspectiveId: perspective.id,
+                  details: { headId: newPerspective.NEWP_headId },
+                },
               };
             }
           )
@@ -172,10 +167,7 @@ export class ProposalsService {
       throw new Error("Can't accept proposal. No updates added yet.");
     }
 
-    const canAuthorize = await this.uprtclService.canAuthorizeProposal(
-      updates,
-      loggedUserId
-    );
+    const canAuthorize = await this.canAuthorizeProposal(updates, loggedUserId);
 
     // Check if the user is authorized to perform this action.
     if (!canAuthorize) {
@@ -238,10 +230,7 @@ export class ProposalsService {
       throw new Error("Can't accept proposal. No updates added yet.");
     }
 
-    const canAuthorize = await this.uprtclService.canAuthorizeProposal(
-      updates,
-      loggedUserId
-    );
+    const canAuthorize = await this.canAuthorizeProposal(updates, loggedUserId);
 
     if (!canAuthorize) {
       throw new Error(NOT_AUTHORIZED_MSG);
@@ -260,7 +249,7 @@ export class ProposalsService {
       await this.uprtclService.updatePerspectives(
         [
           {
-            id: perspectiveId,
+            perspectiveId,
             details: details,
           },
         ],
@@ -275,5 +264,15 @@ export class ProposalsService {
       proposalUid,
       ProposalState.Executed
     );
+  }
+
+  async canAuthorizeProposal(
+    proposalUpdates: DgUpdate[],
+    loggedUserId: string
+  ): Promise<boolean> {
+    if (loggedUserId === null)
+      throw new Error("Anonymous user. Can't authorize a proposal");
+
+    return this.access.canAuthorizeProposal(proposalUpdates, loggedUserId);
   }
 }

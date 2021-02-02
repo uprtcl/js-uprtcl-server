@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { checksPlaceholder } from '../../middleware/checks';
+import { Secured, Perspective, PerspectiveDetails } from '@uprtcl/evees';
+
 import { UprtclService } from './uprtcl.service';
 import { checkJwt } from '../../middleware/jwtCheck';
 import {
@@ -9,7 +10,6 @@ import {
   PostResult,
   ERROR,
 } from '../../utils';
-import { Secured, Perspective, PerspectiveDetails } from './types';
 
 declare global {
   namespace Express {

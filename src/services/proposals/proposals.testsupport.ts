@@ -1,7 +1,7 @@
+import { NewPerspective, Proposal, Update } from '@uprtcl/evees';
 import request from 'supertest';
 import { createApp } from '../../server';
 import { PostResult, GetResult } from '../../utils';
-import { NewPerspective, Proposal, Update } from '../uprtcl/types';
 
 export const createProposal = async (
   fromPerspectiveId: string,
@@ -63,9 +63,9 @@ export const createUpdateRequest = async (
 ): Promise<Update> => {
   const update: Update = {
     fromPerspectiveId: fromPerspectiveId,
-    oldHeadId: oldHeadId !== '' ? oldHeadId : undefined,
+    oldDetails: { headId: oldHeadId !== '' ? oldHeadId : undefined },
     perspectiveId: perspectiveId,
-    newHeadId: newHeadId,
+    details: { headId: newHeadId },
   };
 
   return update;

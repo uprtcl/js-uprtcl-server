@@ -1,23 +1,23 @@
-import { Entity } from '@uprtcl/evees';
+import {
+  Commit,
+  Entity,
+  NewPerspective,
+  Perspective,
+  PerspectiveDetails,
+  Secured,
+  Update,
+} from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
 import { DataRepository } from '../data/data.repository';
-import {
-  PerspectiveDetails,
-  Commit,
-  Secured,
-  Proof,
-  NewPerspective,
-  Upsert,
-  UpdateDetails,
-} from './types';
+import { Upsert } from './types';
 import {
   PERSPECTIVE_SCHEMA_NAME,
   PROOF_SCHEMA_NAME,
   COMMIT_SCHEMA_NAME,
 } from './uprtcl.schema';
-import { format } from 'path';
 import { ipldService } from '../ipld/ipldService';
+import { Proof } from '@uprtcl/evees/dist/types/patterns/interfaces/signable';
 
 const dgraph = require('dgraph-js');
 
@@ -138,13 +138,15 @@ export class UprtclRepository {
     /** add itself as its ecosystem */
     nquads = nquads.concat(`\nuid(persp${id}) <ecosystem> uid(persp${id}) .`);
 
-    if (newPerspective.parentId) {
+    if (newPerspective.update.details.guardianId) {
       // We need to bring that parentId if it is external
-      if (externalParentIds.includes(newPerspective.parentId)) {
+      if (
+        externalParentIds.includes(newPerspective.update.details.guardianId)
+      ) {
         /** This perspective is an external perspective and has a parentId that already
          * exists on the database */
 
-        query = query.concat(`\nparentOfExt${id} as var(func: eq(xid, ${newPerspective.parentId})) {
+        query = query.concat(`\nparentOfExt${id} as var(func: eq(xid, ${newPerspective.update.details.guardianId})) {
           finDelOfParentOfExt${id} as finDelegatedTo
         }`);
 
@@ -156,7 +158,7 @@ export class UprtclRepository {
         );
       } else {
         nquads = nquads.concat(
-          `\nuid(persp${id}) <delegateTo> uid(persp${newPerspective.parentId}) .`
+          `\nuid(persp${id}) <delegateTo> uid(persp${newPerspective.update.details.guardianId}) .`
         );
         /** because the parent is in the batch, we cannot set the finDelegateTo and
          * have to postpone it to another subsequent query */
@@ -195,9 +197,9 @@ export class UprtclRepository {
     let perspectiveIds = newPerspectives.map((p) => p.perspective.id);
 
     const externalParentPerspectives = newPerspectives.filter((p) => {
-      if (p.parentId !== null) {
-        if (p.parentId !== undefined) {
-          if (!perspectiveIds.includes(p.parentId)) {
+      if (p.update.details.guardianId !== null) {
+        if (p.update.details.guardianId !== undefined) {
+          if (!perspectiveIds.includes(p.update.details.guardianId)) {
             return p;
           }
         } else {
@@ -209,7 +211,9 @@ export class UprtclRepository {
     });
 
     const externalParentIds = [
-      ...new Set(externalParentPerspectives.map((p) => p.parentId)),
+      ...new Set(
+        externalParentPerspectives.map((p) => p.update.details.guardianId)
+      ),
     ];
 
     for (let i = 0; i < newPerspectives.length; i++) {
@@ -292,7 +296,7 @@ export class UprtclRepository {
     return { query, nquads };
   }
 
-  async updatePerspectives(updates: UpdateDetails[]): Promise<void> {
+  async updatePerspectives(updates: Update[]): Promise<void> {
     let childrenUpsert: Upsert = { nquads: ``, delNquads: ``, query: `` };
     let ecoUpsert: Upsert = { query: ``, nquads: ``, delNquads: `` };
 
@@ -379,9 +383,9 @@ export class UprtclRepository {
     }
   }
 
-  updatePerspectiveUpsert(update: UpdateDetails, upsert: Upsert) {
+  updatePerspectiveUpsert(update: Update, upsert: Upsert) {
     let { query, nquads, delNquads } = upsert;
-    const { id } = update;
+    const { perspectiveId: id } = update;
 
     // WARNING: IF THE PERSPECTIVE ENDS UP HAVING TWO HEADS, CHECK DGRAPH DOCS FOR RECENT UPDATES
     // IF NO SOLUTION, THEN BATCH DELETE ALL HEADS BEFORE BATCH UPDATE THEM
@@ -393,7 +397,11 @@ export class UprtclRepository {
     // If the current perspective we are seeing isn't headless, we proceed to update the ecosystem and its head.
     if (update.details !== undefined) {
       if (update.details.headId !== undefined) {
-        const { headId, addedChildren, removedChildren } = update.details;
+        const { details, linkChanges } = update;
+
+        const headId = details.headId;
+        const addedChildren = linkChanges?.children.added;
+        const removedChildren = linkChanges?.children.removed;
 
         // We set the head for previous created perspective.
         query = query.concat(
@@ -427,9 +435,9 @@ export class UprtclRepository {
     return { query, nquads, delNquads };
   }
 
-  updateEcosystem(update: UpdateDetails, upsert: Upsert) {
+  updateEcosystem(update: Update, upsert: Upsert) {
     let { query, nquads, delNquads } = upsert;
-    const { id } = update;
+    const { perspectiveId: id } = update;
 
     query = query.concat(
       `\npersp${id} as var(func: eq(xid, ${id})) 
@@ -831,14 +839,12 @@ export class UprtclRepository {
     );
     if (json.perspective.length === 0) {
       return {
-        name: '',
         headId: '',
       };
     }
 
     const details = json.perspective[0];
     return {
-      name: details.name,
       headId: details.head ? details.head.xid : undefined,
     };
   }

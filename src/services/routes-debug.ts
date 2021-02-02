@@ -51,6 +51,7 @@ const uprtclController = new UprtclController(uprtclService);
 
 const proposalsRepo = new ProposalsRepository(dbService, userRepo);
 const proposalsService = new ProposalsService(
+  accessService,
   proposalsRepo,
   dataService,
   uprtclService
