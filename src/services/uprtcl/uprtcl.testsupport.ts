@@ -168,7 +168,7 @@ export const updatePerspective = async (
   const put = await request(router)
     .put(`/uprtcl/1/persp/update`)
     .send({
-      details: (perspectiveId) ? [
+      updates: (perspectiveId) ? [
         {
           id: perspectiveId,
           details
