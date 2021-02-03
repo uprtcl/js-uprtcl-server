@@ -13,6 +13,7 @@ import {
   Secured,
   PerspectiveDetails,
   Commit,
+  Update
 } from '@uprtcl/evees';
 
 interface PerspectiveData {
@@ -87,8 +88,7 @@ export const addChildToPerspective = async (
     user.jwt,
     parentId,
     {
-      headId: commitChild,
-      name: '',
+      headId: commitChild
     }
   );
 };
@@ -162,11 +162,11 @@ export const updatePerspective = async (
   jwt: string,
   perspectiveId?: string,
   details?: PerspectiveDetails,
-  updatesBatch?: UpdateDetails[]
+  updatesBatch?: Update[]
 ): Promise<PostResult> => {
   const router = await createApp();
   const put = await request(router)
-    .put(`/uprtcl/1/persp/details`)
+    .put(`/uprtcl/1/persp/update`)
     .send({
       details: (perspectiveId) ? [
         {

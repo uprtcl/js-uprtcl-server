@@ -1,435 +1,861 @@
-import { TestUser } from '../user/user.testsupport';
-
-export const createHomePerspective = async (user: TestUser) => {
+/**
+ * Includes:
+ * -> Home space
+ *  -> Linked thoughts space
+ *    -> Private
+ *      -> An untitled page created on Private
+ *    -> Blog
+ */
+export const createHomeSpace = (user: string) => {
   return {
-      perspective: {
+    data: [
+      {
         id: "zb2wwmih6X9wVG8eGPHsKcSQZDmHrpRR7Jr2tY489DQUayq3v",
+        object: {
+          payload: {
+            creatorId: user,
+            remote: "http:evees-v1",
+            path: "http://localhost:3100/uprtcl/1",
+            timestamp: 0,
+            context: `${user}.home`,
+          },
+          proof: {
+            signature: "",
+            type: "",
+          },
+        },
+      },
+      {
+        id: "zb2wwnTmtTPf9Q9qMUWkmEXMfEHK8YPCzQD82fTkhnv1izrBD",
+        object: {
+          payload: {
+            creatorId: user,
+            remote: "http:evees-v1",
+            path: "http://localhost:3100/uprtcl/1",
+            timestamp: Date.now(),
+            context: "zb2wwrZbtVv6Pb5LN2h85HLwuiT6gDR5iwr5q6rF8EPjUFbSK",
+          },
+          proof: {
+            signature: "",
+            type: "",
+          },
+        },
+      },
+      {
+        id: "zb2wwxorGthbSLv77G2He7zAwH4mL47vdPWNEY42GyGy7LsRt",
+        object: {
+          payload: {
+            creatorId: user,
+            remote: "http:evees-v1",
+            path: "http://localhost:3100/uprtcl/1",
+            timestamp: Date.now(),
+            context: "zb2wwtfg8NqwUY5teuoMZn9SdYXZAJDRAXFiyK8ycJgbMXzvN",
+          },
+          proof: {
+            signature: "",
+            type: "",
+          },
+        },
+      },
+      {
+        id: "zb2wwwjGz9v4yo7RoskJXsBGnEEzwvcH5vmon3EhWpzYHpEig",
+        object: {
+          payload: {
+            creatorId: user,
+            remote: "http:evees-v1",
+            path: "http://localhost:3100/uprtcl/1",
+            timestamp: Date.now(),
+            context: "zb2wwxWvb6WRkcTFmqCET2JyjrrWyBcPnhkypDfHdBw8bmr9d",
+          },
+          proof: {
+            signature: "",
+            type: "",
+          },
+        },
+      },
+      {
+        id: "zb2wwybSsom4FSJts2Rxj4hb81rGvRZeepo4dkV36NAEZ1Wqh",
+        object: {
+          payload: {
+            creatorId: user,
+            remote: "http:evees-v1",
+            path: "http://localhost:3100/uprtcl/1",
+            timestamp: Date.now(),
+            context: "zb2wwkWRG6Q8WVXS8oa2g3H9kG5UDyPb34CvAZFXGyc3XxKRd",
+          },
+          proof: {
+            signature: "",
+            type: "",
+          },
+        },
+      },
+      {
+        id: "zb2wwjL29QcxYvSdn2pvp7DknUamsaxGwi9NyrXUH1bNuNAVX",
+        object: {
+          linkedThoughts: "zb2wwnTmtTPf9Q9qMUWkmEXMfEHK8YPCzQD82fTkhnv1izrBD",
+        },
+      },
+      {
+        id: "zb2wwx7u3rKjxb7mU5RW5suWLHsG4b9Pn7u4DYY5XjmcPASAB",
         object: {
           proof: {
             signature: "",
             type: "",
           },
           payload: {
-            creatorId: user.userId,
-            remote: "http:evees-v1",
-            path: "http://localhost:3100/uprtcl/1",
-            timestamp: 0,
-            context: `${user.userId}.home`,
+            creatorsIds: [
+            ],
+            dataId: "zb2wwjL29QcxYvSdn2pvp7DknUamsaxGwi9NyrXUH1bNuNAVX",
+            message: "",
+            timestamp: Date.now(),
+            parentsIds: [
+            ],
           },
         },
-        casID: "http:store:http://localhost:3100/uprtcl/1",
       },
-      details: {
-      },
-    }
-}
-
-
-export const createFirstPage =  (user: TestUser) => {
-  const pageData =  [
-    {
-      id: "zb2wwjmVd2dKAKkT7YUwycVndnkY9U5pKsthizW6BUaHM9Gx8",
-      object: {
-        title: "",
-        pages: [
-          "zb2wwhmRinUyisXA8RXXMonzWqDAGyMfEWZaahDPC51UiV6a8",
-        ],
-      },
-    },
-    {
-      id: "zb2wwpVGNB1Y1PJV36JWtuisxXP13L6xGhQaSSFGka7xyqZbS",
-      object: {
-        proof: {
-          signature: "",
-          type: "",
-        },
-        payload: {
-          creatorsIds: [
-          ],
-          dataId: "zb2wwjmVd2dKAKkT7YUwycVndnkY9U5pKsthizW6BUaHM9Gx8",
-          message: "",
-          timestamp: Date.now(),
-          parentsIds: [
+      {
+        id: "zb2wwii16DhDYrqzCoMyhRuRZBVPk3aseJqmPfbyBm5Ypi88s",
+        object: {
+          sections: [
+            "zb2wwxorGthbSLv77G2He7zAwH4mL47vdPWNEY42GyGy7LsRt",
+            "zb2wwwjGz9v4yo7RoskJXsBGnEEzwvcH5vmon3EhWpzYHpEig",
           ],
         },
       },
-    },
-    {
-      id: "zb2wwrGhXNzLPruvVbLHhmtuaPKGcD6NzmKHLLRo4biWkP8yx",
-      object: {
-        text: "",
-        type: "Title",
-        links: [
-        ],
-      },
-    },
-    {
-      id: "zb2wwyNDa9hzXenC5Afv4FieCRtrJAZE5YZ2nXafz9LxaTWuN",
-      object: {
-        proof: {
-          signature: "",
-          type: "",
-        },
-        payload: {
-          creatorsIds: [
-          ],
-          dataId: "zb2wwrGhXNzLPruvVbLHhmtuaPKGcD6NzmKHLLRo4biWkP8yx",
-          message: "",
-          timestamp: Date.now(),
-          parentsIds: [
-          ],
+      {
+        id: "zb2wwiQKse9J2jZMWSSzpiwJMXsdUjaKhpdPv2yzJqCJGLovG",
+        object: {
+          proof: {
+            signature: "",
+            type: "",
+          },
+          payload: {
+            creatorsIds: [
+            ],
+            dataId: "zb2wwii16DhDYrqzCoMyhRuRZBVPk3aseJqmPfbyBm5Ypi88s",
+            message: "",
+            timestamp: Date.now(),
+            parentsIds: [
+            ],
+          },
         },
       },
-    },
-  ]
-
-  const pagePerspective = [
+      {
+        id: "zb2wwiK6nVzzNqMN7r2qpUUsk7Pg6JLr1ZarCkmTD4XiBQicv",
+        object: {
+          title: "Private",
+          pages: [
+            "zb2wwybSsom4FSJts2Rxj4hb81rGvRZeepo4dkV36NAEZ1Wqh",
+          ],
+        },
+      },
+      {
+        id: "zb2wwhtauLQcCHiExkzLK2PyAhUxiQwenbNS4aewYbTa1cJ9X",
+        object: {
+          title: "Blog",
+          pages: [
+          ],
+        },
+      },
+      {
+        id: "zb2wwwTNfo9TSCXGjEnK9pyaTRxxjwKNE69vccVfnEAJ3bUcg",
+        object: {
+          proof: {
+            signature: "",
+            type: "",
+          },
+          payload: {
+            creatorsIds: [
+            ],
+            dataId: "zb2wwiK6nVzzNqMN7r2qpUUsk7Pg6JLr1ZarCkmTD4XiBQicv",
+            message: "",
+            timestamp: Date.now(),
+            parentsIds: [
+            ],
+          },
+        },
+      },
+      {
+        id: "zb2wwvy7WmJhNVMFivVu7REyz8vDN3yNteFmR7gZFaCm8QW6R",
+        object: {
+          proof: {
+            signature: "",
+            type: "",
+          },
+          payload: {
+            creatorsIds: [
+            ],
+            dataId: "zb2wwhtauLQcCHiExkzLK2PyAhUxiQwenbNS4aewYbTa1cJ9X",
+            message: "",
+            timestamp: Date.now(),
+            parentsIds: [
+            ],
+          },
+        },
+      },
+      {
+        id: "zb2wwrGhXNzLPruvVbLHhmtuaPKGcD6NzmKHLLRo4biWkP8yx",
+        object: {
+          text: "",
+          type: "Title",
+          links: [
+          ],
+        },
+      },
+      {
+        id: "zb2wwhw2SVcyoQyrM7p3MNMCSt4ewjStrNpZTiU5Ug3PJcQ3U",
+        object: {
+          proof: {
+            signature: "",
+            type: "",
+          },
+          payload: {
+            creatorsIds: [
+            ],
+            dataId: "zb2wwrGhXNzLPruvVbLHhmtuaPKGcD6NzmKHLLRo4biWkP8yx",
+            message: "",
+            timestamp: Date.now(),
+            parentsIds: [
+            ],
+          },
+        },
+      },
+    ],
+    perspectives: [
       {
         perspective: {
-          id: "zb2wwhmRinUyisXA8RXXMonzWqDAGyMfEWZaahDPC51UiV6a8",
+          id: "zb2wwmih6X9wVG8eGPHsKcSQZDmHrpRR7Jr2tY489DQUayq3v",
           object: {
+            payload: {
+              creatorId: user,
+              remote: "http:evees-v1",
+              path: "http://localhost:3100/uprtcl/1",
+              timestamp: Date.now(),
+              context: `${user}.home`,
+            },
             proof: {
               signature: "",
               type: "",
             },
+          },
+        },
+        update: {
+          perspectiveId: "zb2wwmih6X9wVG8eGPHsKcSQZDmHrpRR7Jr2tY489DQUayq3v",
+          details: {
+            headId: "zb2wwx7u3rKjxb7mU5RW5suWLHsG4b9Pn7u4DYY5XjmcPASAB",
+          },
+          linkChanges: {
+            children: {
+              added: [
+                "zb2wwnTmtTPf9Q9qMUWkmEXMfEHK8YPCzQD82fTkhnv1izrBD",
+              ],
+              removed: [
+              ],
+            },
+          },
+        },
+      },
+      {
+        perspective: {
+          id: "zb2wwnTmtTPf9Q9qMUWkmEXMfEHK8YPCzQD82fTkhnv1izrBD",
+          object: {
             payload: {
-              creatorId: user.userId,
+              creatorId: user,
               remote: "http:evees-v1",
               path: "http://localhost:3100/uprtcl/1",
               timestamp: Date.now(),
-              context: "zb2rhj4L3i3EL8jhEhaiLuN46jf7jvuSyTRQNsjvYSP7KwkZK",
+              context: "zb2wwrZbtVv6Pb5LN2h85HLwuiT6gDR5iwr5q6rF8EPjUFbSK",
+            },
+            proof: {
+              signature: "",
+              type: "",
             },
           },
-          casID: "http:store:http://localhost:3100/uprtcl/1",
         },
-        details: {
-          headId: "zb2wwyNDa9hzXenC5Afv4FieCRtrJAZE5YZ2nXafz9LxaTWuN",
+        update: {
+          perspectiveId: "zb2wwnTmtTPf9Q9qMUWkmEXMfEHK8YPCzQD82fTkhnv1izrBD",
+          details: {
+            headId: "zb2wwiQKse9J2jZMWSSzpiwJMXsdUjaKhpdPv2yzJqCJGLovG",
+            guardianId: "zb2wwmih6X9wVG8eGPHsKcSQZDmHrpRR7Jr2tY489DQUayq3v",
+          },
+          linkChanges: {
+            children: {
+              added: [
+                "zb2wwxorGthbSLv77G2He7zAwH4mL47vdPWNEY42GyGy7LsRt",
+                "zb2wwwjGz9v4yo7RoskJXsBGnEEzwvcH5vmon3EhWpzYHpEig",
+              ],
+              removed: [
+              ],
+            },
+          },
         },
-        parentId: "zb2wwmih6X9wVG8eGPHsKcSQZDmHrpRR7Jr2tY489DQUayq3v",
+      },
+      {
+        perspective: {
+          id: "zb2wwxorGthbSLv77G2He7zAwH4mL47vdPWNEY42GyGy7LsRt",
+          object: {
+            payload: {
+              creatorId: user,
+              remote: "http:evees-v1",
+              path: "http://localhost:3100/uprtcl/1",
+              timestamp: Date.now(),
+              context: "zb2wwtfg8NqwUY5teuoMZn9SdYXZAJDRAXFiyK8ycJgbMXzvN",
+            },
+            proof: {
+              signature: "",
+              type: "",
+            },
+          },
+        },
+        update: {
+          perspectiveId: "zb2wwxorGthbSLv77G2He7zAwH4mL47vdPWNEY42GyGy7LsRt",
+          details: {
+            headId: "zb2wwwTNfo9TSCXGjEnK9pyaTRxxjwKNE69vccVfnEAJ3bUcg",
+            guardianId: "zb2wwnTmtTPf9Q9qMUWkmEXMfEHK8YPCzQD82fTkhnv1izrBD",
+          },
+          linkChanges: {
+            children: {
+              added: [
+                "zb2wwybSsom4FSJts2Rxj4hb81rGvRZeepo4dkV36NAEZ1Wqh",
+              ],
+              removed: [
+              ],
+            },
+          },
+        },
+      },
+      {
+        perspective: {
+          id: "zb2wwwjGz9v4yo7RoskJXsBGnEEzwvcH5vmon3EhWpzYHpEig",
+          object: {
+            payload: {
+              creatorId: user,
+              remote: "http:evees-v1",
+              path: "http://localhost:3100/uprtcl/1",
+              timestamp: Date.now(),
+              context: "zb2wwxWvb6WRkcTFmqCET2JyjrrWyBcPnhkypDfHdBw8bmr9d",
+            },
+            proof: {
+              signature: "",
+              type: "",
+            },
+          },
+        },
+        update: {
+          perspectiveId: "zb2wwwjGz9v4yo7RoskJXsBGnEEzwvcH5vmon3EhWpzYHpEig",
+          details: {
+            headId: "zb2wwvy7WmJhNVMFivVu7REyz8vDN3yNteFmR7gZFaCm8QW6R",
+            guardianId: "zb2wwnTmtTPf9Q9qMUWkmEXMfEHK8YPCzQD82fTkhnv1izrBD",
+          },
+          linkChanges: {
+            children: {
+              added: [
+              ],
+              removed: [
+              ],
+            },
+          },
+        },
+      },
+      {
+        perspective: {
+          id: "zb2wwybSsom4FSJts2Rxj4hb81rGvRZeepo4dkV36NAEZ1Wqh",
+          object: {
+            payload: {
+              creatorId: user,
+              remote: "http:evees-v1",
+              path: "http://localhost:3100/uprtcl/1",
+              timestamp: Date.now(),
+              context: "zb2wwkWRG6Q8WVXS8oa2g3H9kG5UDyPb34CvAZFXGyc3XxKRd",
+            },
+            proof: {
+              signature: "",
+              type: "",
+            },
+          },
+        },
+        update: {
+          perspectiveId: "zb2wwybSsom4FSJts2Rxj4hb81rGvRZeepo4dkV36NAEZ1Wqh",
+          details: {
+            headId: "zb2wwhw2SVcyoQyrM7p3MNMCSt4ewjStrNpZTiU5Ug3PJcQ3U",
+            guardianId: "zb2wwxorGthbSLv77G2He7zAwH4mL47vdPWNEY42GyGy7LsRt",
+          },
+          linkChanges: {
+            children: {
+              added: [
+              ],
+              removed: [
+              ],
+            },
+          },
+        },
       },
     ]
-
-  const updates = [
-    {
-      id: "zb2wwmih6X9wVG8eGPHsKcSQZDmHrpRR7Jr2tY489DQUayq3v",
-      details: {
-        headId: "zb2wwpVGNB1Y1PJV36JWtuisxXP13L6xGhQaSSFGka7xyqZbS",
-        addedChildren: pagePerspective.map(p => p.perspective.id)
-      },
-    },
-  ]
-
-  return { pageData, pagePerspective, updates }
+  }
 }
 
-export const createHerarchichalScenario = (user: TestUser) => {
-  const pageData = [
-  {
-    id: "zb2wwiX3NKhvWzv5AGVm7pAkjC5bWzjzWbftgCaAWFGzHbUBU",
-    object: {
-      text: "head5",
-      type: "Title",
-      links: [
-        "zb2wwvnYkgQbkMhDmDnunYMk97VPUPVw8WdWTrrTqhLzW1DSu",
-      ],
-    },
-  },
-  {
-    id: "zb2wwkV2YqxnrbzLzancrVxorJJz1GR2B7HhNQXxsrLeKApUh",
-    object: {
-      proof: {
-        signature: "",
-        type: "",
+export const createHerarchichalScenario = (user: string) => {
+  return {
+    data: [
+      {
+        id: "zb2wwkQeeoundFws2tvLtaC3RzAKvqn73eLXu2nKXNST5eUZq",
+        object: {
+          text: "Head1",
+          type: "Title",
+          links: [
+            "zb2wwkZ2JbB5bhVxqA1zaZkyE42rPtuGDi89XVsRMjGdT3UGo",
+          ],
+        },
       },
-      payload: {
-        creatorsIds: [
-        ],
-        dataId: "zb2wwwb9ATfTtXHZMxQC9FBW3u3pQwKrwyj76heHXK5GvZBr5",
-        message: "",
-        timestamp: Date.now(),
-        parentsIds: [
-        ],
-      },
-    },
-  },
-  {
-    id: "zb2wwmAnQxUfn2WpTW55sHUqwAWAXa9D8og7EYWPLeC65YKgC",
-    object: {
-      proof: {
-        signature: "",
-        type: "",
-      },
-      payload: {
-        creatorsIds: [
-        ],
-        dataId: "zb2wwiX3NKhvWzv5AGVm7pAkjC5bWzjzWbftgCaAWFGzHbUBU",
-        message: "",
-        timestamp: Date.now(),
-        parentsIds: [
-        ],
-      },
-    },
-  },
-  {
-    id: "zb2wwmRF9Rnz4qZhFbxbN4anHr5wt5MSMETqGj6hKEkv6Scdv",
-    object: {
-      proof: {
-        signature: "",
-        type: "",
-      },
-      payload: {
-        creatorsIds: [
-        ],
-        dataId: "zb2wwsJarMxegjpzbJRqxbkmCGkqTvL5wp4nHu2hub96R6WcA",
-        message: "",
-        timestamp: Date.now(),
-        parentsIds: [
-          "zb2wwyNDa9hzXenC5Afv4FieCRtrJAZE5YZ2nXafz9LxaTWuN",
-        ],
-      },
-    },
-  },
-  {
-    id: "zb2wwnTXb4ACHnx3D2C5vEcLfxg8AtnxZRRdy4v5ZtLHufwN2",
-    object: {
-      proof: {
-        signature: "",
-        type: "",
-      },
-      payload: {
-        creatorsIds: [
-        ],
-        dataId: "zb2wwvDzh6MmGocwjbhGZV1Jyy5NKAsFsi48TwduKQkDd6tke",
-        message: "",
-        timestamp: Date.now(),
-        parentsIds: [
-        ],
-      },
-    },
-  },
-  {
-    id: "zb2wwoT6tMZGU5q2NMzD8kYJPLRtZ769wzSHT6Jg3vc2fuvuW",
-    object: {
-      text: "head3",
-      type: "Title",
-      links: [
-        "zb2wwqLCxrfmeQyZsbivGFfbg3eLpCo7MmQ9FNBTh7easN5hp",
-      ],
-    },
-  },
-  {
-    id: "zb2wws1KMpHijNYqN3Bg4Yy5WSayGAuGXyLMthKGfrWBfMzYP",
-    object: {
-      proof: {
-        signature: "",
-        type: "",
-      },
-      payload: {
-        creatorsIds: [
-        ],
-        dataId: "zb2wwvefS4HGGwggJ8QB9Zk1bQtut8oG6YeQ92S17rVreM2oZ",
-        message: "",
-        timestamp: Date.now(),
-        parentsIds: [
-        ],
-      },
-    },
-  },
-  {
-    id: "zb2wwsJarMxegjpzbJRqxbkmCGkqTvL5wp4nHu2hub96R6WcA",
-    object: {
-      text: "Head 1",
-      type: "Title",
-      links: [
-        "zb2wwygjh4AhRqbNyVVVoydAyi4TbUfEgAwHaigkVTK5RgE1r",
-      ],
-    },
-  },
-  {
-    id: "zb2wwvDzh6MmGocwjbhGZV1Jyy5NKAsFsi48TwduKQkDd6tke",
-    object: {
-      text: "head6",
-      type: "Title",
-      links: [
-      ],
-    },
-  },
-  {
-    id: "zb2wwvefS4HGGwggJ8QB9Zk1bQtut8oG6YeQ92S17rVreM2oZ",
-    object: {
-      text: "head4",
-      type: "Title",
-      links: [
-        "zb2wwr51zazEnWnNP99R7a5qyJXPMkS6NL5mCCZt5RjSFuFAd",
-      ],
-    },
-  },
-  {
-    id: "zb2wwwb9ATfTtXHZMxQC9FBW3u3pQwKrwyj76heHXK5GvZBr5",
-    object: {
-      text: "head2",
-      type: "Title",
-      links: [
-        "zb2wwnSAVmcugTtQxUgxkNbBns2FN68B1wtbV6yDkwCNrtmv3",
-      ],
-    },
-  },
-  {
-    id: "zb2wwzAmpDuUdnFZvmYACLW6W8uAM6CjMUDA7xZkJKTFG5f39",
-    object: {
-      proof: {
-        signature: "",
-        type: "",
-      },
-      payload: {
-        creatorsIds: [
-        ],
-        dataId: "zb2wwoT6tMZGU5q2NMzD8kYJPLRtZ769wzSHT6Jg3vc2fuvuW",
-        message: "",
-        timestamp: Date.now(),
-        parentsIds: [
-        ],
-      },
-    },
-  },
-]
-
-  let pagePerspectives:any = [
-    {
-      perspective: {
-        id: "zb2wwnSAVmcugTtQxUgxkNbBns2FN68B1wtbV6yDkwCNrtmv3",
+      {
+        id: "zb2wwvWTcsvFd3pK5qpj7pd7fLBUkjRQz9EnSyyV9gjyHs1gK",
         object: {
           proof: {
             signature: "",
             type: "",
           },
           payload: {
-            creatorId: user.userId,
-            remote: "http:evees-v1",
-            path: "http://localhost:3100/uprtcl/1",
+            creatorsIds: [
+            ],
+            dataId: "zb2wwkQeeoundFws2tvLtaC3RzAKvqn73eLXu2nKXNST5eUZq",
+            message: "",
             timestamp: Date.now(),
-            context: "zb2rhXHeSJJjo9AQHqnKznWjhsx7xiSfQPC3ZHogycxNNQakQ",
+            parentsIds: [
+            ],
           },
         },
-        casID: "http:store:http://localhost:3100/uprtcl/1",
       },
-      details: {
-        headId: "zb2wwzAmpDuUdnFZvmYACLW6W8uAM6CjMUDA7xZkJKTFG5f39",
-      },
-      parentId: "zb2wwygjh4AhRqbNyVVVoydAyi4TbUfEgAwHaigkVTK5RgE1r",
-    },
-    {
-      perspective: {
-        id: "zb2wwqLCxrfmeQyZsbivGFfbg3eLpCo7MmQ9FNBTh7easN5hp",
+      {
+        id: "zb2wws8bKmpB269Bfg8XgwzH5iit2BQovugoUrqHyvJbheKxU",
         object: {
           proof: {
             signature: "",
             type: "",
           },
           payload: {
-            creatorId: user.userId,
-            remote: "http:evees-v1",
-            path: "http://localhost:3100/uprtcl/1",
+            creatorsIds: [
+            ],
+            dataId: "zb2wwkQeeoundFws2tvLtaC3RzAKvqn73eLXu2nKXNST5eUZq",
+            message: "",
             timestamp: Date.now(),
-            context: "zb2rhZrjd8aQGchSG5aU8FLeGcmbbND1cwW2Rw4ZPG23Cjeo1",
+            parentsIds: [
+              "zb2wwhw2SVcyoQyrM7p3MNMCSt4ewjStrNpZTiU5Ug3PJcQ3U",
+            ],
           },
         },
-        casID: "http:store:http://localhost:3100/uprtcl/1",
       },
-      details: {
-        headId: "zb2wws1KMpHijNYqN3Bg4Yy5WSayGAuGXyLMthKGfrWBfMzYP",
+      {
+        id: "zb2wwvtnUmq8H7ejjmf9HVHAVSWFpeSj65FKvAX7ZKdQ8mSLR",
+        object: {
+          text: "head2",
+          type: "Title",
+          links: [
+            "zb2wwqHuJBN4zmXPokxrPSJxTGvj19Hxg9MMhaeZwaeiFuV6Q",
+          ],
+        },
       },
-      parentId: "zb2wwnSAVmcugTtQxUgxkNbBns2FN68B1wtbV6yDkwCNrtmv3",
-    },
-    {
-      perspective: {
-        id: "zb2wwr51zazEnWnNP99R7a5qyJXPMkS6NL5mCCZt5RjSFuFAd",
+      {
+        id: "zb2wwnHxDiNBGUoDhegnkbuToE9BC2NPZZgdDwGXs9jjk6qdR",
         object: {
           proof: {
             signature: "",
             type: "",
           },
           payload: {
-            creatorId: user.userId,
+            creatorsIds: [
+            ],
+            dataId: "zb2wwvtnUmq8H7ejjmf9HVHAVSWFpeSj65FKvAX7ZKdQ8mSLR",
+            message: "",
+            timestamp: Date.now(),
+            parentsIds: [
+            ],
+          },
+        },
+      },
+      {
+        id: "zb2wwkZ2JbB5bhVxqA1zaZkyE42rPtuGDi89XVsRMjGdT3UGo",
+        object: {
+          payload: {
+            creatorId: user,
             remote: "http:evees-v1",
             path: "http://localhost:3100/uprtcl/1",
             timestamp: Date.now(),
-            context: "zb2rhecybetWJy4z5WjsQQPbYRFREdraNnXzGTmDYhmuZU1V6",
+            context: "zb2rhZZ4L82DVaG36xARJQrFTP3vH3HesXp5hhZixw6gHkezp",
+          },
+          proof: {
+            signature: "",
+            type: "",
           },
         },
-        casID: "http:store:http://localhost:3100/uprtcl/1",
       },
-      details: {
-        headId: "zb2wwmAnQxUfn2WpTW55sHUqwAWAXa9D8og7EYWPLeC65YKgC",
+      {
+        id: "zb2www5RSXJEPbfDafWkcUYu5J9rhRzt5UWP8gZGm7bLwvWA3",
+        object: {
+          text: "head3",
+          type: "Title",
+          links: [
+            "zb2wwpeFkaEyM8wmLVfitXCNDAxw6bBEAhqUycYixP3p1n5nj",
+          ],
+        },
       },
-      parentId: "zb2wwqLCxrfmeQyZsbivGFfbg3eLpCo7MmQ9FNBTh7easN5hp",
-    },
-    {
-      perspective: {
-        id: "zb2wwvnYkgQbkMhDmDnunYMk97VPUPVw8WdWTrrTqhLzW1DSu",
+      {
+        id: "zb2wwqXVV1yoasQMQKmCV3vhgC6bfTVJGGG6Dq6ZhpPur42kR",
         object: {
           proof: {
             signature: "",
             type: "",
           },
           payload: {
-            creatorId: user.userId,
+            creatorsIds: [
+            ],
+            dataId: "zb2www5RSXJEPbfDafWkcUYu5J9rhRzt5UWP8gZGm7bLwvWA3",
+            message: "",
+            timestamp: Date.now(),
+            parentsIds: [
+            ],
+          },
+        },
+      },
+      {
+        id: "zb2wwqHuJBN4zmXPokxrPSJxTGvj19Hxg9MMhaeZwaeiFuV6Q",
+        object: {
+          payload: {
+            creatorId: user,
             remote: "http:evees-v1",
             path: "http://localhost:3100/uprtcl/1",
             timestamp: Date.now(),
-            context: "zb2rhZNU67tbxpDdzVpoevwrfd1G2e923jew6Jg2ZBVnxwYSx",
+            context: "zb2rhZMXu6xCuEJG2Pc2SooWASLJGYNKkyZvU8qEb2ZeQCUsc",
+          },
+          proof: {
+            signature: "",
+            type: "",
           },
         },
-        casID: "http:store:http://localhost:3100/uprtcl/1",
       },
-      details: {
-        headId: "zb2wwnTXb4ACHnx3D2C5vEcLfxg8AtnxZRRdy4v5ZtLHufwN2",
+      {
+        id: "zb2wwrvX9ywbAQNJ4zbBhsKoeJ4jxNSCPZXp6Upe8rr9G5fDx",
+        object: {
+          text: "head4",
+          type: "Title",
+          links: [
+            "zb2wwvGpXT72Anq48hrrgKGpnZqSAQVhLC5yNjjcTFaja3vWQ",
+          ],
+        },
       },
-      parentId: "zb2wwr51zazEnWnNP99R7a5qyJXPMkS6NL5mCCZt5RjSFuFAd",
-    },
-    {
-      perspective: {
-        id: "zb2wwygjh4AhRqbNyVVVoydAyi4TbUfEgAwHaigkVTK5RgE1r",
+      {
+        id: "zb2wwsfq53SWY5U6cpZLGSRu8mERFvroKm7kXngg2o8ZfGwkb",
         object: {
           proof: {
             signature: "",
             type: "",
           },
           payload: {
-            creatorId: user.userId,
+            creatorsIds: [
+            ],
+            dataId: "zb2wwrvX9ywbAQNJ4zbBhsKoeJ4jxNSCPZXp6Upe8rr9G5fDx",
+            message: "",
+            timestamp: Date.now(),
+            parentsIds: [
+            ],
+          },
+        },
+      },
+      {
+        id: "zb2wwpeFkaEyM8wmLVfitXCNDAxw6bBEAhqUycYixP3p1n5nj",
+        object: {
+          payload: {
+            creatorId: user,
             remote: "http:evees-v1",
             path: "http://localhost:3100/uprtcl/1",
             timestamp: Date.now(),
-            context: "zb2rhfgy1fy23kcZdsPyhn86eMKw8iM8XUkKg4aXhxRAvM6he",
+            context: "zb2rhan8q7CNLJAt17drzN13SyiMhkZ3PwcnLVF9djCdRUemN",
+          },
+          proof: {
+            signature: "",
+            type: "",
           },
         },
-        casID: "http:store:http://localhost:3100/uprtcl/1",
       },
-      details: {
-        headId: "zb2wwkV2YqxnrbzLzancrVxorJJz1GR2B7HhNQXxsrLeKApUh",
+      {
+        id: "zb2wwwZRNrKUUikvNmCmvRa35v4E8etBHnG5FHkFk53bCff2D",
+        object: {
+          text: "head5",
+          type: "Title",
+          links: [
+            "zb2wws9eDm8qSdANbgjrs5kdf9VGHf4Fd3UvUQaTUiZKZfwWN",
+          ],
+        },
       },
-      parentId: "zb2wwhmRinUyisXA8RXXMonzWqDAGyMfEWZaahDPC51UiV6a8",
-    },
-  ]
-
-  // Collect children for perspectives.
-  // We know that the children of perspectives are their page or link nodes.
-  pagePerspectives.forEach((persp:any) => {
-    const perspHead = pageData.find(head => head.id === persp.details.headId);
-    const perspData = pageData.find(data => data.id === perspHead?.object.payload?.dataId);
-
-    persp.details.addedChildren = perspData?.object.links
-  });
-
-  const updates = [
-    {
-      id: "zb2wwhmRinUyisXA8RXXMonzWqDAGyMfEWZaahDPC51UiV6a8",
-      details: {
-        headId: "zb2wwmRF9Rnz4qZhFbxbN4anHr5wt5MSMETqGj6hKEkv6Scdv",
-        addedChildren: pagePerspectives.map((p:any) => p.perspective.id)
+      {
+        id: "zb2wwu21yz1DPDzHxRQFB7sfa8cbgyxD8tjjhTy9tUePbwpTb",
+        object: {
+          proof: {
+            signature: "",
+            type: "",
+          },
+          payload: {
+            creatorsIds: [
+            ],
+            dataId: "zb2wwwZRNrKUUikvNmCmvRa35v4E8etBHnG5FHkFk53bCff2D",
+            message: "",
+            timestamp: Date.now(),
+            parentsIds: [
+            ],
+          },
+        },
       },
-    },
-  ]
-
-  return { pageData, pagePerspectives, updates }
+      {
+        id: "zb2wwvGpXT72Anq48hrrgKGpnZqSAQVhLC5yNjjcTFaja3vWQ",
+        object: {
+          payload: {
+            creatorId: user,
+            remote: "http:evees-v1",
+            path: "http://localhost:3100/uprtcl/1",
+            timestamp: Date.now(),
+            context: "zb2rhbuMZUJurdTh1Y8CwAgqWfF9K95ZQxHTAnREDYwQKdaTM",
+          },
+          proof: {
+            signature: "",
+            type: "",
+          },
+        },
+      },
+      {
+        id: "zb2wwvDzh6MmGocwjbhGZV1Jyy5NKAsFsi48TwduKQkDd6tke",
+        object: {
+          text: "head6",
+          type: "Title",
+          links: [
+          ],
+        },
+      },
+      {
+        id: "zb2wwssub8Dot9mvJapHHMYANh6oN28wMR9wfHmmWQMDpFbNF",
+        object: {
+          proof: {
+            signature: "",
+            type: "",
+          },
+          payload: {
+            creatorsIds: [
+            ],
+            dataId: "zb2wwvDzh6MmGocwjbhGZV1Jyy5NKAsFsi48TwduKQkDd6tke",
+            message: "",
+            timestamp: Date.now(),
+            parentsIds: [
+            ],
+          },
+        },
+      },
+      {
+        id: "zb2wws9eDm8qSdANbgjrs5kdf9VGHf4Fd3UvUQaTUiZKZfwWN",
+        object: {
+          payload: {
+            creatorId: user,
+            remote: "http:evees-v1",
+            path: "http://localhost:3100/uprtcl/1",
+            timestamp: Date.now(),
+            context: "zb2rhcB1ZgZhkCmqgyUk8mm2uTU8sxbZNCAQPwTxEoozi6JFx",
+          },
+          proof: {
+            signature: "",
+            type: "",
+          },
+        },
+      },
+    ],
+    perspectives: [
+      {
+        perspective: {
+          id: "zb2wwkZ2JbB5bhVxqA1zaZkyE42rPtuGDi89XVsRMjGdT3UGo",
+          object: {
+            payload: {
+              creatorId: user,
+              remote: "http:evees-v1",
+              path: "http://localhost:3100/uprtcl/1",
+              timestamp: Date.now(),
+              context: "zb2rhZZ4L82DVaG36xARJQrFTP3vH3HesXp5hhZixw6gHkezp",
+            },
+            proof: {
+              signature: "",
+              type: "",
+            },
+          },
+        },
+        update: {
+          perspectiveId: "zb2wwkZ2JbB5bhVxqA1zaZkyE42rPtuGDi89XVsRMjGdT3UGo",
+          details: {
+            headId: "zb2wwnHxDiNBGUoDhegnkbuToE9BC2NPZZgdDwGXs9jjk6qdR",
+            guardianId: "zb2wwybSsom4FSJts2Rxj4hb81rGvRZeepo4dkV36NAEZ1Wqh",
+          },
+          linkChanges: {
+            children: {
+              added: [
+                "zb2wwqHuJBN4zmXPokxrPSJxTGvj19Hxg9MMhaeZwaeiFuV6Q",
+              ],
+              removed: [
+              ],
+            },
+          },
+        },
+      },
+      {
+        perspective: {
+          id: "zb2wwqHuJBN4zmXPokxrPSJxTGvj19Hxg9MMhaeZwaeiFuV6Q",
+          object: {
+            payload: {
+              creatorId: user,
+              remote: "http:evees-v1",
+              path: "http://localhost:3100/uprtcl/1",
+              timestamp: Date.now(),
+              context: "zb2rhZMXu6xCuEJG2Pc2SooWASLJGYNKkyZvU8qEb2ZeQCUsc",
+            },
+            proof: {
+              signature: "",
+              type: "",
+            },
+          },
+        },
+        update: {
+          perspectiveId: "zb2wwqHuJBN4zmXPokxrPSJxTGvj19Hxg9MMhaeZwaeiFuV6Q",
+          details: {
+            headId: "zb2wwqXVV1yoasQMQKmCV3vhgC6bfTVJGGG6Dq6ZhpPur42kR",
+            guardianId: "zb2wwkZ2JbB5bhVxqA1zaZkyE42rPtuGDi89XVsRMjGdT3UGo",
+          },
+          linkChanges: {
+            children: {
+              added: [
+                "zb2wwpeFkaEyM8wmLVfitXCNDAxw6bBEAhqUycYixP3p1n5nj",
+              ],
+              removed: [
+              ],
+            },
+          },
+        },
+      },
+      {
+        perspective: {
+          id: "zb2wwpeFkaEyM8wmLVfitXCNDAxw6bBEAhqUycYixP3p1n5nj",
+          object: {
+            payload: {
+              creatorId: user,
+              remote: "http:evees-v1",
+              path: "http://localhost:3100/uprtcl/1",
+              timestamp: Date.now(),
+              context: "zb2rhan8q7CNLJAt17drzN13SyiMhkZ3PwcnLVF9djCdRUemN",
+            },
+            proof: {
+              signature: "",
+              type: "",
+            },
+          },
+        },
+        update: {
+          perspectiveId: "zb2wwpeFkaEyM8wmLVfitXCNDAxw6bBEAhqUycYixP3p1n5nj",
+          details: {
+            headId: "zb2wwsfq53SWY5U6cpZLGSRu8mERFvroKm7kXngg2o8ZfGwkb",
+            guardianId: "zb2wwqHuJBN4zmXPokxrPSJxTGvj19Hxg9MMhaeZwaeiFuV6Q",
+          },
+          linkChanges: {
+            children: {
+              added: [
+                "zb2wwvGpXT72Anq48hrrgKGpnZqSAQVhLC5yNjjcTFaja3vWQ",
+              ],
+              removed: [
+              ],
+            },
+          },
+        },
+      },
+      {
+        perspective: {
+          id: "zb2wwvGpXT72Anq48hrrgKGpnZqSAQVhLC5yNjjcTFaja3vWQ",
+          object: {
+            payload: {
+              creatorId: user,
+              remote: "http:evees-v1",
+              path: "http://localhost:3100/uprtcl/1",
+              timestamp: Date.now(),
+              context: "zb2rhbuMZUJurdTh1Y8CwAgqWfF9K95ZQxHTAnREDYwQKdaTM",
+            },
+            proof: {
+              signature: "",
+              type: "",
+            },
+          },
+        },
+        update: {
+          perspectiveId: "zb2wwvGpXT72Anq48hrrgKGpnZqSAQVhLC5yNjjcTFaja3vWQ",
+          details: {
+            headId: "zb2wwu21yz1DPDzHxRQFB7sfa8cbgyxD8tjjhTy9tUePbwpTb",
+            guardianId: "zb2wwpeFkaEyM8wmLVfitXCNDAxw6bBEAhqUycYixP3p1n5nj",
+          },
+          linkChanges: {
+            children: {
+              added: [
+                "zb2wws9eDm8qSdANbgjrs5kdf9VGHf4Fd3UvUQaTUiZKZfwWN",
+              ],
+              removed: [
+              ],
+            },
+          },
+        },
+      },
+      {
+        perspective: {
+          id: "zb2wws9eDm8qSdANbgjrs5kdf9VGHf4Fd3UvUQaTUiZKZfwWN",
+          object: {
+            payload: {
+              creatorId: user,
+              remote: "http:evees-v1",
+              path: "http://localhost:3100/uprtcl/1",
+              timestamp: Date.now(),
+              context: "zb2rhcB1ZgZhkCmqgyUk8mm2uTU8sxbZNCAQPwTxEoozi6JFx",
+            },
+            proof: {
+              signature: "",
+              type: "",
+            },
+          },
+        },
+        update: {
+          perspectiveId: "zb2wws9eDm8qSdANbgjrs5kdf9VGHf4Fd3UvUQaTUiZKZfwWN",
+          details: {
+            headId: "zb2wwssub8Dot9mvJapHHMYANh6oN28wMR9wfHmmWQMDpFbNF",
+            guardianId: "zb2wwvGpXT72Anq48hrrgKGpnZqSAQVhLC5yNjjcTFaja3vWQ",
+          },
+          linkChanges: {
+            children: {
+              added: [
+              ],
+              removed: [
+              ],
+            },
+          },
+        },
+      },
+    ],
+    updates: [
+      {
+        perspectiveId: "zb2wwybSsom4FSJts2Rxj4hb81rGvRZeepo4dkV36NAEZ1Wqh",
+        details: {
+          headId: "zb2wws8bKmpB269Bfg8XgwzH5iit2BQovugoUrqHyvJbheKxU",
+        },
+        oldDetails: {
+          headId: "zb2wwhw2SVcyoQyrM7p3MNMCSt4ewjStrNpZTiU5Ug3PJcQ3U",
+          guardianId: "zb2wwxorGthbSLv77G2He7zAwH4mL47vdPWNEY42GyGy7LsRt",
+          canUpdate: true,
+        },
+        linkChanges: {
+          children: {
+            added: [
+              "zb2wwkZ2JbB5bhVxqA1zaZkyE42rPtuGDi89XVsRMjGdT3UGo",
+            ],
+            removed: [
+            ],
+          },
+        },
+      },
+    ]
+  }
 }

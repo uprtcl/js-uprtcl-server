@@ -21,8 +21,7 @@ import {
   setPublicPermission,
 } from '../access/access.testsupport';
 import { 
-  createHomePerspective, 
-  createFirstPage, 
+  createHomeSpace, 
   createHerarchichalScenario } from '../uprtcl/uprtcl.mock.helper';
 import { PermissionType } from '../uprtcl/types';
 
@@ -316,30 +315,21 @@ describe('routes', () => {
     const perspectiveId1 = await createPerspective(user1, Date.now(), context);
     await updatePerspective(
       user1.jwt,
-      perspectiveId1,
-      {
-        name: name1,
-      }
+      perspectiveId1
     );
 
     const name2 = 'persp 2';
     const perspectiveId2 = await createPerspective(user1, Date.now(), context);
     await updatePerspective(
       user1.jwt,
-      perspectiveId2,
-      {
-        name: name2,
-      }
+      perspectiveId2
     );
 
     const name3 = 'persp 3';
     const perspectiveId3 = await createPerspective(user1, Date.now(), context);
     await updatePerspective(
       user2.jwt,
-      perspectiveId3,
-      {
-        name: name3,
-      }
+      perspectiveId3
     );
 
     let result12 = await setPublicPermission(
@@ -413,8 +403,7 @@ describe('routes', () => {
       user1.jwt,
       mainPerspective,
       {
-        headId: newDataCommit1,
-        name: name,
+        headId: newDataCommit1
       }
     );
 
@@ -438,8 +427,7 @@ describe('routes', () => {
       user1.jwt,
       mainPerspective,
       {
-        headId: newDataCommit2,
-        name: name,
+        headId: newDataCommit2
       }
     );
     // ----- Finished adding the additional page. ------ //
@@ -464,8 +452,7 @@ describe('routes', () => {
       user1.jwt,
       page1Perspective,
       {
-        headId: newDataCommit3,
-        name: name,
+        headId: newDataCommit3
       }
     );
     // ----- Finsihed adding an aditional link to page1 ------ //
@@ -490,8 +477,7 @@ describe('routes', () => {
       user1.jwt,
       page2Perspective,
       {
-        headId: newDataCommit4,
-        name: name,
+        headId: newDataCommit4
       }
     );
 
@@ -514,8 +500,7 @@ describe('routes', () => {
       user1.jwt,
       page2Perspective,
       {
-        headId: newDataCommit5,
-        name: name,
+        headId: newDataCommit5
       }
     );
     // ----- Finished adding 2 additional links to page 2 ---- //
@@ -542,8 +527,7 @@ describe('routes', () => {
       user1.jwt,
       mainPerspective,
       {
-        headId: newDataCommit6,
-        name: name,
+        headId: newDataCommit6
       }
     );
 
@@ -575,8 +559,7 @@ describe('routes', () => {
       user1.jwt,
       mainPerspective,
       {
-        headId: newDataCommit7,
-        name: name,
+        headId: newDataCommit7
       }
     );
 
@@ -613,8 +596,7 @@ describe('routes', () => {
       user1.jwt,
       link1Perspecitve,
       {
-        headId: newDataCommit8,
-        name: name,
+        headId: newDataCommit8
       }
     );
 
@@ -715,19 +697,22 @@ describe('routes', () => {
     const user = await createUser('seed1');
 
     // Create home space
-    const homePerspective = await createHomePerspective(user);
-    await sendPerspectiveBatch([homePerspective], user);
-
-    // Create first page
-    const firstPage = createFirstPage(user);
-    await sendDataBatch(firstPage.pageData, user);
-    await sendPerspectiveBatch(firstPage.pagePerspective, user);
-    await updatePerspective(user.jwt, undefined, undefined, firstPage.updates);
+    /**
+     * Includes:
+     * -> Home space
+     *  -> Linked thoughts space
+     *    -> Private
+     *      -> An untitled page created on Private
+     *    -> Blog
+     */
+    const homePerspective = createHomeSpace(user.userId.toLocaleLowerCase());
+    await sendDataBatch(homePerspective.data, user);
+    await sendPerspectiveBatch(homePerspective.perspectives, user);
 
     // Create scenario A
-    const scenarioA = createHerarchichalScenario(user);
-    await sendDataBatch(scenarioA.pageData, user);
-    await sendPerspectiveBatch(scenarioA.pagePerspectives, user);
+    const scenarioA = createHerarchichalScenario(user.userId.toLocaleLowerCase());
+    await sendDataBatch(scenarioA.data, user);
+    await sendPerspectiveBatch(scenarioA.perspectives, user);
     await updatePerspective(user.jwt, undefined, undefined, scenarioA.updates);
 
     done();
