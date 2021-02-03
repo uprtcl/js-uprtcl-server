@@ -1,5 +1,10 @@
 import { Request, Response } from 'express';
-import { Secured, Perspective, PerspectiveDetails } from '@uprtcl/evees';
+import {
+  Secured,
+  Perspective,
+  PerspectiveDetails,
+  PerspectiveGetResult,
+} from '@uprtcl/evees';
 
 import { UprtclService } from './uprtcl.service';
 import { checkJwt } from '../../middleware/jwtCheck';
@@ -46,101 +51,6 @@ export class UprtclController {
       },
 
       {
-        path: '/uprtcl/1/persp/:perspectiveId',
-        method: 'get',
-        handler: [
-          checkJwt,
-          async (req: Request, res: Response) => {
-            let inputs: any = {
-              perspectiveId: req.params.perspectiveId,
-              userId: getUserFromReq(req),
-            };
-
-            try {
-              const perspective = await this.uprtclService.getPerspective(
-                inputs.perspectiveId,
-                inputs.userId
-              );
-              let result: GetResult<Secured<Perspective>> = {
-                result: SUCCESS,
-                message: '',
-                data: perspective,
-              };
-
-              console.log('[UPRTCL CONTROLLER] getPerspective', {
-                inputs: JSON.stringify(inputs),
-                result: JSON.stringify(result),
-              });
-
-              res.status(200).send(result);
-            } catch (error) {
-              console.log(
-                '[UPRTCL CONTROLLER] getPerspective - Error',
-                JSON.stringify(inputs),
-                error
-              );
-
-              let result: GetResult<null> = {
-                result: ERROR,
-                message: error.message,
-                data: null,
-              };
-
-              res.status(200).send(result);
-            }
-          },
-        ],
-      },
-
-      {
-        path: '/uprtcl/1/persp/:perspectiveId/details',
-        method: 'get',
-        handler: [
-          checkJwt,
-          async (req: Request, res: Response) => {
-            let inputs: any = {
-              perspectiveId: req.params.perspectiveId,
-              userId: getUserFromReq(req),
-            };
-
-            try {
-              const data = await this.uprtclService.getPerspectiveDetails(
-                inputs.perspectiveId,
-                inputs.userId
-              );
-
-              let result: GetResult<PerspectiveDetails> = {
-                result: SUCCESS,
-                message: '',
-                data: data,
-              };
-
-              console.log('[UPRTCL CONTROLLER] getPerspectiveDetails', {
-                inputs: JSON.stringify(inputs),
-                result: JSON.stringify(result),
-              });
-
-              res.status(200).send(result);
-            } catch (error) {
-              console.error(
-                '[UPRTCL CONTROLLER] getPerspectiveDetails - Error',
-                JSON.stringify(inputs),
-                error
-              );
-
-              let result: GetResult<null> = {
-                result: ERROR,
-                message: error.message,
-                data: null,
-              };
-
-              res.status(200).send(result);
-            }
-          },
-        ],
-      },
-
-      {
         path: '/uprtcl/1/persp/update',
         method: 'put',
         handler: [
@@ -166,6 +76,56 @@ export class UprtclController {
                 elementIds: [],
               };
               res.status(400).send(result);
+            }
+          },
+        ],
+      },
+
+      {
+        path: '/uprtcl/1/persp/:perspectiveId',
+        method: 'put',
+        handler: [
+          checkJwt,
+          async (req: Request, res: Response) => {
+            let inputs: any = {
+              perspectiveId: req.params.perspectiveId,
+              options: req.body,
+              userId: getUserFromReq(req),
+            };
+
+            try {
+              const data = await this.uprtclService.getPerspective(
+                inputs.perspectiveId,
+                inputs.userId,
+                inputs.options
+              );
+
+              let result: GetResult<PerspectiveGetResult> = {
+                result: SUCCESS,
+                message: '',
+                data: data,
+              };
+
+              console.log('[UPRTCL CONTROLLER] getPerspectiveDetails', {
+                inputs: JSON.stringify(inputs),
+                result: JSON.stringify(result),
+              });
+
+              res.status(200).send(result);
+            } catch (error) {
+              console.error(
+                '[UPRTCL CONTROLLER] getPerspectiveDetails - Error',
+                JSON.stringify(inputs),
+                error
+              );
+
+              let result: GetResult<null> = {
+                result: ERROR,
+                message: error.message,
+                data: null,
+              };
+
+              res.status(200).send(result);
             }
           },
         ],

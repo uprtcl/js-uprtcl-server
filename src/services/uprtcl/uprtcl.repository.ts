@@ -1,23 +1,22 @@
 import {
   Commit,
   Entity,
+  GetPerspectiveOptions,
   NewPerspective,
   Perspective,
   PerspectiveDetails,
+  PerspectiveGetResult,
   Secured,
   Update,
+  Slice,
 } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
 import { DataRepository } from '../data/data.repository';
 import { Upsert } from './types';
-import {
-  PERSPECTIVE_SCHEMA_NAME,
-  PROOF_SCHEMA_NAME,
-  COMMIT_SCHEMA_NAME,
-} from './uprtcl.schema';
+import { PERSPECTIVE_SCHEMA_NAME, COMMIT_SCHEMA_NAME } from './uprtcl.schema';
 import { ipldService } from '../ipld/ipldService';
-import { Proof } from '@uprtcl/evees/dist/types/patterns/interfaces/signable';
+import { decodeData } from '../data/utils';
 
 const dgraph = require('dgraph-js');
 
@@ -38,10 +37,6 @@ interface DgPerspective {
   'dgraph.type'?: string;
   stored: boolean;
   deleted: boolean;
-  proof: DgProof;
-}
-
-interface DgProof {
   signature: string;
   proof_type: string;
 }
@@ -56,8 +51,48 @@ interface DgCommit {
   data: DgRef;
   'dgraph.type'?: string;
   stored: boolean;
-  proof: DgProof;
+  signature: string;
+  proof_type: string;
 }
+
+const COMMIT_PROPERTIES = `
+message
+creators {
+  did
+}
+parents {
+  xid
+}
+timextamp
+stored
+signature
+type
+`;
+
+const assembleCommit = (dcommit: DgCommit): Secured<Commit> => {
+  const commit: Commit = {
+    creatorsIds: dcommit.creators
+      ? dcommit.creators.map((creator: any) => creator.did)
+      : [],
+    dataId: dcommit.data.xid,
+    timestamp: dcommit.timextamp,
+    message: dcommit.message,
+    parentsIds: dcommit.parents
+      ? dcommit.parents.map((parent) => parent.xid)
+      : [],
+  };
+
+  return {
+    id: dcommit.xid,
+    object: {
+      payload: commit,
+      proof: {
+        signature: dcommit.signature,
+        type: dcommit.proof_type,
+      },
+    },
+  };
+};
 
 export class UprtclRepository {
   constructor(
@@ -116,12 +151,9 @@ export class UprtclRepository {
     );
 
     nquads = nquads.concat(
-      `\n_:proof${id} <dgraph.type> "${PROOF_SCHEMA_NAME}" .`
+      `\nuid(persp${id}) <signature> "${proof.signature}" .`
     );
-    nquads = nquads.concat(`\n_:proof${id} <signature> "${proof.signature}" .`);
-    nquads = nquads.concat(`\n_:proof${id} <proof_type> "${proof.type}" .`);
-
-    nquads = nquads.concat(`\nuid(persp${id}) <proof> _:proof${id} .`);
+    nquads = nquads.concat(`\nuid(persp${id}) <proof_type> "${proof.type}" .`);
 
     // Permissions and ACL
     //-----------------------------//
@@ -318,7 +350,7 @@ export class UprtclRepository {
       /**
        * Consequently, we start calling the ecosystem upsert function.
        */
-      const ecoUpsertString = this.updateEcosystem(updates[i], ecoUpsert);
+      const ecoUpsertString = this.updateEcosystemUpsert(updates[i], ecoUpsert);
 
       /**
        * To have in mind: The 2 previous functions are synchronous, which
@@ -435,7 +467,7 @@ export class UprtclRepository {
     return { query, nquads, delNquads };
   }
 
-  updateEcosystem(update: Update, upsert: Upsert) {
+  updateEcosystemUpsert(update: Update, upsert: Upsert) {
     let { query, nquads, delNquads } = upsert;
     const { perspectiveId: id } = update;
 
@@ -518,14 +550,11 @@ export class UprtclRepository {
       nquads = nquads.concat(`\nuid(commit${id}) <data> uid(dataof${id}) .`);
 
       nquads = nquads.concat(
-        `\n_:proof${id} <dgraph.type> "${PROOF_SCHEMA_NAME}" .`
+        `\nuid(commit${id}) <signature> "${proof.signature}" .`
       );
       nquads = nquads.concat(
-        `\n_:proof${id} <signature> "${proof.signature}" .`
+        `\nuid(commit${id}) <proof_type> "${proof.type}" .`
       );
-      nquads = nquads.concat(`\n_:proof${id} <proof_type> "${proof.type}" .`);
-
-      nquads = nquads.concat(`\nuid(commit${id}) <proof> _:proof${id} .`);
 
       /** get and set the uids of the links */
       for (let ix = 0; ix < commit.parentsIds.length; ix++) {
@@ -707,66 +736,6 @@ export class UprtclRepository {
     );
   }
 
-  async getPerspective(perspectiveId: string): Promise<Secured<Perspective>> {
-    await this.db.ready();
-    const query = `query {
-      perspective(func: eq(xid, ${perspectiveId})) {
-        xid
-        name
-        context
-        remote
-        path
-        creator {
-          did
-        }
-        timextamp
-        nonce
-        stored
-        deleted
-        proof {
-          signature
-          type
-        }
-      }
-    }`;
-
-    const result = await this.db.client.newTxn().query(query);
-    console.log(
-      '[DGRAPH] getPerspective',
-      { query },
-      JSON.stringify(result.getJson())
-    );
-    const dperspective: DgPerspective = result.getJson().perspective[0];
-    if (!dperspective)
-      throw new Error(`Perspective with id ${perspectiveId} not found`);
-    if (!dperspective.stored)
-      throw new Error(`Perspective with id ${perspectiveId} not stored`);
-    if (dperspective.deleted)
-      throw new Error(`Perspective with id ${perspectiveId} deleted`);
-
-    const perspective: Perspective = {
-      remote: dperspective.remote,
-      path: dperspective.path,
-      creatorId: dperspective.creator.did,
-      timestamp: dperspective.timextamp,
-      context: dperspective.context,
-    };
-
-    const proof: Proof = {
-      signature: dperspective.proof.signature,
-      type: dperspective.proof.proof_type,
-    };
-
-    const securedPerspective: Secured<Perspective> = {
-      id: dperspective.xid,
-      object: {
-        payload: perspective,
-        proof: proof,
-      },
-    };
-    return securedPerspective;
-  }
-
   async findPerspectives(context: string): Promise<string[]> {
     await this.db.ready();
     const query = `query {
@@ -780,10 +749,8 @@ export class UprtclRepository {
         }
         timextamp
         nonce
-        proof {
-          signature
-          type
-        }
+        signature
+        type
       }
     }`;
 
@@ -815,38 +782,105 @@ export class UprtclRepository {
     return securedPerspectives;
   }
 
-  async getPerspectiveDetails(
-    perspectiveId: string
-  ): Promise<PerspectiveDetails> {
+  async getPerspective(
+    perspectiveId: string,
+    loggedUserId: string | null,
+    options: GetPerspectiveOptions = {
+      levels: 0,
+      entities: true,
+    }
+  ): Promise<PerspectiveGetResult> {
     await this.db.ready();
 
-    const query = `query {
-      perspective(func: eq(xid, ${perspectiveId})) {
-        name
-        context
-        head {
+    if (options.levels !== 0 && options.levels !== -1) {
+      throw new Error(
+        `Levels can only be 0 (shallow get) or -1, fully recusvie`
+      );
+    }
+
+    /** The query uses ecosystem if levels === -1 and get the head and data json objects if entities === true */
+    const element = `
+      xid
+      context
+      head {
+        xid
+        data {
           xid
+          ${options.entities ? `jsonString` : ''}
         }
+        ${options.entities ? COMMIT_PROPERTIES : ''}
+      }
+      delegate
+      delegateTo
+      canWrite @filter(eq(did, "${loggedUserId}")) {
+        count(uid)
+      }
+      canRead @filter(eq(did, "${loggedUserId}")) {
+        count(uid)
+      }
+      publicWrite
+      publicRead
+      `;
+
+    const query = `query {
+      perspectives(func: eq(xid, ${perspectiveId})) {
+        ${options.levels === -1 ? `ecosystem {${element}}` : `${element}`}
       }
     }`;
 
-    let result = await this.db.client.newTxn().query(query);
-    let json = result.getJson();
-    console.log(
-      '[DGRAPH] getPerspectiveDetails',
-      { query },
-      JSON.stringify(json)
-    );
-    if (json.perspective.length === 0) {
-      return {
-        headId: '',
-      };
-    }
+    let dbResult = await this.db.client.newTxn().query(query);
+    let json = dbResult.getJson();
 
-    const details = json.perspective[0];
-    return {
-      headId: details.head ? details.head.xid : undefined,
+    console.log('[DGRAPH] getPerspective', { query }, JSON.stringify(json));
+
+    const readData = json.perspectives[0];
+
+    let topDetails: PerspectiveDetails = {};
+    let slice: Slice = {
+      entities: [],
+      perspectives: [],
     };
+
+    const all = options.levels === -1 ? readData.ecosystem : [readData];
+
+    /** data is under ecosystem */
+    all.forEach((element: any) => {
+      /** check access control, if user can't read, simply return undefined head  */
+      const canRead = !element.publicRead ? element.canRead[0].count > 0 : true;
+
+      const elementDetails = {
+        headId: canRead ? element.head.xid : undefined,
+        guardianId: element.delegate ? element.delegateTo : undefined,
+        canUpdate: !element.publicWrite ? element.canWrite[0].count > 0 : true,
+      };
+
+      if (element.xid === perspectiveId) {
+        topDetails = elementDetails;
+      } else {
+        slice.perspectives.push({
+          id: element.xid,
+          details: elementDetails,
+        });
+      }
+
+      if (options.entities) {
+        const commit = assembleCommit(element.head);
+
+        const data: Entity<any> = {
+          id: element.head.data.xid,
+          object: decodeData(element.head.data.jsonString),
+        };
+
+        slice.entities.push(commit, data);
+      }
+    });
+
+    const result: PerspectiveGetResult = {
+      details: topDetails,
+      slice,
+    };
+
+    return result;
   }
 
   async getCommit(commitId: string): Promise<Secured<Commit>> {
@@ -854,22 +888,10 @@ export class UprtclRepository {
     const query = `query {
       commit(func: eq(xid, ${commitId})) {
         xid
-        message
-        creators {
-          did
-        }
         data {
           xid
         }
-        parents {
-          xid
-        }
-        timextamp
-        stored
-        proof {
-          signature
-          type
-        }
+        ${COMMIT_PROPERTIES}
       }
     }`;
 
@@ -883,30 +905,6 @@ export class UprtclRepository {
     if (!dcommit) new Error(`Commit with id ${commitId} not found`);
     if (!dcommit.stored) new Error(`Commit with id ${commitId} not found`);
 
-    const commit: Commit = {
-      creatorsIds: dcommit.creators
-        ? dcommit.creators.map((creator: any) => creator.did)
-        : [],
-      dataId: dcommit.data.xid,
-      timestamp: dcommit.timextamp,
-      message: dcommit.message,
-      parentsIds: dcommit.parents
-        ? dcommit.parents.map((parent) => parent.xid)
-        : [],
-    };
-
-    const proof: Proof = {
-      signature: dcommit.proof.signature,
-      type: dcommit.proof.proof_type,
-    };
-
-    const securedCommit: Secured<Commit> = {
-      id: dcommit.xid,
-      object: {
-        payload: commit,
-        proof: proof,
-      },
-    };
-    return securedCommit;
+    return assembleCommit(dcommit);
   }
 }
