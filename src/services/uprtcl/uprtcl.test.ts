@@ -12,12 +12,18 @@ import {
   createAndInitPerspective,
   forkPerspective,
   addChildToPerspective,
+  sendDataBatch,
+  sendPerspectiveBatch
 } from './uprtcl.testsupport';
 import { createUser } from '../user/user.testsupport';
 import {
   addPermission,
   setPublicPermission,
 } from '../access/access.testsupport';
+import { 
+  createHomePerspective, 
+  createFirstPage, 
+  createHerarchichalScenario } from '../uprtcl/uprtcl.mock.helper';
 import { PermissionType } from '../uprtcl/types';
 
 describe('routes', () => {
@@ -53,23 +59,24 @@ describe('routes', () => {
     const commit2Id = await createCommitAndData('text 98765', false, user1);
 
     let result5 = await updatePerspective(
+      user2.jwt,
       perspectiveId,
       {
         headId: commit2Id,
         name: name,
       },
-      user2.jwt
     );
     expect(result5.result).toEqual(ERROR);
     expect(result5.message).toEqual(NOT_AUTHORIZED_MSG);
 
     let result6 = await updatePerspective(
+      user1.jwt,
       perspectiveId,
       {
         headId: commit2Id,
         name: name,
       },
-      user1.jwt
+
     );
     expect(result6.result).toEqual(SUCCESS);
 
@@ -119,9 +126,9 @@ describe('routes', () => {
     );
 
     let result7 = await updatePerspective(
+      user2.jwt,
       perspectiveId,
-      { headId: commit3Id },
-      user2.jwt
+      { headId: commit3Id }
     );
     expect(result7.result).toEqual(ERROR);
 
@@ -134,9 +141,9 @@ describe('routes', () => {
     expect(result10.result).toEqual(SUCCESS);
 
     let result8 = await updatePerspective(
+      user2.jwt,
       perspectiveId,
-      { headId: commit3Id },
-      user2.jwt
+      { headId: commit3Id }
     );
     expect(result8.result).toEqual(SUCCESS);
 
@@ -178,9 +185,9 @@ describe('routes', () => {
     );
 
     let result14 = await updatePerspective(
+      user3.jwt,
       perspectiveId,
-      { headId: commit4Id },
-      user3.jwt
+      { headId: commit4Id }
     );
     expect(result14.result).toEqual(ERROR);
     expect(result14.message).toEqual(NOT_AUTHORIZED_MSG);
@@ -194,9 +201,9 @@ describe('routes', () => {
     expect(result16.result).toEqual(SUCCESS);
 
     let result17 = await updatePerspective(
+      user3.jwt,
       perspectiveId,
-      { headId: commit4Id },
-      user3.jwt
+      { headId: commit4Id }
     );
     expect(result17.result).toEqual(SUCCESS);
 
@@ -222,9 +229,9 @@ describe('routes', () => {
     expect(result23.result).toEqual(SUCCESS);
 
     let result19 = await updatePerspective(
+      user3.jwt,
       perspectiveId,
-      { headId: commit4Id },
-      user3.jwt
+      { headId: commit4Id }
     );
     expect(result19.result).toEqual(ERROR);
     expect(result19.message).toEqual(NOT_AUTHORIZED_MSG);
@@ -325,11 +332,11 @@ describe('routes', () => {
       context
     );
     await updatePerspective(
+      user1.jwt,
       perspectiveId1,
       {
         name: name1,
-      },
-      user1.jwt
+      }
     );
 
     const name2 = 'persp 2';
@@ -339,11 +346,11 @@ describe('routes', () => {
       context
     );
     await updatePerspective(
+      user1.jwt,
       perspectiveId2,
       {
         name: name2,
-      },
-      user1.jwt
+      }
     );
 
     const name3 = 'persp 3';
@@ -353,11 +360,11 @@ describe('routes', () => {
       context
     );
     await updatePerspective(
+      user2.jwt,
       perspectiveId3,
       {
         name: name3,
-      },
-      user2.jwt
+      }
     );
 
     let result12 = await setPublicPermission(
@@ -432,12 +439,12 @@ describe('routes', () => {
 
     // Update perspective head with new data, linking new page.
     const updatedPerspective1 = await updatePerspective(
+      user1.jwt,
       mainPerspective,
       {
         headId: newDataCommit1,
         name: name,
-      },
-      user1.jwt
+      }
     );
 
     // Add one more page
@@ -457,12 +464,12 @@ describe('routes', () => {
     );
 
     const updatedPerspective2 = await updatePerspective(
+      user1.jwt,
       mainPerspective,
       {
         headId: newDataCommit2,
         name: name,
-      },
-      user1.jwt
+      }
     );
     // ----- Finished adding the additional page. ------ //
 
@@ -483,12 +490,12 @@ describe('routes', () => {
     );
 
     const updatedPerspective3 = await updatePerspective(
+      user1.jwt,
       page1Perspective,
       {
         headId: newDataCommit3,
         name: name,
-      },
-      user1.jwt
+      }
     );
     // ----- Finsihed adding an aditional link to page1 ------ //
 
@@ -509,12 +516,12 @@ describe('routes', () => {
     );
 
     const updatedPerspective4 = await updatePerspective(
+      user1.jwt,
       page2Perspective,
       {
         headId: newDataCommit4,
         name: name,
-      },
-      user1.jwt
+      }
     );
 
     const link3Commit = await createCommitAndData('new link', false, user1);
@@ -533,12 +540,12 @@ describe('routes', () => {
     );
 
     const updatedPerspective5 = await updatePerspective(
+      user1.jwt,
       page2Perspective,
       {
         headId: newDataCommit5,
         name: name,
-      },
-      user1.jwt
+      }
     );
     // ----- Finished adding 2 additional links to page 2 ---- //
 
@@ -561,12 +568,12 @@ describe('routes', () => {
 
     // Update perspective head with new data, linking new page.
     const updatedPerspective6 = await updatePerspective(
+      user1.jwt,
       mainPerspective,
       {
         headId: newDataCommit6,
         name: name,
-      },
-      user1.jwt
+      }
     );
 
     // Should point to itself
@@ -594,12 +601,12 @@ describe('routes', () => {
     );
 
     const updatedPerspective7 = await updatePerspective(
+      user1.jwt,
       mainPerspective,
       {
         headId: newDataCommit7,
         name: name,
-      },
-      user1.jwt
+      }
     );
 
     const eco1 = await getPerspectiveRelatives(mainPerspective, 'ecosystem');
@@ -632,12 +639,12 @@ describe('routes', () => {
     );
 
     const updatedPerspective8 = await updatePerspective(
+      user1.jwt,
       link1Perspecitve,
       {
         headId: newDataCommit8,
         name: name,
-      },
-      user1.jwt
+      }
     );
 
     const eco2 = await getPerspectiveRelatives(mainPerspective, 'ecosystem');
@@ -734,6 +741,29 @@ describe('routes', () => {
 
     expect(independentPerspectivesEco[1]).toEqual(PB1);
     expect(independentPerspectivesEco[0]).toEqual(LC);
+
+    done();
+  });
+
+  test.only('batch create', async (done) => {
+    // Emulate the user
+    const user = await createUser('seed1');
+
+    // Create home space
+    const homePerspective = await createHomePerspective(user);
+    await sendPerspectiveBatch([homePerspective], user);
+
+    // Create first page
+    const firstPage = createFirstPage(user);
+    await sendDataBatch(firstPage.pageData, user);
+    await sendPerspectiveBatch(firstPage.pagePerspective, user);
+    await updatePerspective(user.jwt, undefined, undefined, firstPage.updates);
+
+    // Create scenario A
+    const scenarioA = createHerarchichalScenario(user);
+    await sendDataBatch(scenarioA.pageData, user);
+    await sendPerspectiveBatch(scenarioA.pagePerspectives, user);
+    await updatePerspective(user.jwt, undefined, undefined, scenarioA.updates);
 
     done();
   });
