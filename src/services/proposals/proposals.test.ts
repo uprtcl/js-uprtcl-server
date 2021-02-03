@@ -141,9 +141,9 @@ describe('Testing proposals controller, service and repo', () => {
     // Update perspective to the new change
 
     await updatePerspective(
+      user1.jwt,
       fromPerspectiveId,
-      { headId: commit3Id },
-      user1.jwt
+      { headId: commit3Id }
     );
 
     // Commit a new change to the toPerspective
@@ -156,7 +156,7 @@ describe('Testing proposals controller, service and repo', () => {
 
     // Update perspective to the new change
 
-    await updatePerspective(toPerspectiveId, { headId: commit4Id }, user1.jwt);
+    await updatePerspective(user1.jwt, toPerspectiveId, { headId: commit4Id });
 
     // Create a third perspective
     const commit5Id = await createCommitAndData(
@@ -273,9 +273,9 @@ describe('Testing proposals controller, service and repo', () => {
     // Update perspective to the new change
 
     await updatePerspective(
+      user1.jwt,
       fromPerspectiveId,
-      { headId: commit7Id },
-      user1.jwt
+      { headId: commit7Id }
     );
 
     // Commit a new change to the toPerspective
@@ -285,9 +285,9 @@ describe('Testing proposals controller, service and repo', () => {
     // Update perspective to the new change
 
     await updatePerspective(
+      user1.jwt,
       thirdPerspectiveId,
-      { headId: commit8Id },
-      user1.jwt
+      { headId: commit8Id }
     );
 
     // Create a fourth perspective
