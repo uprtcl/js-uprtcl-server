@@ -2,7 +2,7 @@ import request from 'supertest';
 import { createApp } from '../../server';
 import { PostResult, GetResult } from '../../utils';
 import { LOCAL_EVEES_PATH, LOCAL_EVEES_REMOTE } from '../providers';
-import { createData } from '../data/support.data';
+import { createData } from '../data/test.support.data';
 import { DocNodeType } from '../data/types';
 import { uprtclRepo } from '../access/access.testsupport';
 import { ipldService } from '../ipld/ipldService';

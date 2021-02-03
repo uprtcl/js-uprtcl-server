@@ -1,7 +1,6 @@
 import { PROFILE_SCHEMA_NAME } from '../user/user.schema';
 
 export const PERSPECTIVE_SCHEMA_NAME = 'Perspective';
-export const PROOF_SCHEMA_NAME = 'Proof';
 export const COMMIT_SCHEMA_NAME = 'Commit';
 
 export enum PermissionType {
@@ -23,7 +22,8 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   stored: bool
   path: string
   remote: string
-  proof: ${PROOF_SCHEMA_NAME}
+  signature: string
+  proof_type: string
   ecosystem: [uid]
   children: [uid]
   deleted: bool
@@ -47,10 +47,6 @@ type ${COMMIT_SCHEMA_NAME} {
   stored: bool
 }
 
-type ${PROOF_SCHEMA_NAME} {
-  signature: string
-  proof_type: string
-}
 
 stored: bool @index(bool) . 
 xid: string @index(hash) .
@@ -66,7 +62,6 @@ context: string @index(exact) .
 creator: uid .
 creators: [uid] .
 data: uid .
-proof: uid .
 ecosystem: [uid] @reverse .
 children: [uid] @reverse .
 deleted: bool @index(bool) . 

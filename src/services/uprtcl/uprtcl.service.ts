@@ -1,11 +1,11 @@
 import {
   Entity,
-  Perspective,
   Secured,
   NewPerspective,
-  PerspectiveDetails,
   Update,
   Commit,
+  PerspectiveGetResult,
+  GetPerspectiveOptions,
 } from '@uprtcl/evees';
 
 import { PermissionType } from './types';
@@ -22,22 +22,6 @@ export class UprtclService {
     protected access: AccessService,
     protected dataService: DataService
   ) {}
-
-  async getPerspective(
-    perspectiveId: string,
-    loggedUserId: string | null
-  ): Promise<Secured<Perspective>> {
-    console.log('[UPRTCL-SERVICE] getPerspective', {
-      perspectiveId,
-      loggedUserId,
-    });
-    if (perspectiveId == undefined || perspectiveId === '') {
-      throw new Error(`perspectiveId is empty`);
-    }
-    // perspectives are hashed objects, not risky to retrieve them. The protection is in getPerspectiveDetails.
-    let perspective = await this.uprtclRepo.getPerspective(perspectiveId);
-    return perspective;
-  }
 
   async findIndPerspectives(
     perspectiveId: string,
@@ -133,12 +117,7 @@ export class UprtclService {
      * if the user can write a perspective, we used to call access.can(id, userId, permisstions)
      */
     // update needs to be done one by one to manipulate the ecosystem links
-    await Promise.all(
-      updates.map(async (update) => {
-        /** Bypass update perspective ACL because this is perspective inception */
-        await this.uprtclRepo.updatePerspectives(updates);
-      })
-    );
+    await this.uprtclRepo.updatePerspectives(updates);
   }
 
   async deletePerspective(
@@ -157,47 +136,18 @@ export class UprtclService {
     await this.uprtclRepo.setDeletedPerspective(perspectiveId, true);
   }
 
-  async getPerspectiveDetails(
+  async getPerspective(
     perspectiveId: string,
-    loggedUserId: string | null
-  ): Promise<PerspectiveDetails> {
+    loggedUserId: string | null,
+    options?: GetPerspectiveOptions
+  ): Promise<PerspectiveGetResult> {
     console.log('[UPRTCL-SERVICE] getPerspectiveDetails', { perspectiveId });
-    if (
-      !(await this.access.can(perspectiveId, loggedUserId, PermissionType.Read))
-    ) {
-      throw new Error(NOT_AUTHORIZED_MSG);
-    }
-    let details = await this.uprtclRepo.getPerspectiveDetails(perspectiveId);
-    const canUpdate = await this.access.can(
+    let details = await this.uprtclRepo.getPerspective(
       perspectiveId,
       loggedUserId,
-      PermissionType.Write
+      options
     );
 
-    const canAdmin = await this.access.can(
-      perspectiveId,
-      loggedUserId,
-      PermissionType.Admin
-    );
-
-    let guardianId;
-    if (canAdmin) {
-      const aclDetails = await this.access.getAccessConfigDetails(
-        perspectiveId,
-        loggedUserId as string
-      );
-      guardianId = aclDetails.delegate
-        ? aclDetails.delegateTo
-          ? aclDetails.delegateTo
-          : undefined
-        : undefined;
-    }
-
-    details = {
-      ...details,
-      canUpdate,
-      guardianId,
-    };
     return details;
   }
 
