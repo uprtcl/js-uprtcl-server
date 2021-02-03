@@ -1,5 +1,5 @@
 import { toBeValidCid } from '../../utils';
-import { createData, getData } from './support.data';
+import { createData, getData } from './test.support.data';
 
 describe('routes', () => {
   expect.extend({ toBeValidCid });

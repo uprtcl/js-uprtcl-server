@@ -4,6 +4,7 @@ import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
 import { DATA_SCHEMA_NAME } from './data.schema';
 import { ipldService } from '../ipld/ipldService';
+import { decodeData, encodeData } from './utils';
 
 const dgraph = require('dgraph-js');
 
@@ -31,13 +32,6 @@ export class DataRepository {
           ? hashedData.id
           : await ipldService.validateSecured(hashedData);
 
-      // patch store quotes of string attributes as symbol
-      const dataCoded = { ...data };
-      if (dataCoded.text !== undefined)
-        dataCoded.text = dataCoded.text.replace(/"/g, '&quot;');
-      if (dataCoded.title !== undefined)
-        dataCoded.title = dataCoded.title.replace(/"/g, '&quot;');
-
       query = query.concat(`\ndata${id} as var(func: eq(xid, ${id}))`);
       nquads = nquads.concat(`\nuid(data${id}) <xid> "${id}" .`);
 
@@ -45,12 +39,11 @@ export class DataRepository {
       nquads = nquads.concat(
         `\nuid(data${id}) <dgraph.type> "${DATA_SCHEMA_NAME}" .`
       );
-      nquads = nquads.concat(
-        `\nuid(data${id}) <jsonString> "${JSON.stringify(dataCoded).replace(
-          /"/g,
-          '\\"'
-        )}" .`
-      );
+
+      // patch store quotes of string attributes as symbol
+      const dataCoded = encodeData(data);
+      nquads = nquads.concat(`\nuid(data${id}) <jsonString> "${dataCoded}" .`);
+
       entities.push({
         id,
         object: data,
@@ -103,12 +96,7 @@ export class DataRepository {
       throw new Error(`element with xid ${dataId} content not stored`);
     }
 
-    const dataCoded = JSON.parse(json.data[0].jsonString);
-
-    const data = { ...dataCoded };
-    if (data.text !== undefined) data.text = data.text.replace(/&quot;/g, '"');
-    if (data.title !== undefined)
-      data.title = data.title.replace(/&quot;/g, '"');
+    const data = decodeData(json.data[0].jsonString);
 
     console.log('[DGRAPH] getData', { query, json, data });
 
