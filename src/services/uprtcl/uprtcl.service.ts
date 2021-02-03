@@ -132,13 +132,7 @@ export class UprtclService {
      * What about the access control? We might need to find a way to check
      * if the user can write a perspective, we used to call access.can(id, userId, permisstions)
      */
-    // update needs to be done one by one to manipulate the ecosystem links
-    await Promise.all(
-      updates.map(async (update) => {
-        /** Bypass update perspective ACL because this is perspective inception */
-        await this.uprtclRepo.updatePerspectives(updates);
-      })
-    );
+    await this.uprtclRepo.updatePerspectives(updates);
   }
 
   async deletePerspective(

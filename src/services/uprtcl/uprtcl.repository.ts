@@ -442,15 +442,15 @@ export class UprtclRepository {
     query = query.concat(
       `\npersp${id} as var(func: eq(xid, ${id})) 
        @recurse
-       @filter(gt(count(~children), 1))  
        {
          revEcosystem${id} as ~children
+         uid
        }
        \nperspEl${id} as var(func: eq(xid, ${id}))
        @recurse
-       @filter(gt(count(children), 1)) 
        {
          ecosystemOfUref${id} as children
+         uid
        }`
     );
 
@@ -475,7 +475,10 @@ export class UprtclRepository {
       const commit = securedCommit.object.payload;
       const proof = securedCommit.object.proof;
 
-      const id = await ipldService.validateSecured(securedCommit);
+      const id =
+        securedCommit.id !== ''
+          ? securedCommit.id
+          : await ipldService.validateSecured(securedCommit);
 
       /** make sure creatorId exist */
       for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
