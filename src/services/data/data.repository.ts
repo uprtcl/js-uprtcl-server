@@ -1,7 +1,8 @@
+import { Entity } from '@uprtcl/evees';
+
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
 import { DATA_SCHEMA_NAME } from './data.schema';
-import { Hashed } from '../uprtcl/types';
 import { ipldService } from '../ipld/ipldService';
 
 const dgraph = require('dgraph-js');
@@ -15,16 +16,20 @@ export class DataRepository {
   /** All data objects are stored as textValues, intValues, floatValues and boolValues
    * or links to other objects, if the value is a valid CID string.
    * The path of the property in the JSON object is stored in a facet */
-  async createDatas(datas: Hashed<any>[]): Promise<string[]> {
+  async createDatas(datas: Entity<any>[]): Promise<Entity<any>[]> {
     if (datas.length === 0) return [];
     await this.db.ready();
 
     let query = ``;
     let nquads = ``;
-    let elementIds = [];
+    let entities: Entity<any>[] = [];
+
     for (let hashedData of datas) {
       const data = hashedData.object;
-      const id = (hashedData.id !== '') ? hashedData.id : await ipldService.validateSecured(hashedData);
+      const id =
+        hashedData.id !== ''
+          ? hashedData.id
+          : await ipldService.validateSecured(hashedData);
 
       // patch store quotes of string attributes as symbol
       const dataCoded = { ...data };
@@ -46,7 +51,10 @@ export class DataRepository {
           '\\"'
         )}" .`
       );
-      elementIds.push(id);
+      entities.push({
+        id,
+        object: data,
+      });
     }
 
     const mu = new dgraph.Mutation();
@@ -63,10 +71,10 @@ export class DataRepository {
       { nquads },
       result.getUidsMap().toArray()
     );
-    return elementIds;
+    return entities;
   }
 
-  async getData(dataId: string): Promise<Hashed<Object>> {
+  async getData(dataId: string): Promise<Entity<Object>> {
     await this.db.ready();
 
     const query = `query {

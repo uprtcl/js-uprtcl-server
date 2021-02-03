@@ -1,18 +1,19 @@
 import request from 'supertest';
 import { createApp } from '../../server';
-import { Perspective, Commit, PerspectiveDetails, Secured, UpdateDetails } from './types';
-import { PostResult, ExtendedMatchers, GetResult } from '../../utils';
-import {
-  LOCAL_EVEES_PROVIDER,
-  LOCAL_EVEES_PATH,
-  LOCAL_EVEES_REMOTE,
-} from '../providers';
+import { PostResult, GetResult } from '../../utils';
+import { LOCAL_EVEES_PATH, LOCAL_EVEES_REMOTE } from '../providers';
 import { createData } from '../data/support.data';
 import { DocNodeType } from '../data/types';
 import { uprtclRepo } from '../access/access.testsupport';
 import { ipldService } from '../ipld/ipldService';
 import { localCidConfig } from '../ipld';
 import { TestUser } from '../user/user.testsupport';
+import {
+  Perspective,
+  Secured,
+  PerspectiveDetails,
+  Commit,
+} from '@uprtcl/evees';
 
 interface PerspectiveData {
   persp: string;
@@ -124,11 +125,11 @@ export const createPerspective = async (
 
   const securedObject = {
     payload: perspective,
-      proof: {
-        signature: '',
-        type: '',
-      },
-  }
+    proof: {
+      signature: '',
+      type: '',
+    },
+  };
 
   const perspectiveId = await ipldService.generateCidOrdered(
     securedObject,
@@ -137,18 +138,20 @@ export const createPerspective = async (
 
   const secured: Secured<Perspective> = {
     id: perspectiveId,
-    object: securedObject
+    object: securedObject,
   };
   const router = await createApp();
   const post = await request(router)
     .post('/uprtcl/1/persp')
-    .send({ perspectives: [
-              { perspective: secured, 
-                details: { headId: headId }, 
-                parentId: parentId 
-              }
-            ]
-          })
+    .send({
+      perspectives: [
+        {
+          perspective: secured,
+          details: { headId: headId },
+          parentId: parentId,
+        },
+      ],
+    })
     .set('Authorization', user.jwt ? `Bearer ${user.jwt}` : '');
 
   expect(post.status).toEqual(200);
@@ -194,11 +197,11 @@ export const createCommit = async (
 
   const securedObject = {
     payload: commit,
-      proof: {
-        signature: '',
-        type: '',
-      }
-  }
+    proof: {
+      signature: '',
+      type: '',
+    },
+  };
   const commitId = await ipldService.generateCidOrdered(
     securedObject,
     localCidConfig
@@ -270,7 +273,7 @@ export const addPagesOrLinks = async (
 export const createCommitAndData = async (
   content: string,
   page: boolean,
-  user: TestUser 
+  user: TestUser
 ): Promise<string> => {
   const timestamp = Math.round(Math.random() * 100000);
 

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { checksPlaceholder } from '../../middleware/checks';
+import { Secured, Perspective, PerspectiveDetails } from '@uprtcl/evees';
+
 import { UprtclService } from './uprtcl.service';
 import { checkJwt } from '../../middleware/jwtCheck';
 import {
@@ -9,13 +10,6 @@ import {
   PostResult,
   ERROR,
 } from '../../utils';
-import {
-  Secured,
-  Perspective,
-  PerspectiveDetails,
-  Commit,
-  Proposal,
-} from './types';
 
 declare global {
   namespace Express {
@@ -147,14 +141,14 @@ export class UprtclController {
       },
 
       {
-        path: '/uprtcl/1/persp/details',
+        path: '/uprtcl/1/persp/update',
         method: 'put',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
             try {
               await this.uprtclService.updatePerspectives(
-                req.body.details,
+                req.body.updates,
                 getUserFromReq(req)
               );
 
@@ -209,8 +203,8 @@ export class UprtclController {
       },
 
       {
-        path: "/uprtcl/1/persp/:perspectiveId/others",
-        method: "get",
+        path: '/uprtcl/1/persp/:perspectiveId/others',
+        method: 'get',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
@@ -279,46 +273,6 @@ export class UprtclController {
               };
               res.status(400).send(result);
             }
-          },
-        ],
-      },
-
-      {
-        path: '/uprtcl/1/commit',
-        method: 'post',
-        handler: [
-          checkJwt,
-          async (req: Request, res: Response) => {
-            const elementIds = await this.uprtclService.createCommits(
-              [req.body],
-              getUserFromReq(req)
-            );
-            let result: PostResult = {
-              result: SUCCESS,
-              message: '',
-              elementIds,
-            };
-            res.status(200).send(result);
-          },
-        ],
-      },
-
-      {
-        path: '/uprtcl/1/commit/:commitId',
-        method: 'get',
-        handler: [
-          checkJwt,
-          async (req: Request, res: Response) => {
-            const data = await this.uprtclService.getCommit(
-              req.params.commitId,
-              getUserFromReq(req)
-            );
-            let result: GetResult<Secured<Commit>> = {
-              result: SUCCESS,
-              message: '',
-              data: data,
-            };
-            res.status(200).send(result);
           },
         ],
       },

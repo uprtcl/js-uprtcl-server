@@ -1,15 +1,15 @@
+import { NewPerspective, Proposal, Update } from '@uprtcl/evees';
 import request from 'supertest';
 import { createApp } from '../../server';
 import { PostResult, GetResult } from '../../utils';
-import { NewPerspectiveData, Proposal, UpdateRequest } from '../uprtcl/types';
 
 export const createProposal = async (
   fromPerspectiveId: string,
   toPerspectiveId: string,
   fromHeadId: string,
   toHeadId: string,
-  updates: UpdateRequest[],
-  newPerspectives: NewPerspectiveData[],
+  updates: Update[],
+  newPerspectives: NewPerspective[],
   jwt: string
 ): Promise<string> => {
   const router = await createApp();
@@ -60,19 +60,19 @@ export const createUpdateRequest = async (
   perspectiveId: string,
   oldHeadId: string,
   newHeadId: string
-): Promise<UpdateRequest> => {
-  const update: UpdateRequest = {
+): Promise<Update> => {
+  const update: Update = {
     fromPerspectiveId: fromPerspectiveId,
-    oldHeadId: oldHeadId !== '' ? oldHeadId : undefined,
+    oldDetails: { headId: oldHeadId !== '' ? oldHeadId : undefined },
     perspectiveId: perspectiveId,
-    newHeadId: newHeadId,
+    details: { headId: newHeadId },
   };
 
   return update;
 };
 
 export const addUpdatesToProposal = async (
-  updates: UpdateRequest[],
+  updates: Update[],
   proposalUid: string,
   jwt: string
 ): Promise<PostResult> => {

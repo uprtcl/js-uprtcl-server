@@ -1,13 +1,14 @@
 import {
+  Entity,
   Perspective,
-  Commit,
-  PerspectiveDetails,
   Secured,
-  NewPerspectiveData,
-  DgUpdate,
-  UpdateDetails,
-  PermissionType
-} from './types';
+  NewPerspective,
+  PerspectiveDetails,
+  Update,
+  Commit,
+} from '@uprtcl/evees';
+
+import { PermissionType } from './types';
 import { DGraphService } from '../../db/dgraph.service';
 import { AccessService } from '../access/access.service';
 import { UprtclRepository } from './uprtcl.repository';
@@ -85,61 +86,46 @@ export class UprtclService {
   }
 
   async createAclRecursively(
-    of: NewPerspectiveData,
-    all: NewPerspectiveData[],
+    of: NewPerspective,
+    all: NewPerspective[],
     loggedUserId: string
   ) {
     /** top first traverse the tree of new perspectives*/
     await this.access.createAccessConfig(
       of.perspective.id,
-      of.parentId,
+      of.update.details.guardianId,
       loggedUserId
     );
 
     /** recursively call on all children */
-    const children = all.filter((p) => p.parentId === of.perspective.id);
+    const children = all.filter(
+      (p) => p.update.details.guardianId === of.perspective.id
+    );
     for (const child of children) {
       await this.createAclRecursively(child, all, loggedUserId);
     }
   }
 
   async createAndInitPerspectives(
-    perspectivesData: NewPerspectiveData[],
+    perspectivesData: NewPerspective[],
     loggedUserId: string | null
   ): Promise<string[]> {
-    // TEMP 
+    // TEMP
 
     if (loggedUserId === null)
       throw new Error('Anonymous user. Cant create a perspective');
-    /** find perspectives whose parent is NOT in the batch of new perspectives */
-    await this.uprtclRepo.createPerspectives(
-      perspectivesData
-    );
 
-    await this.uprtclRepo.updatePerspectives(perspectivesData.map((newPerspective) : UpdateDetails => {
-      return {
-        id: newPerspective.perspective.id,
-        details: newPerspective.details ? newPerspective.details : undefined
-      }
-    }));
+    await this.uprtclRepo.createPerspectives(perspectivesData, loggedUserId);
+
+    await this.uprtclRepo.updatePerspectives(
+      perspectivesData.map((newPerspective) => newPerspective.update)
+    );
 
     return [];
   }
 
-  getDataChildren(data: any) {
-    if (data.pages !== undefined) {
-      return data.pages;
-    }
-    if (data.links !== undefined) {
-      return data.links;
-    }
-    if (data.value !== undefined) {
-      return [data.description];
-    }
-  }
-
   async updatePerspectives(
-    updates: UpdateDetails[],
+    updates: Update[],
     loggedUserId: string | null
   ): Promise<void> {
     /**
@@ -182,13 +168,43 @@ export class UprtclService {
       throw new Error(NOT_AUTHORIZED_MSG);
     }
     let details = await this.uprtclRepo.getPerspectiveDetails(perspectiveId);
+    const canUpdate = await this.access.can(
+      perspectiveId,
+      loggedUserId,
+      PermissionType.Write
+    );
+
+    const canAdmin = await this.access.can(
+      perspectiveId,
+      loggedUserId,
+      PermissionType.Admin
+    );
+
+    let guardianId;
+    if (canAdmin) {
+      const aclDetails = await this.access.getAccessConfigDetails(
+        perspectiveId,
+        loggedUserId as string
+      );
+      guardianId = aclDetails.delegate
+        ? aclDetails.delegateTo
+          ? aclDetails.delegateTo
+          : undefined
+        : undefined;
+    }
+
+    details = {
+      ...details,
+      canUpdate,
+      guardianId,
+    };
     return details;
   }
 
   async createCommits(
     commits: Secured<Commit>[],
     _loggedUserId: string | null
-  ): Promise<string[]> {
+  ): Promise<Entity<any>[]> {
     console.log('[UPRTCL-SERVICE] createCommits', commits);
     return await this.uprtclRepo.createCommits(commits);
   }
@@ -200,15 +216,5 @@ export class UprtclService {
     console.log('[UPRTCL-SERVICE] getCommit', { commitId });
     let commit = await this.uprtclRepo.getCommit(commitId);
     return commit;
-  }
-
-  async canAuthorizeProposal(
-    proposalUpdates: DgUpdate[],
-    loggedUserId: string
-  ): Promise<boolean> {
-    if (loggedUserId === null)
-      throw new Error("Anonymous user. Can't authorize a proposal");
-
-    return this.access.canAuthorizeProposal(proposalUpdates, loggedUserId);
   }
 }

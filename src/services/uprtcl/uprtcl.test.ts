@@ -36,11 +36,7 @@ describe('routes', () => {
     const user1 = await createUser('seed1');
     const user2 = await createUser('seed2');
 
-    const commit1Id = await createCommitAndData(
-      'text 123456',
-      false,
-      user1
-    );
+    const commit1Id = await createCommitAndData('text 123456', false, user1);
     const perspectiveId = await createPerspective(
       user1,
       Date.now(),
@@ -63,7 +59,6 @@ describe('routes', () => {
       perspectiveId,
       {
         headId: commit2Id,
-        name: name,
       },
     );
     expect(result5.result).toEqual(ERROR);
@@ -74,7 +69,6 @@ describe('routes', () => {
       perspectiveId,
       {
         headId: commit2Id,
-        name: name,
       },
 
     );
@@ -92,7 +86,6 @@ describe('routes', () => {
 
     let result26 = await getPerspectiveDetails(perspectiveId, user1.jwt);
     expect(result26.data.headId).toEqual(commit2Id);
-    expect(result26.data.name).toEqual(name);
 
     /** change read permisssion */
     let result27 = await getPerspectiveDetails(perspectiveId, user2.jwt);
@@ -119,11 +112,7 @@ describe('routes', () => {
     expect(result28.data.headId).toEqual(commit2Id);
 
     /** update head */
-    const commit3Id = await createCommitAndData(
-      'text 4745729',
-      false,
-      user1
-    );
+    const commit3Id = await createCommitAndData('text 4745729', false, user1);
 
     let result7 = await updatePerspective(
       user2.jwt,
@@ -175,7 +164,6 @@ describe('routes', () => {
 
     let result31 = await getPerspectiveDetails(perspectiveId, user3.jwt);
     expect(result31.data.headId).toEqual(commit3Id);
-    expect(result31.data.name).toEqual(name);
 
     /** set public write */
     const commit4Id = await createCommitAndData(
@@ -267,7 +255,6 @@ describe('routes', () => {
   });
 
   test('CRUD private perspective inherited', async (done) => {
-
     let user1 = await createUser('seed3');
     let user2 = await createUser('seed4');
 
@@ -326,11 +313,7 @@ describe('routes', () => {
     let user2 = await createUser('seed2');
 
     const name1 = 'persp 1';
-    const perspectiveId1 = await createPerspective(
-      user1,
-      Date.now(),
-      context
-    );
+    const perspectiveId1 = await createPerspective(user1, Date.now(), context);
     await updatePerspective(
       user1.jwt,
       perspectiveId1,
@@ -340,11 +323,7 @@ describe('routes', () => {
     );
 
     const name2 = 'persp 2';
-    const perspectiveId2 = await createPerspective(
-      user1,
-      Date.now(),
-      context
-    );
+    const perspectiveId2 = await createPerspective(user1, Date.now(), context);
     await updatePerspective(
       user1.jwt,
       perspectiveId2,
@@ -354,11 +333,7 @@ describe('routes', () => {
     );
 
     const name3 = 'persp 3';
-    const perspectiveId3 = await createPerspective(
-      user1,
-      Date.now(),
-      context
-    );
+    const perspectiveId3 = await createPerspective(user1, Date.now(), context);
     await updatePerspective(
       user2.jwt,
       perspectiveId3,
@@ -408,11 +383,7 @@ describe('routes', () => {
     // Add links or pages to a perspective
 
     // Create perspective head with empty space
-    const commitIdBase = await createCommitAndData(
-      'base space',
-      true,
-      user1
-    );
+    const commitIdBase = await createCommitAndData('base space', true, user1);
     const mainPerspective = await createPerspective(
       user1,
       556874,
@@ -698,13 +669,7 @@ describe('routes', () => {
       perspectiveA2context
     );
 
-    await addChildToPerspective(
-      LA2.persp,
-      PA1.persp,
-      PA1.commit,
-      false,
-      user1
-    );
+    await addChildToPerspective(LA2.persp, PA1.persp, PA1.commit, false, user1);
     // End of branch A
 
     //-----------------------//

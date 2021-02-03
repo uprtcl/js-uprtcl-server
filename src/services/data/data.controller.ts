@@ -2,8 +2,12 @@ import { Request, Response } from 'express';
 import { DataService } from './data.service';
 import { UprtclService } from '../uprtcl/uprtcl.service';
 import { checkJwt } from '../../middleware/jwtCheck';
-import { Secured, Commit, Signed, Hashed } from '../uprtcl/types';
-import { getUserFromReq, SUCCESS, PostResult, GetResult } from '../../utils';
+import {
+  getUserFromReq,
+  SUCCESS,
+  PostEntityResult,
+  GetResult,
+} from '../../utils';
 
 const propertyOrder = [
   'creatorsIds',
@@ -46,16 +50,22 @@ export class DataController {
             const commits = allDatas.filter((data: any) => commitFilter(data));
             const datas = allDatas.filter((data: any) => !commitFilter(data));
 
-            const resultDatas = await this.dataService.createDatas(datas, getUserFromReq(req));
+            const resultDatas = await this.dataService.createDatas(
+              datas,
+              getUserFromReq(req)
+            );
             const resultCommits = await this.uprtclService.createCommits(
               commits,
               getUserFromReq(req)
             );
 
-            let result: PostResult = {
+            let result: PostEntityResult = {
               result: SUCCESS,
               message: '',
-              elementIds: [resultDatas.toString(), resultCommits.toString()]
+              entities: Array.prototype.concat(
+                [],
+                [resultDatas, resultCommits]
+              ),
             };
             res.status(200).send(result);
           },

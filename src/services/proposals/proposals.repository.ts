@@ -1,41 +1,16 @@
 import { DGraphService } from '../../db/dgraph.service';
-import {
-  NewProposalData,
-  ProposalState,
-  xid,
-  did,
-  DgUpdate,
-  NewPerspectiveData,
-} from '../uprtcl/types';
 import { UserRepository } from '../user/user.repository';
 import {
   PROPOSALS_SCHEMA_NAME,
   HEAD_UPDATE_SCHEMA_NAME,
   NEW_PERSPECTIVE_PROPOSAL_SCHEMA_NAME,
 } from '../proposals/proposals.schema';
-import { UpdateRequest } from '../uprtcl/types';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
+import { DgProposal, NewProposalData, ProposalState } from './types';
+import { Update, NewPerspective } from '@uprtcl/evees';
 
 const dgraph = require('dgraph-js');
 require('dotenv').config();
-
-interface DgNewPerspective {
-  NEWP_perspectiveId: string;
-  NEWP_parentId: string;
-  NEWP_headId: string;
-}
-
-interface DgProposal {
-  uid?: string;
-  creator: did;
-  state: ProposalState;
-  fromPerspective: xid;
-  toPerspective: xid;
-  fromHead: xid;
-  toHead: xid;
-  updates?: Array<DgUpdate>;
-  newPerspectives?: Array<DgNewPerspective>;
-}
 
 export class ProposalsRepository {
   constructor(
@@ -105,7 +80,7 @@ export class ProposalsRepository {
 
   async addUpdatesToProposal(
     proposalUid: string,
-    updateRequests: Array<UpdateRequest>,
+    updateRequests: Array<Update>,
     loggedUserId: string
   ): Promise<void> {
     const dproposal = await this.getProposal(proposalUid, false, false);
@@ -142,16 +117,16 @@ export class ProposalsRepository {
     await this.db.callRequest(req);
   }
 
-  async createHeadUpdate(update: UpdateRequest): Promise<string> {
+  async createHeadUpdate(update: Update): Promise<string> {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
     let query = `perspective as var(func: eq(xid, ${update.perspectiveId}))`;
     query = query.concat(
-      `\nnewHead as var(func: eq(xid, ${update.newHeadId}))`
+      `\nnewHead as var(func: eq(xid, ${update.details.headId}))`
     );
     query = query.concat(
-      `\noldHead as var(func: eq(xid, ${update.oldHeadId}))`
+      `\noldHead as var(func: eq(xid, ${update.oldDetails?.headId}))`
     );
 
     let nquads = `_:HeadUpdate <perspective>  uid(perspective) .`;
@@ -182,19 +157,19 @@ export class ProposalsRepository {
   }
 
   async createNewPerspectiveProposal(
-    newPerspective: NewPerspectiveData
+    newPerspective: NewPerspective
   ): Promise<string> {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
     let nquads = `_:NewPerspective <NEWP_perspectiveId>  "${newPerspective.perspective.id}" .`;
-    if (newPerspective.parentId)
+    if (newPerspective.update.details.guardianId)
       nquads = nquads.concat(
-        `\n_:NewPerspective <NEWP_parentId> "${newPerspective.parentId}" .`
+        `\n_:NewPerspective <NEWP_parentId> "${newPerspective.update.details.guardianId}" .`
       );
-    if (newPerspective.details && newPerspective.details.headId)
+    if (newPerspective.update.details && newPerspective.update.details.headId)
       nquads = nquads.concat(
-        `\n_:NewPerspective <NEWP_headId> "${newPerspective.details.headId}" .`
+        `\n_:NewPerspective <NEWP_headId> "${newPerspective.update.details.headId}" .`
       );
 
     nquads = nquads.concat(
@@ -241,15 +216,15 @@ export class ProposalsRepository {
    */
 
   async setDetails(
-    updates: UpdateRequest[],
-    newPerspectives: NewPerspectiveData[],
+    updates: Update[],
+    newPerspectives: NewPerspective[],
     dgproposal: string,
     nquads: string,
     query: string
   ) {
-    const updatePromises = updates.map(async (updateRequest, i) => {
+    const updatePromises = updates.map(async (Update, i) => {
       // Create HeadUpdates
-      const updateId = await this.createHeadUpdate(updateRequest);
+      const updateId = await this.createHeadUpdate(Update);
 
       // Find HeadUpdates that belongs to the new updates
       query = query.concat(`\nupdate${i} as var(func: uid(${updateId}))`);
