@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { createApp } from '../../server';
-import { Perspective, Commit, PerspectiveDetails, Secured } from './types';
+import { Perspective, Commit, PerspectiveDetails, Secured, UpdateDetails } from './types';
 import { PostResult, ExtendedMatchers, GetResult } from '../../utils';
 import {
   LOCAL_EVEES_PROVIDER,
@@ -83,12 +83,12 @@ export const addChildToPerspective = async (
   );
 
   await updatePerspective(
+    user.jwt,
     parentId,
     {
       headId: commitChild,
       name: '',
-    },
-    user.jwt
+    }
   );
 };
 
@@ -156,20 +156,21 @@ export const createPerspective = async (
 };
 
 export const updatePerspective = async (
-  perspectiveId: string,
-  details: PerspectiveDetails,
-  jwt: string
+  jwt: string,
+  perspectiveId?: string,
+  details?: PerspectiveDetails,
+  updatesBatch?: UpdateDetails[]
 ): Promise<PostResult> => {
   const router = await createApp();
   const put = await request(router)
     .put(`/uprtcl/1/persp/details`)
     .send({
-      details: [
+      details: (perspectiveId) ? [
         {
           id: perspectiveId,
           details
         }
-      ]
+      ] : updatesBatch
     })
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
   return JSON.parse(put.text);
@@ -352,3 +353,23 @@ export const findPerspectives = async (
 
   return JSON.parse(get.text);
 };
+
+export const sendPerspectiveBatch = async (perspectives: Object[], user: TestUser) : Promise<void> => {
+  const router = await createApp();
+  const post = await request(router)
+    .post('/uprtcl/1/persp')
+    .send({ perspectives: perspectives })
+    .set('Authorization', user.jwt ? `Bearer ${user.jwt}` : '');
+
+  expect(post.status).toEqual(200);
+}
+
+export const sendDataBatch = async (datas: Object[], user: TestUser) : Promise<void> => {
+  const router = await createApp();
+  const post = await request(router)
+    .post('/uprtcl/1/data')
+    .send({datas:datas})
+    .set('Authorization', user.jwt ? `Bearer ${user.jwt}` : '');
+
+  expect(post.status).toEqual(200);
+}
