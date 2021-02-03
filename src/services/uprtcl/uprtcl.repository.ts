@@ -94,6 +94,35 @@ const assembleCommit = (dcommit: DgCommit): Secured<Commit> => {
   };
 };
 
+const assemblePerspective = (dperspective: DgPerspective) => {
+    if (!dperspective)
+      throw new Error(`Perspective not found`);
+    if (!dperspective.stored)
+      throw new Error(`Perspective with id ${dperspective.xid} not stored`);
+    if (dperspective.deleted)
+      throw new Error(`Perspective with id ${dperspective.xid} deleted`);
+
+    const perspective: Perspective = {
+      remote: dperspective.remote,
+      path: dperspective.path,
+      creatorId: dperspective.creator.did,
+      timestamp: dperspective.timextamp,
+      context: dperspective.context,
+    };
+
+    const securedPerspective: Secured<Perspective> = {
+      id: dperspective.xid,
+      object: {
+        payload: perspective,
+        proof: {
+          signature: dperspective.signature,
+          type: dperspective.proof_type,
+        },
+      },
+    };
+    return securedPerspective;
+}
+
 export class UprtclRepository {
   constructor(
     protected db: DGraphService,
@@ -474,13 +503,11 @@ export class UprtclRepository {
     query = query.concat(
       `\npersp${id} as var(func: eq(xid, ${id})) 
        @recurse
-       @filter(gt(count(~children), 1))  
        {
          revEcosystem${id} as ~children
        }
        \nperspEl${id} as var(func: eq(xid, ${id}))
        @recurse
-       @filter(gt(count(children), 1)) 
        {
          ecosystemOfUref${id} as children
        }`
@@ -799,9 +826,17 @@ export class UprtclRepository {
     }
 
     /** The query uses ecosystem if levels === -1 and get the head and data json objects if entities === true */
-    const element = `
+    const elementQuery = `
       xid
       context
+      remote
+      path
+      creator {
+        did
+      }
+      timextamp
+      stored
+      deleted
       head {
         xid
         data {
@@ -824,7 +859,7 @@ export class UprtclRepository {
 
     const query = `query {
       perspectives(func: eq(xid, ${perspectiveId})) {
-        ${options.levels === -1 ? `ecosystem {${element}}` : `${element}`}
+        ${options.levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
       }
     }`;
 
@@ -845,33 +880,41 @@ export class UprtclRepository {
 
     /** data is under ecosystem */
     all.forEach((element: any) => {
-      /** check access control, if user can't read, simply return undefined head  */
-      const canRead = !element.publicRead ? element.canRead[0].count > 0 : true;
+      if (element) {
+        /** check access control, if user can't read, simply return undefined head  */
+        const canRead = !element.publicRead ? element.canRead[0].count > 0 : true;
 
-      const elementDetails = {
-        headId: canRead ? element.head.xid : undefined,
-        guardianId: element.delegate ? element.delegateTo : undefined,
-        canUpdate: !element.publicWrite ? element.canWrite[0].count > 0 : true,
-      };
-
-      if (element.xid === perspectiveId) {
-        topDetails = elementDetails;
-      } else {
-        slice.perspectives.push({
-          id: element.xid,
-          details: elementDetails,
-        });
-      }
-
-      if (options.entities) {
-        const commit = assembleCommit(element.head);
-
-        const data: Entity<any> = {
-          id: element.head.data.xid,
-          object: decodeData(element.head.data.jsonString),
+        const elementDetails = {
+          headId: canRead ? element.head.xid : undefined,
+          guardianId: element.delegate ? element.delegateTo : undefined,
+          canUpdate: !element.publicWrite ? element.canWrite[0].count > 0 : true,
         };
 
-        slice.entities.push(commit, data);
+        if (element.xid === perspectiveId) {
+          topDetails = elementDetails;
+        } else {
+          slice.perspectives.push({
+            id: element.xid,
+            details: elementDetails,
+          });
+        }
+
+        if (options.entities) {
+          const commit = assembleCommit(element.head);
+
+          const data: Entity<any> = {
+            id: element.head.data.xid,
+            object: decodeData(element.head.data.jsonString),
+          };
+
+          slice.entities.push(commit, data);
+
+          if (element.xid !== perspectiveId) {
+            // add the perspective entity only if a subperspective
+            const perspective = assemblePerspective(element);
+            slice.entities.push(perspective);
+          }
+        }
       }
     });
 
