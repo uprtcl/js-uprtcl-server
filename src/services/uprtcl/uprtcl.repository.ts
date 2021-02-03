@@ -501,7 +501,7 @@ export class UprtclRepository {
     const { perspectiveId: id } = update;
 
     query = query.concat(
-      `\npersp${id} as var(func: eq(xid, ${id})) 
+      `\npersp${id}(func: eq(xid, ${id})) 
        @recurse
        {
          revEcosystem${id} as ~children
@@ -515,7 +515,7 @@ export class UprtclRepository {
 
     nquads = nquads.concat(
       `\nuid(perspEl${id}) <ecosystem> uid(ecosystemOfUref${id}) .
-       \nuid(revEcosystem${id}) <ecosystem> uid(persp${id}) .`
+       \nuid(revEcosystem${id}) <ecosystem> uid(ecosystemOfUref${id}) .`
     );
 
     return { query, nquads, delNquads };
