@@ -13,7 +13,8 @@ import {
   forkPerspective,
   addChildToPerspective,
   sendDataBatch,
-  sendPerspectiveBatch
+  sendPerspectiveBatch,
+  getEcosystem
 } from './uprtcl.testsupport';
 import { createUser } from '../user/user.testsupport';
 import {
@@ -715,6 +716,77 @@ describe('routes', () => {
     await sendPerspectiveBatch(scenarioA.perspectives, user);
     await updatePerspective(user.jwt, undefined, undefined, scenarioA.updates);
 
-    done();
+    // We concat all perspectives for this test
+    const allPerspectives = homePerspective.perspectives.concat(scenarioA.perspectives);
+    
+    // Gets the ecosystem of every perspective from the DB.
+    const ecosystemPersp = await Promise.all(
+      allPerspectives.map(async (p: any) => {
+        return {
+          id: p.perspective.id,
+          ecosystem: await getEcosystem(p.perspective.id)
+        }
+      })
+    );
+
+    const allUpdates = allPerspectives.map((p:any) => p.update).sort();
+
+    // Gets the ecosystem algorithmically
+    const recurseChildren = (children: Object[], algEcosystem: string[]): String[] => {
+      children.map((child: any) => {
+        const { linkChanges: { children: {  added } } } = child;
+
+        scenarioA.updates.filter((a: any) => added.indexOf(a.perspectiveId) > -1).map((update: any) => {
+          update.linkChanges.children.added.map((child:any) => {
+            added.push(child)
+          })
+        })
+        
+        const childrenObjects = allUpdates.filter((a: any) => added.indexOf(a.perspectiveId) > -1);
+
+        if(added.length > 0) {
+          added.map((child: any) => {
+            algEcosystem.push(child);
+          });
+          recurseChildren(childrenObjects, algEcosystem);
+        }
+      });
+      return algEcosystem;
+    }
+
+    // Checks the ecoystem of every element created for the test.
+    allUpdates.map((update: any) => {
+      const { linkChanges: { children: { added } } } = update;
+
+      if(added.length === 0) {
+        // We look for children in possible next updates.
+        const nextUpdates = scenarioA.updates.filter((s: any) => update.perspectiveId === s.perspectiveId);
+
+        nextUpdates.map((next: any) => {
+          next.linkChanges.children.added.map((child: any) => {
+            added.push(child);
+          });
+        });
+      }
+
+      const childrenObjects = allUpdates.filter((a: any) => added.indexOf(a.perspectiveId) > -1);
+      const final = added;
+
+      // Array computed in tests
+      const ecosystem = final.concat(recurseChildren(childrenObjects, []));
+      ecosystem.push(update.perspectiveId);
+
+
+      // Position of our current ID inside the ecosystem fetched from DB.
+      const pos = ecosystemPersp.map((persp:any) => persp.id).indexOf(update.perspectiveId);
+
+      // Array coming from DB
+      const dbEcosystem = ecosystemPersp[pos].ecosystem;
+
+      // Both arrays must match to pass the test
+      expect([... new Set(ecosystem.sort())]).toEqual(dbEcosystem.sort());
+    });
+
+   done();
   });
 });
