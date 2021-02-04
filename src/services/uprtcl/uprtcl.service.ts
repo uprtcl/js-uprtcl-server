@@ -23,52 +23,6 @@ export class UprtclService {
     protected dataService: DataService
   ) {}
 
-  async findIndPerspectives(
-    perspectiveId: string,
-    includeEcosystem: boolean,
-    loggedUserId: string | null
-  ): Promise<string[]> {
-    if (loggedUserId === null)
-      throw new Error('Anonymous user. Cant get independent perspectives');
-
-    return await this.uprtclRepo.getOtherIndpPerspectives(
-      perspectiveId,
-      includeEcosystem,
-      loggedUserId
-    );
-  }
-
-  async findPerspectives(
-    context: string,
-    loggedUserId: string | null
-  ): Promise<string[]> {
-    console.log('[UPRTCL-SERVICE] findPerspectives', { context });
-    // TODO filter on query not by code...
-    const perspectivesIds = await this.uprtclRepo.findPerspectives(context);
-
-    const accessiblePerspectivesPromises = perspectivesIds.map(
-      async (perspectiveId) => {
-        if (
-          !(await this.access.can(
-            perspectiveId,
-            loggedUserId,
-            PermissionType.Read
-          ))
-        ) {
-          return '';
-        } else {
-          return perspectiveId;
-        }
-      }
-    );
-
-    const accessiblePerspectives = await Promise.all(
-      accessiblePerspectivesPromises
-    );
-
-    return accessiblePerspectives.filter((e: string) => e !== '');
-  }
-
   async createAclRecursively(
     of: NewPerspective,
     all: NewPerspective[],
@@ -167,4 +121,65 @@ export class UprtclService {
     let commit = await this.uprtclRepo.getCommit(commitId);
     return commit;
   }
+
+  /** Search engine methods */
+  async locatePerspective(
+    perspectiveId: string,
+    includeForks: boolean,
+    loggedUserId: string | null
+  ): Promise<string[]> {
+    return await this.uprtclRepo.locatePerspective(
+      perspectiveId,
+      includeForks,
+      loggedUserId
+    );
+  }
+
+
+  async findIndPerspectives(
+    perspectiveId: string,
+    includeEcosystem: boolean,
+    loggedUserId: string | null
+  ): Promise<string[]> {
+    if (loggedUserId === null)
+      throw new Error('Anonymous user. Cant get independent perspectives');
+
+    return await this.uprtclRepo.getOtherIndpPerspectives(
+      perspectiveId,
+      includeEcosystem,
+      loggedUserId
+    );
+  }
+
+  async findPerspectives(
+    context: string,
+    loggedUserId: string | null
+  ): Promise<string[]> {
+    console.log('[UPRTCL-SERVICE] findPerspectives', { context });
+    // TODO filter on query not by code...
+    const perspectivesIds = await this.uprtclRepo.findPerspectives(context);
+
+    const accessiblePerspectivesPromises = perspectivesIds.map(
+      async (perspectiveId) => {
+        if (
+          !(await this.access.can(
+            perspectiveId,
+            loggedUserId,
+            PermissionType.Read
+          ))
+        ) {
+          return '';
+        } else {
+          return perspectiveId;
+        }
+      }
+    );
+
+    const accessiblePerspectives = await Promise.all(
+      accessiblePerspectivesPromises
+    );
+
+    return accessiblePerspectives.filter((e: string) => e !== '');
+  }
+
 }

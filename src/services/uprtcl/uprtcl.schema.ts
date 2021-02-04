@@ -2,6 +2,7 @@ import { PROFILE_SCHEMA_NAME } from '../user/user.schema';
 
 export const PERSPECTIVE_SCHEMA_NAME = 'Perspective';
 export const COMMIT_SCHEMA_NAME = 'Commit';
+export const CONTEXT_SCHEMA_NAME = 'Context';
 
 export enum PermissionType {
   Read = 'Read',
@@ -18,7 +19,7 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   timextamp: int
   head: ${COMMIT_SCHEMA_NAME}
   name: string
-  context: string
+  context: ${CONTEXT_SCHEMA_NAME}
   stored: bool
   path: string
   remote: string
@@ -35,6 +36,11 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   can${PermissionType.Read}: [${PROFILE_SCHEMA_NAME}]
   can${PermissionType.Write}: [${PROFILE_SCHEMA_NAME}]
   can${PermissionType.Admin}: [${PROFILE_SCHEMA_NAME}]
+}
+
+type ${CONTEXT_SCHEMA_NAME} {
+  name: string
+  perspectives: [uid]
 }
 
 type ${COMMIT_SCHEMA_NAME} {
@@ -55,10 +61,11 @@ timextamp: int .
 message: string .
 head: uid .
 name: string @index(exact) .
+context: uid .
+perspectives: [uid] @reverse .
 parents: [uid] .
 signature: string .
 proof_type: string .
-context: string @index(exact) .
 creator: uid .
 creators: [uid] .
 data: uid .
@@ -75,5 +82,4 @@ publicWrite: bool @index(bool) .
 delegate: bool .
 delegateTo: uid @reverse .
 finDelegatedTo: uid @reverse .
-
 `;
