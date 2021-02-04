@@ -29,7 +29,7 @@ interface DgPerspective {
   uid?: string;
   xid: string;
   name: string;
-  context: string;
+  context: DgContext;
   remote: string;
   path: string;
   creator: DgRef;
@@ -39,15 +39,27 @@ interface DgPerspective {
   deleted: boolean;
   signature: string;
   proof_type: string;
+  delegate: boolean;
+  delegateTo: DgPerspective;
+  finDelegatedTo: DgPerspective;
+  publicRead: boolean;
+  publicWrite: boolean;
+  canRead: DgRef[];
+  canWrite: DgRef[];
+  canAdmin: DgRef[];
 }
 
+interface DgContext {
+  name: string;
+  perspectives: DgPerspective[];
+}
 interface DgCommit {
   uid?: string;
   xid: string;
   creators: DgRef[];
   timextamp: number;
   message: string;
-  parents: Array<DgRef>;
+  parents: DgRef[];
   data: DgRef;
   'dgraph.type'?: string;
   stored: boolean;
@@ -95,33 +107,32 @@ const assembleCommit = (dcommit: DgCommit): Secured<Commit> => {
 };
 
 const assemblePerspective = (dperspective: DgPerspective) => {
-    if (!dperspective)
-      throw new Error(`Perspective not found`);
-    if (!dperspective.stored)
-      throw new Error(`Perspective with id ${dperspective.xid} not stored`);
-    if (dperspective.deleted)
-      throw new Error(`Perspective with id ${dperspective.xid} deleted`);
+  if (!dperspective) throw new Error(`Perspective not found`);
+  if (!dperspective.stored)
+    throw new Error(`Perspective with id ${dperspective.xid} not stored`);
+  if (dperspective.deleted)
+    throw new Error(`Perspective with id ${dperspective.xid} deleted`);
 
-    const perspective: Perspective = {
-      remote: dperspective.remote,
-      path: dperspective.path,
-      creatorId: dperspective.creator.did,
-      timestamp: dperspective.timextamp,
-      context: dperspective.context,
-    };
+  const perspective: Perspective = {
+    remote: dperspective.remote,
+    path: dperspective.path,
+    creatorId: dperspective.creator.did,
+    timestamp: dperspective.timextamp,
+    context: dperspective.context.name,
+  };
 
-    const securedPerspective: Secured<Perspective> = {
-      id: dperspective.xid,
-      object: {
-        payload: perspective,
-        proof: {
-          signature: dperspective.signature,
-          type: dperspective.proof_type,
-        },
+  const securedPerspective: Secured<Perspective> = {
+    id: dperspective.xid,
+    object: {
+      payload: perspective,
+      proof: {
+        signature: dperspective.signature,
+        type: dperspective.proof_type,
       },
-    };
-    return securedPerspective;
-}
+    },
+  };
+  return securedPerspective;
+};
 
 export class UprtclRepository {
   constructor(
@@ -164,6 +175,9 @@ export class UprtclRepository {
     const did = this.userRepo.formatDid(creatorId);
 
     query = query.concat(`\npersp${id} as var(func: eq(xid, "${id}"))`);
+    query = query.concat(
+      `\ncontextOf${id} as var(func: eq(name, "${context}"))`
+    );
 
     nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
     nquads = nquads.concat(`\nuid(persp${id}) <stored> "true" .`);
@@ -171,7 +185,13 @@ export class UprtclRepository {
     nquads = nquads.concat(
       `\nuid(persp${id}) <timextamp> "${timestamp}"^^<xs:int> .`
     );
-    nquads = nquads.concat(`\nuid(persp${id}) <context> "${context}" .`);
+
+    nquads = nquads.concat(`\nuid(contextOf${id}) <name> "${context}" .`);
+    nquads = nquads.concat(
+      `\nuid(contextOf${id}) <perspectives> uid(persp${id}) .`
+    );
+    nquads = nquads.concat(`\nuid(persp${id}) <context> uid(contextOf${id}) .`);
+
     nquads = nquads.concat(`\nuid(persp${id}) <deleted> "false" .`);
     nquads = nquads.concat(`\nuid(persp${id}) <remote> "${remote}" .`);
     nquads = nquads.concat(`\nuid(persp${id}) <path> "${path}" .`);
@@ -626,6 +646,7 @@ export class UprtclRepository {
     ecosystem: boolean,
     loggedUserId: string
   ): Promise<Array<string>> {
+    // TODO: Update based on context being a Node and not a string
     await this.db.ready();
 
     let query = ``;
@@ -766,10 +787,12 @@ export class UprtclRepository {
   async findPerspectives(context: string): Promise<string[]> {
     await this.db.ready();
     const query = `query {
-      perspective(func: eq(stored, "true")) @filter(eq(context, "${context}")) {
+      perspective(func: eq(stored, "true")) {
         xid
         name
-        context
+        context @filter(eq(name, "${context}")) {
+          name
+        }
         authority
         creator {
           did
@@ -794,7 +817,7 @@ export class UprtclRepository {
           path: dperspective.path,
           creatorId: dperspective.creator.did,
           timestamp: dperspective.timextamp,
-          context: dperspective.context,
+          context: dperspective.context.name,
         };
       }
     );
@@ -807,6 +830,65 @@ export class UprtclRepository {
     );
 
     return securedPerspectives;
+  }
+
+  async locatePerspective(
+    perspectiveId: string,
+    forks: boolean = false,
+    loggedUserId: string | null
+  ): Promise<string[]> {
+    await this.db.ready();
+
+    const parentsPortion = `
+    {
+      ~children {
+        xid
+        finDelegatedTo {
+          canRead @filter(eq(did, "${loggedUserId}")) {
+            count(uid)
+          }
+          publicRead
+        }
+      }
+    }
+    `;
+
+    const query = `query {
+      perspective(func: eq(xid, "${perspectiveId}")) {
+        ${
+          forks
+            ? `
+          context {
+            perspectives {
+              ${parentsPortion}
+            }    
+          }`
+            : parentsPortion
+        }
+      }
+    }`;
+
+    const result = await this.db.client.newTxn().query(query);
+    console.log('[DGRAPH] getContextPerspectives', { query }, result.getJson());
+
+    const data = result.getJson();
+
+    const perspectives: DgPerspective[] = forks
+      ? data.perspective[0].context.perspectives[0]['~children']
+      : data.perspective['~children'];
+
+    /** veryfy access control */
+    const parentIds = perspectives
+      .filter((perspective: DgPerspective) => {
+        const canRead = !perspective.finDelegatedTo.publicRead
+          ? (perspective.finDelegatedTo.canRead[0] as any).count > 0
+          : true;
+
+        return canRead;
+      })
+      .map((perspective: DgPerspective) => perspective.xid);
+
+    return parentIds;
   }
 
   async getPerspective(
@@ -828,7 +910,9 @@ export class UprtclRepository {
     /** The query uses ecosystem if levels === -1 and get the head and data json objects if entities === true */
     const elementQuery = `
       xid
-      context
+      context {
+        name
+      }
       remote
       path
       creator {
@@ -861,7 +945,11 @@ export class UprtclRepository {
 
     const query = `query {
       perspectives(func: eq(xid, ${perspectiveId})) {
-        ${options.levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
+        ${
+          options.levels === -1
+            ? `ecosystem {${elementQuery}}`
+            : `${elementQuery}`
+        }
       }
     }`;
 
@@ -884,12 +972,16 @@ export class UprtclRepository {
     all.forEach((element: any) => {
       if (element) {
         /** check access control, if user can't read, simply return undefined head  */
-        const canRead = !element.finDelegatedTo.publicRead ? element.finDelegatedTo.canRead[0].count > 0 : true;
+        const canRead = !element.finDelegatedTo.publicRead
+          ? element.finDelegatedTo.canRead[0].count > 0
+          : true;
 
         const elementDetails = {
           headId: canRead ? element.head.xid : undefined,
           guardianId: element.delegate ? element.delegateTo : undefined,
-          canUpdate: !element.finDelegatedTo.publicWrite ? element.finDelegatedTo.canWrite[0].count > 0 : true,
+          canUpdate: !element.finDelegatedTo.publicWrite
+            ? element.finDelegatedTo.canWrite[0].count > 0
+            : true,
         };
 
         if (element.xid === perspectiveId) {
