@@ -847,14 +847,16 @@ export class UprtclRepository {
       }
       delegate
       delegateTo
-      canWrite @filter(eq(did, "${loggedUserId}")) {
-        count(uid)
+      finDelegatedTo {
+        canWrite @filter(eq(did, "${loggedUserId}")) {
+          count(uid)
+        }
+        canRead @filter(eq(did, "${loggedUserId}")) {
+          count(uid)
+        }
+        publicWrite
+        publicRead
       }
-      canRead @filter(eq(did, "${loggedUserId}")) {
-        count(uid)
-      }
-      publicWrite
-      publicRead
       `;
 
     const query = `query {
@@ -882,12 +884,12 @@ export class UprtclRepository {
     all.forEach((element: any) => {
       if (element) {
         /** check access control, if user can't read, simply return undefined head  */
-        const canRead = !element.publicRead ? element.canRead[0].count > 0 : true;
+        const canRead = !element.finDelegatedTo.publicRead ? element.finDelegatedTo.canRead[0].count > 0 : true;
 
         const elementDetails = {
           headId: canRead ? element.head.xid : undefined,
           guardianId: element.delegate ? element.delegateTo : undefined,
-          canUpdate: !element.publicWrite ? element.canWrite[0].count > 0 : true,
+          canUpdate: !element.finDelegatedTo.publicWrite ? element.finDelegatedTo.canWrite[0].count > 0 : true,
         };
 
         if (element.xid === perspectiveId) {
