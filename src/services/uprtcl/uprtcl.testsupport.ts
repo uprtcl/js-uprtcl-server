@@ -2,6 +2,7 @@ import request from 'supertest';
 import { createApp } from '../../server';
 import { PostResult, GetResult } from '../../utils';
 import { LOCAL_EVEES_PATH, LOCAL_EVEES_REMOTE } from '../providers';
+import { DGraphService } from '../../db/dgraph.service';
 import { createData } from '../data/test.support.data';
 import { DocNodeType } from '../data/types';
 import { uprtclRepo } from '../access/access.testsupport';
@@ -15,6 +16,8 @@ import {
   Commit,
   Update
 } from '@uprtcl/evees';
+
+const db = new DGraphService('localhost', '9080', '');
 
 interface PerspectiveData {
   persp: string;
@@ -376,3 +379,22 @@ export const sendDataBatch = async (datas: Object[], user: TestUser) : Promise<v
 
   expect(post.status).toEqual(200);
 }
+
+export const getEcosystem = async(perspectiveId: string) : Promise<string[]> => {
+  await db.ready();
+
+  // This is a temporal way of fetching the ecosystem of each perspective.
+  const query = `query{
+    perspective(func: eq(xid, ${perspectiveId})) {
+      ecosystem {
+        xid
+      }
+    }
+  }`;
+
+  const result = await db.client.newTxn().query(query);
+  const ecosystems = result.getJson().perspective[0].ecosystem;
+  const ids = ecosystems.map((ecosystem:any) => ecosystem.xid);
+
+  return !ids || ids.length == 0 ? [] : ids;
+};
