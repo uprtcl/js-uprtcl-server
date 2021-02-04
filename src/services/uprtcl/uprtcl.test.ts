@@ -741,10 +741,9 @@ describe('routes', () => {
             added.push(child)
           })
         })
-        
-        const childrenObjects = allUpdates.filter((a: any) => added.indexOf(a.perspectiveId) > -1);
 
         if(added.length > 0) {
+          const childrenObjects = allUpdates.filter((a: any) => added.indexOf(a.perspectiveId) > -1);
           added.map((child: any) => {
             algEcosystem.push(child);
           });
