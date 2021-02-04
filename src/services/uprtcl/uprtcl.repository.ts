@@ -874,21 +874,15 @@ export class UprtclRepository {
     const data = result.getJson();
 
     const perspectives: DgPerspective[] = forks
-      ? data.perspective[0].context.perspectives[0]['~children']
-      : data.perspective['~children'];
+      ? data.perspective[0].context.perspectives
+      : data.perspective;
 
-    /** veryfy access control */
-    const parentIds = perspectives
-      .filter((perspective: DgPerspective) => {
-        const canRead = !perspective.finDelegatedTo.publicRead
-          ? (perspective.finDelegatedTo.canRead[0] as any).count > 0
-          : true;
+    const parentsOfPerspectives = perspectives.map((perspective: any) => {
+      return perspective['~children'].map((parent: any) => parent.xid);
+    });
 
-        return canRead;
-      })
-      .map((perspective: DgPerspective) => perspective.xid);
-
-    return parentIds;
+    // concatenate all the parents of all perspectives
+    return Array.prototype.concat.apply([], parentsOfPerspectives);
   }
 
   async getPerspective(
