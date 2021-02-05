@@ -554,7 +554,10 @@ export class UprtclRepository {
       const commit = securedCommit.object.payload;
       const proof = securedCommit.object.proof;
 
-      const id = await ipldService.validateSecured(securedCommit);
+      const id =
+        securedCommit.id !== ''
+          ? securedCommit.id
+          : await ipldService.validateSecured(securedCommit);
 
       /** make sure creatorId exist */
       for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
