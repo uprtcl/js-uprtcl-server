@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsc-watch --onSuccess \"node --inspect ./dist/server-debug.js\"",
-    "test": "node --inspect node_modules/.bin/jest --verbose",
+    "test": "node --inspect node_modules/.bin/jest --verbose -- uprtcl.test",
     "start": "npx pm2 start pm2.yaml",
     "build": "tsc"
   },
