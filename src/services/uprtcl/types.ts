@@ -1,46 +1,20 @@
-export interface PerspectiveDetails {
-  name?: string
-  context?: string | undefined
-  headId?: string | undefined
+export enum PermissionType {
+  Read = 'Read',
+  Write = 'Write',
+  Admin = 'Admin',
 }
 
-export interface Perspective {
-  remote: string
-  path: string
-  creatorId: string
-  timestamp: number
+export interface Upsert {
+  query: string;
+  nquads: string;
+  delNquads?: string;
 }
 
-export const getAuthority = (perspective: Perspective): string => {
-  return `${perspective.remote}:${perspective.path}`
+// Dgraph incoming data types
+export interface xid {
+  xid: string;
 }
 
-export interface Commit {
-  creatorsIds: string[]
-  timestamp: number
-  message: string
-  parentsIds: Array<string>
-  dataId: string
-}
-
-export interface Hashed<T> {
-  id: string
-  object: T
-}
-
-export interface Proof {
-  signature: string
-  type: string
-}
-export interface Signed<T = any> {
-  payload: T
-  proof: Proof
-}
-
-export type Secured<T = any> = Hashed<Signed<T>>
-
-export interface NewPerspectiveData {
-  perspective: Secured<Perspective>
-  details?: PerspectiveDetails
-  parentId?: string
+export interface did {
+  did: string;
 }

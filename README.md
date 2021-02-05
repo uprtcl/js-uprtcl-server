@@ -1,10 +1,5 @@
 # Webserver Service Provider for [js-uprtcl](https://github.com/uprtcl/js-uprtcl)
 
-**Prerequisites**
-
-Install `serverless` globally.
-`npm i -g serverless`
-
 **Local Development**
 
 - Run [dgraph](https://github.com/dgraph-io/dgraph) using
@@ -19,6 +14,10 @@ Install `serverless` globally.
   JWT_SECRET=123456
   PROTOCOL=http
   HOST=localhost:3100
+  DGRAPH_HOST=localhost
+  DGRAPH_PORT=9080
+  AUTH0_DOMAIN=linked-thoughts-dev.eu.auth0.com
+  PUBKEY_FILE=auth0.pem
 
   ```
 

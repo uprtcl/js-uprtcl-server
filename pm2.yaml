@@ -2,3 +2,14 @@ apps:
   - script: ./dist/server.js
     instances: max
     exec_mode: cluster
+    env:    
+      "NODE_ENV": "production"
+      "JWT_SECRET": "123456"
+      "PROTOCOL": "https"
+      "HOST": "api.intercreativity.io"
+      "PORT": 5001
+      "DGRAPH_HOST": "https://humdrum-stick.us-west-2.aws.cloud.dgraph.io/graphql"
+      "DGRAPH_PORT": 443    
+      "SLASH_API_KEY": "1trBhNGn85rV+wP4NSQOgCjFUZ/nmvI4jvfQOaWNpoU="
+      "AUTH0_DOMAIN": "linked-thoughts-dev.eu.auth0.com"
+      "PUBKEY_FILE": "auth0.pem"

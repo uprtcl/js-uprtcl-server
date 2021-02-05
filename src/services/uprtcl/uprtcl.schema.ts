@@ -1,8 +1,14 @@
-import { ACCESS_CONFIG_SCHEMA_NAME } from "../access/access.schema";
+import { PROFILE_SCHEMA_NAME } from '../user/user.schema';
 
 export const PERSPECTIVE_SCHEMA_NAME = 'Perspective';
-export const PROOF_SCHEMA_NAME = 'Proof';
 export const COMMIT_SCHEMA_NAME = 'Commit';
+export const CONTEXT_SCHEMA_NAME = 'Context';
+
+export enum PermissionType {
+  Read = 'Read',
+  Write = 'Write',
+  Admin = 'Admin',
+}
 
 export const UPRTCL_SCHEMA = `
 
@@ -13,11 +19,28 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   timextamp: int
   head: ${COMMIT_SCHEMA_NAME}
   name: string
-  context: string
+  context: ${CONTEXT_SCHEMA_NAME}
   stored: bool
-  accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
-  proof: ${PROOF_SCHEMA_NAME}
+  path: string
+  remote: string
+  signature: string
+  proof_type: string
+  ecosystem: [uid]
+  children: [uid]
   deleted: bool
+  delegate: bool
+  delegateTo: uid
+  finDelegatedTo: uid
+  publicRead: bool
+  publicWrite: bool
+  can${PermissionType.Read}: [${PROFILE_SCHEMA_NAME}]
+  can${PermissionType.Write}: [${PROFILE_SCHEMA_NAME}]
+  can${PermissionType.Admin}: [${PROFILE_SCHEMA_NAME}]
+}
+
+type ${CONTEXT_SCHEMA_NAME} {
+  name: string
+  perspectives: [uid]
 }
 
 type ${COMMIT_SCHEMA_NAME} {
@@ -28,29 +51,35 @@ type ${COMMIT_SCHEMA_NAME} {
   parents: [uid]
   data: uid
   stored: bool
-  accessConfig: ${ACCESS_CONFIG_SCHEMA_NAME}
 }
 
-type ${PROOF_SCHEMA_NAME} {
-  signature: string
-  proof_type: string
-}
 
 stored: bool @index(bool) . 
-xid: string @index(exact) @upsert .
+xid: string @index(hash) .
 authority: string .
 timextamp: int .
 message: string .
 head: uid .
 name: string @index(exact) .
+context: uid .
+perspectives: [uid] @reverse .
 parents: [uid] .
 signature: string .
 proof_type: string .
-context: string @index(exact) .
 creator: uid .
 creators: [uid] .
 data: uid .
-proof: uid .
+ecosystem: [uid] @reverse .
+children: [uid] @reverse .
 deleted: bool @index(bool) . 
-
+remote: string .
+path: string .
+canRead: [uid] .
+canWrite: [uid] .
+canAdmin: [uid] .
+publicRead: bool @index(bool) .
+publicWrite: bool @index(bool) .
+delegate: bool .
+delegateTo: uid @reverse .
+finDelegatedTo: uid @reverse .
 `;

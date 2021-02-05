@@ -1,7 +1,9 @@
-import { Router, Request, Response, NextFunction } from "express";
-var CID  = require('cids');
+import { Router, Request, Response, NextFunction } from 'express';
+var CID = require('cids');
 
-type Wrapper = ((router: Router) => void);
+import { Entity } from '@uprtcl/evees';
+
+type Wrapper = (router: Router) => void;
 
 export const applyMiddleware = (
   middlewareWrappers: Wrapper[],
@@ -32,8 +34,8 @@ export const applyRoutes = (routes: Route[], router: Router) => {
 };
 
 export const getUserFromReq = (req: Request) => {
-  return req.user ? (req.user !== '' ? req.user : null) : null
-}
+  return req.user ? (req.user !== '' ? req.user : null) : null;
+};
 
 export const SUCCESS = 'success';
 export const ERROR = 'error';
@@ -44,8 +46,13 @@ export interface PostResult {
   message: string;
   elementIds: string[];
 }
+export interface PostEntityResult {
+  result: string;
+  message: string;
+  entities: Entity<any>[];
+}
 
-export interface GetResult <T> {
+export interface GetResult<T> {
   result: string;
   message: string;
   data: T;
@@ -54,17 +61,20 @@ export interface GetResult <T> {
 export const toBeValidCid = (received: any) => {
   if (CID.isCID(new CID(received))) {
     return {
-      message: () => {return `expected ${received} not to be a valid cid`},
-      pass: true
+      message: () => {
+        return `expected ${received} not to be a valid cid`;
+      },
+      pass: true,
     };
   } else {
     return {
-      message: () => {return `expected ${received} to be a valid cid`},
-      pass: false
+      message: () => {
+        return `expected ${received} to be a valid cid`;
+      },
+      pass: false,
     };
   }
-}
+};
 export interface ExtendedMatchers extends jest.Matchers<void, any> {
   toBeValidCid: () => object;
 }
-
