@@ -928,7 +928,9 @@ export class UprtclRepository {
         ${options.entities ? COMMIT_PROPERTIES : ''}
       }
       delegate
-      delegateTo
+      delegateTo {
+        xid
+      }
       finDelegatedTo {
         canWrite @filter(eq(did, "${loggedUserId}")) {
           count(uid)
@@ -976,7 +978,7 @@ export class UprtclRepository {
 
         const elementDetails = {
           headId: canRead ? element.head.xid : undefined,
-          guardianId: element.delegate ? element.delegateTo : undefined,
+          guardianId: element.delegate ? element.delegateTo.xid : undefined,
           canUpdate: !element.finDelegatedTo.publicWrite
             ? element.finDelegatedTo.canWrite[0].count > 0
             : true,
