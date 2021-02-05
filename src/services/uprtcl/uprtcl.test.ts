@@ -12,12 +12,18 @@ import {
   createAndInitPerspective,
   forkPerspective,
   addChildToPerspective,
+  sendDataBatch,
+  sendPerspectiveBatch,
+  getEcosystem
 } from './uprtcl.testsupport';
 import { createUser } from '../user/user.testsupport';
 import {
   addPermission,
   setPublicPermission,
 } from '../access/access.testsupport';
+import { 
+  createHomeSpace, 
+  createHerarchichalScenario } from '../uprtcl/uprtcl.mock.helper';
 import { PermissionType } from '../uprtcl/types';
 
 describe('routes', () => {
@@ -49,21 +55,22 @@ describe('routes', () => {
     const commit2Id = await createCommitAndData('text 98765', false, user1);
 
     let result5 = await updatePerspective(
+      user2.jwt,
       perspectiveId,
       {
         headId: commit2Id,
       },
-      user2.jwt
     );
     expect(result5.result).toEqual(ERROR);
     expect(result5.message).toEqual(NOT_AUTHORIZED_MSG);
 
     let result6 = await updatePerspective(
+      user1.jwt,
       perspectiveId,
       {
         headId: commit2Id,
       },
-      user1.jwt
+
     );
     expect(result6.result).toEqual(SUCCESS);
 
@@ -108,9 +115,9 @@ describe('routes', () => {
     const commit3Id = await createCommitAndData('text 4745729', false, user1);
 
     let result7 = await updatePerspective(
+      user2.jwt,
       perspectiveId,
-      { headId: commit3Id },
-      user2.jwt
+      { headId: commit3Id }
     );
     expect(result7.result).toEqual(ERROR);
 
@@ -123,9 +130,9 @@ describe('routes', () => {
     expect(result10.result).toEqual(SUCCESS);
 
     let result8 = await updatePerspective(
+      user2.jwt,
       perspectiveId,
-      { headId: commit3Id },
-      user2.jwt
+      { headId: commit3Id }
     );
     expect(result8.result).toEqual(SUCCESS);
 
@@ -166,9 +173,9 @@ describe('routes', () => {
     );
 
     let result14 = await updatePerspective(
+      user3.jwt,
       perspectiveId,
-      { headId: commit4Id },
-      user3.jwt
+      { headId: commit4Id }
     );
     expect(result14.result).toEqual(ERROR);
     expect(result14.message).toEqual(NOT_AUTHORIZED_MSG);
@@ -182,9 +189,9 @@ describe('routes', () => {
     expect(result16.result).toEqual(SUCCESS);
 
     let result17 = await updatePerspective(
+      user3.jwt,
       perspectiveId,
-      { headId: commit4Id },
-      user3.jwt
+      { headId: commit4Id }
     );
     expect(result17.result).toEqual(SUCCESS);
 
@@ -210,9 +217,9 @@ describe('routes', () => {
     expect(result23.result).toEqual(SUCCESS);
 
     let result19 = await updatePerspective(
+      user3.jwt,
       perspectiveId,
-      { headId: commit4Id },
-      user3.jwt
+      { headId: commit4Id }
     );
     expect(result19.result).toEqual(ERROR);
     expect(result19.message).toEqual(NOT_AUTHORIZED_MSG);
@@ -308,31 +315,22 @@ describe('routes', () => {
     const name1 = 'persp 1';
     const perspectiveId1 = await createPerspective(user1, Date.now(), context);
     await updatePerspective(
-      perspectiveId1,
-      {
-        headId: '', // HOT FIX TO COMPILE
-      },
-      user1.jwt
+      user1.jwt,
+      perspectiveId1
     );
 
     const name2 = 'persp 2';
     const perspectiveId2 = await createPerspective(user1, Date.now(), context);
     await updatePerspective(
-      perspectiveId2,
-      {
-        headId: '', // HOT FIX TO COMPILE
-      },
-      user1.jwt
+      user1.jwt,
+      perspectiveId2
     );
 
     const name3 = 'persp 3';
     const perspectiveId3 = await createPerspective(user1, Date.now(), context);
     await updatePerspective(
-      perspectiveId3,
-      {
-        headId: '', // HOT FIX TO COMPILE
-      },
-      user2.jwt
+      user2.jwt,
+      perspectiveId3
     );
 
     let result12 = await setPublicPermission(
@@ -401,6 +399,15 @@ describe('routes', () => {
       user1
     );
 
+    // Update perspective head with new data, linking new page.
+    const updatedPerspective1 = await updatePerspective(
+      user1.jwt,
+      mainPerspective,
+      {
+        headId: newDataCommit1
+      }
+    );
+
     // Add one more page
     const page2Commit = await createCommitAndData('new page', false, user1);
     const page2Perspective = await createPerspective(
@@ -418,11 +425,11 @@ describe('routes', () => {
     );
 
     const updatedPerspective2 = await updatePerspective(
+      user1.jwt,
       mainPerspective,
       {
-        headId: newDataCommit2,
-      },
-      user1.jwt
+        headId: newDataCommit2
+      }
     );
     // ----- Finished adding the additional page. ------ //
 
@@ -443,11 +450,11 @@ describe('routes', () => {
     );
 
     const updatedPerspective3 = await updatePerspective(
+      user1.jwt,
       page1Perspective,
       {
-        headId: newDataCommit3,
-      },
-      user1.jwt
+        headId: newDataCommit3
+      }
     );
     // ----- Finsihed adding an aditional link to page1 ------ //
 
@@ -468,11 +475,11 @@ describe('routes', () => {
     );
 
     const updatedPerspective4 = await updatePerspective(
+      user1.jwt,
       page2Perspective,
       {
-        headId: newDataCommit4,
-      },
-      user1.jwt
+        headId: newDataCommit4
+      }
     );
 
     const link3Commit = await createCommitAndData('new link', false, user1);
@@ -491,11 +498,11 @@ describe('routes', () => {
     );
 
     const updatedPerspective5 = await updatePerspective(
+      user1.jwt,
       page2Perspective,
       {
-        headId: newDataCommit5,
-      },
-      user1.jwt
+        headId: newDataCommit5
+      }
     );
     // ----- Finished adding 2 additional links to page 2 ---- //
 
@@ -518,11 +525,11 @@ describe('routes', () => {
 
     // Update perspective head with new data, linking new page.
     const updatedPerspective6 = await updatePerspective(
+      user1.jwt,
       mainPerspective,
       {
-        headId: newDataCommit6,
-      },
-      user1.jwt
+        headId: newDataCommit6
+      }
     );
 
     // Should point to itself
@@ -550,11 +557,11 @@ describe('routes', () => {
     );
 
     const updatedPerspective7 = await updatePerspective(
+      user1.jwt,
       mainPerspective,
       {
-        headId: newDataCommit7,
-      },
-      user1.jwt
+        headId: newDataCommit7
+      }
     );
 
     const eco1 = await getPerspectiveRelatives(mainPerspective, 'ecosystem');
@@ -587,11 +594,11 @@ describe('routes', () => {
     );
 
     const updatedPerspective8 = await updatePerspective(
+      user1.jwt,
       link1Perspecitve,
       {
-        headId: newDataCommit8,
-      },
-      user1.jwt
+        headId: newDataCommit8
+      }
     );
 
     const eco2 = await getPerspectiveRelatives(mainPerspective, 'ecosystem');
@@ -684,5 +691,105 @@ describe('routes', () => {
     expect(independentPerspectivesEco[0]).toEqual(LC);
 
     done();
+  });
+
+  test.only('batch create', async (done) => {
+    // Emulate the user
+    const user = await createUser('seed1');
+
+    // Create home space
+    /**
+     * Includes:
+     * -> Home space
+     *  -> Linked thoughts space
+     *    -> Private
+     *      -> An untitled page created on Private
+     *    -> Blog
+     */
+    const homePerspective = createHomeSpace(user.userId.toLocaleLowerCase());
+    await sendDataBatch(homePerspective.data, user);
+    await sendPerspectiveBatch(homePerspective.perspectives, user);
+
+    // Create scenario A
+    const scenarioA = createHerarchichalScenario(user.userId.toLocaleLowerCase());
+    await sendDataBatch(scenarioA.data, user);
+    await sendPerspectiveBatch(scenarioA.perspectives, user);
+    await updatePerspective(user.jwt, undefined, undefined, scenarioA.updates);
+
+    // We concat all perspectives for this test
+    const allPerspectives = homePerspective.perspectives.concat(scenarioA.perspectives);
+    
+    // Gets the ecosystem of every perspective from the DB.
+    const ecosystemPersp = await Promise.all(
+      allPerspectives.map(async (p: any) => {
+        return {
+          id: p.perspective.id,
+          ecosystem: await getEcosystem(p.perspective.id)
+        }
+      })
+    );
+
+    const allUpdates = allPerspectives.map((p:any) => p.update).sort();
+
+    // Gets the ecosystem algorithmically
+    const recurseChildren = (children: Object[], algEcosystem: string[]): String[] => {
+      children.map((child: any) => {
+        const { linkChanges: { children: {  added } } } = child;
+
+        scenarioA.updates.filter((a: any) => added.indexOf(a.perspectiveId) > -1).map((update: any) => {
+          update.linkChanges.children.added.map((child:any) => {
+            added.push(child)
+          })
+        })
+
+        if(added.length > 0) {
+          const childrenObjects = allUpdates.filter((a: any) => added.indexOf(a.perspectiveId) > -1);
+          added.map((child: any) => {
+            algEcosystem.push(child);
+          });
+          recurseChildren(childrenObjects, algEcosystem);
+        }
+      });
+      return algEcosystem;
+    }
+
+    // Checks the ecoystem of every element created for the test.
+    allUpdates.map((update: any) => {
+      const { linkChanges: { children: { added } } } = update;
+
+      if(added.length === 0) {
+        // We look for children in possible next updates.
+        const nextUpdates = scenarioA.updates.filter((s: any) => update.perspectiveId === s.perspectiveId);
+
+        nextUpdates.map((next: any) => {
+          next.linkChanges.children.added.map((child: any) => {
+            added.push(child);
+          });
+        });
+      }
+
+      const childrenObjects = allUpdates.filter((a: any) => added.indexOf(a.perspectiveId) > -1);
+      const final = added;
+
+      // Array computed in tests
+      const ecosystem = final.concat(recurseChildren(childrenObjects, []));
+      ecosystem.push(update.perspectiveId);
+
+
+      // Position of our current ID inside the ecosystem fetched from DB.
+      const pos = ecosystemPersp.map((persp:any) => persp.id).indexOf(update.perspectiveId);
+
+      // Array coming from DB
+      const dbEcosystem = ecosystemPersp[pos].ecosystem;
+
+      // Both arrays must match to pass the test
+      expect([... new Set(ecosystem.sort())]).toEqual(dbEcosystem.sort());
+    });
+
+    // TODO:
+    // Make ACL tests
+    // Ecosystem substraction tests
+
+   done();
   });
 });
