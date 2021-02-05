@@ -82,6 +82,7 @@ export class UprtclController {
       },
 
       {
+        // A Get with put, it receive the get options in the body
         path: '/uprtcl/1/persp/:perspectiveId',
         method: 'put',
         handler: [
@@ -126,6 +127,39 @@ export class UprtclController {
               };
 
               res.status(200).send(result);
+            }
+          },
+        ],
+      },
+
+      {
+        // A locate GETasPUT action (search upwards) that receives options in the body
+        path: '/uprtcl/1/locate',
+        method: 'put',
+        handler: [
+          checkJwt,
+          async (req: Request, res: Response) => {
+            try {
+              let perspectives = await this.uprtclService.locatePerspective(
+                req.body.elementId,
+                req.body.forks,
+                getUserFromReq(req)
+              );
+
+              let result: GetResult<string[]> = {
+                result: SUCCESS,
+                message: 'perspectives located',
+                data: perspectives,
+              };
+              res.status(200).send(result);
+            } catch (error) {
+              console.error(error);
+              let result: PostResult = {
+                result: ERROR,
+                message: error.message,
+                elementIds: [],
+              };
+              res.status(400).send(result);
             }
           },
         ],
