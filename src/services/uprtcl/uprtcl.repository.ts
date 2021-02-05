@@ -980,7 +980,9 @@ export class UprtclRepository {
           headId: canRead ? element.head.xid : undefined,
           guardianId: element.delegate ? element.delegateTo.xid : undefined,
           canUpdate: !element.finDelegatedTo.publicWrite
-            ? element.finDelegatedTo.canWrite[0].count > 0
+            ? element.finDelegatedTo.canWrite
+              ? element.finDelegatedTo.canWrite[0].count > 0
+              : false
             : true,
         };
 
