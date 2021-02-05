@@ -873,6 +873,10 @@ export class UprtclRepository {
 
     const data = result.getJson();
 
+    if (data.perspective.length === 0) {
+      return [];
+    }
+
     const perspectives: DgPerspective[] = forks
       ? data.perspective[0].context.perspectives
       : data.perspective;
