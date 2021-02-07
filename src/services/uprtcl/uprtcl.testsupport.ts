@@ -2,6 +2,7 @@ import request from 'supertest';
 import { createApp } from '../../server';
 import { PostResult, GetResult } from '../../utils';
 import { LOCAL_EVEES_PATH, LOCAL_EVEES_REMOTE } from '../providers';
+import { DGraphService } from '../../db/dgraph.service';
 import { createData } from '../data/test.support.data';
 import { DocNodeType } from '../data/types';
 import { uprtclRepo } from '../access/access.testsupport';
@@ -13,7 +14,10 @@ import {
   Secured,
   PerspectiveDetails,
   Commit,
+  Update
 } from '@uprtcl/evees';
+
+const db = new DGraphService('localhost', '9080', '');
 
 interface PerspectiveData {
   persp: string;
@@ -84,11 +88,11 @@ export const addChildToPerspective = async (
   );
 
   await updatePerspective(
+    user.jwt,
     parentId,
     {
-      headId: commitChild,
-    },
-    user.jwt
+      headId: commitChild
+    }
   );
 };
 
@@ -158,20 +162,21 @@ export const createPerspective = async (
 };
 
 export const updatePerspective = async (
-  perspectiveId: string,
-  details: PerspectiveDetails,
-  jwt: string
+  jwt: string,
+  perspectiveId?: string,
+  details?: PerspectiveDetails,
+  updatesBatch?: Update[]
 ): Promise<PostResult> => {
   const router = await createApp();
   const put = await request(router)
-    .put(`/uprtcl/1/persp/details`)
+    .put(`/uprtcl/1/persp/update`)
     .send({
-      details: [
+      updates: (perspectiveId) ? [
         {
           id: perspectiveId,
-          details,
-        },
-      ],
+          details
+        }
+      ] : updatesBatch
     })
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
   return JSON.parse(put.text);
@@ -353,4 +358,43 @@ export const findPerspectives = async (
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   return JSON.parse(get.text);
+};
+
+export const sendPerspectiveBatch = async (perspectives: Object[], user: TestUser) : Promise<void> => {
+  const router = await createApp();
+  const post = await request(router)
+    .post('/uprtcl/1/persp')
+    .send({ perspectives: perspectives })
+    .set('Authorization', user.jwt ? `Bearer ${user.jwt}` : '');
+
+  expect(post.status).toEqual(200);
+}
+
+export const sendDataBatch = async (datas: Object[], user: TestUser) : Promise<void> => {
+  const router = await createApp();
+  const post = await request(router)
+    .post('/uprtcl/1/data')
+    .send({datas:datas})
+    .set('Authorization', user.jwt ? `Bearer ${user.jwt}` : '');
+
+  expect(post.status).toEqual(200);
+}
+
+export const getEcosystem = async(perspectiveId: string) : Promise<string[]> => {
+  await db.ready();
+
+  // This is a temporal way of fetching the ecosystem of each perspective.
+  const query = `query{
+    perspective(func: eq(xid, ${perspectiveId})) {
+      ecosystem {
+        xid
+      }
+    }
+  }`;
+
+  const result = await db.client.newTxn().query(query);
+  const ecosystems = result.getJson().perspective[0].ecosystem;
+  const ids = ecosystems.map((ecosystem:any) => ecosystem.xid);
+
+  return !ids || ids.length == 0 ? [] : ids;
 };
