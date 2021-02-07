@@ -9,6 +9,7 @@ import {
   Secured,
   Update,
   Slice,
+  ParentAndChild,
 } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
@@ -839,11 +840,12 @@ export class UprtclRepository {
     perspectiveId: string,
     forks: boolean = false,
     loggedUserId: string | null
-  ): Promise<string[]> {
+  ): Promise<ParentAndChild[]> {
     await this.db.ready();
 
     const parentsPortion = `
     {
+      xid
       ~children {
         xid
         finDelegatedTo {
@@ -884,12 +886,25 @@ export class UprtclRepository {
       ? data.perspective[0].context.perspectives
       : data.perspective;
 
-    const parentsOfPerspectives = perspectives.map((perspective: any) => {
-      return perspective['~children'].map((parent: any) => parent.xid);
+    /** A map to de-duplicate parents entries */
+    const parentsAndChildrenMap = new Map<string, ParentAndChild[]>();
+
+    perspectives.forEach((perspective: any) => {
+      perspective['~children'].forEach((parent: any) => {
+        const current = parentsAndChildrenMap.get(parent.xid) || [];
+        current.push({
+          parentId: parent.xid,
+          childId: perspective.xid,
+        });
+        parentsAndChildrenMap.set(parent.xid, current);
+      });
     });
 
     // concatenate all the parents of all perspectives
-    return Array.prototype.concat.apply([], parentsOfPerspectives);
+    return Array.prototype.concat.apply(
+      [],
+      Array.from(parentsAndChildrenMap.values())
+    );
   }
 
   async getPerspective(
