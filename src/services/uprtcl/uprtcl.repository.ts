@@ -159,9 +159,11 @@ export class UprtclRepository {
 
     let { query, nquads } = upsert;
 
-    if (!upsertedProfiles.includes(creatorId)) {
-      upsertedProfiles.push(creatorId);
-      const creatorSegment = this.userRepo.upsertQueries(creatorId);
+    const did = this.userRepo.formatDid(creatorId);
+
+    if (!upsertedProfiles.includes(did)) {
+      upsertedProfiles.push(did);
+      const creatorSegment = this.userRepo.upsertQueries(did);
       query = query.concat(creatorSegment.query);
       nquads = nquads.concat(creatorSegment.nquads);
     }
@@ -171,8 +173,6 @@ export class UprtclRepository {
         `Can only store perspectives whose creatorId is the creator, but ${creatorId} is not ${loggedUserId}`
       );
     }
-
-    const did = this.userRepo.formatDid(creatorId);
 
     query = query.concat(`\npersp${id} as var(func: eq(xid, "${id}"))`);
     query = query.concat(
@@ -377,9 +377,10 @@ export class UprtclRepository {
     return { query, nquads };
   }
 
-  async updatePerspectives(updates: Update[]): Promise<void> {
+  async updatePerspectives(updates: Update[], loggedUserId: string): Promise<void> {
     let childrenUpsert: Upsert = { nquads: ``, delNquads: ``, query: `` };
     let ecoUpsert: Upsert = { query: ``, nquads: ``, delNquads: `` };
+    const userId = this.userRepo.formatDid(loggedUserId);
 
     /**
      * The reason why we have a second loop, is beacuse the first one
@@ -393,13 +394,14 @@ export class UprtclRepository {
        */
       const childrenUpsertString = this.updatePerspectiveUpsert(
         updates[i],
-        childrenUpsert
+        childrenUpsert,
+        userId
       );
 
       /**
        * Consequently, we start calling the ecosystem upsert function.
        */
-      const ecoUpsertString = this.updateEcosystemUpsert(updates[i], ecoUpsert);
+      const ecoUpsertString = this.updateEcosystemUpsert(updates[i], ecoUpsert, userId);
 
       /**
        * To have in mind: The 2 previous functions are synchronous, which
@@ -432,7 +434,6 @@ export class UprtclRepository {
     if (childrenUpsert.query && childrenUpsert.nquads !== '') {
       // We call the db to be prepared for transactions
       await this.db.ready();
-
       // We perform first, the children transaction | TRX #3
       const childrenMutation = new dgraph.Mutation();
       const childrenRequest = new dgraph.Request();
@@ -445,7 +446,7 @@ export class UprtclRepository {
 
       await this.db.callRequest(childrenRequest);
 
-      // Secondly, we perform the ecosystem transaction | TRX #4
+      // Consequently, we perform the ecosystem transaction | TRX #4
       /**
        * We need to perforn TXR #4 after TXR #3, because the ecosystem query will rely
        * on the children of each perspective that already exists inside the database.
@@ -464,15 +465,29 @@ export class UprtclRepository {
     }
   }
 
-  updatePerspectiveUpsert(update: Update, upsert: Upsert) {
+  updatePerspectiveUpsert(update: Update, upsert: Upsert, userId: string) {
     let { query, nquads, delNquads } = upsert;
     const { perspectiveId: id } = update;
 
     // WARNING: IF THE PERSPECTIVE ENDS UP HAVING TWO HEADS, CHECK DGRAPH DOCS FOR RECENT UPDATES
     // IF NO SOLUTION, THEN BATCH DELETE ALL HEADS BEFORE BATCH UPDATE THEM
+    
+    // We check if current user can update the perspective.
+    query = query.concat(
+      `\nprivate${id} as var(func: eq(xid, ${id})) @cascade {
+          canWrite @filter(eq(did, ${userId})) {
+            did
+          }
+        }
+      \npublic${id} as var(func: eq(xid, ${id})) @filter(eq(publicWrite, true)) {
+        xid
+       }
+      \npersp${id} as var(func: eq(xid, ${id})) @filter(uid(private${id}) OR uid(public${id})) {
+          xid
+        }`
+    );
 
     // We update the current xid.
-    query = query.concat(`\npersp${id} as var(func: eq(xid, "${id}"))`);
     nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
 
     // If the current perspective we are seeing isn't headless, we proceed to update the ecosystem and its head.
@@ -489,7 +504,7 @@ export class UprtclRepository {
           `\nheadOf${id} as var(func: eq(xid, "${headId}"))`
         );
         nquads = nquads.concat(`\nuid(headOf${id}) <xid> "${headId}" .`);
-        nquads = nquads.concat(`\nuid(persp${id} ) <head> uid(headOf${id}) .`);
+        nquads = nquads.concat(`\nuid(persp${id}) <head> uid(headOf${id}) .`);
 
         // We set the external children for the previous created persvective.
         addedChildren?.forEach((child, ix) => {
@@ -497,7 +512,7 @@ export class UprtclRepository {
             `\naddedChildOf${id}${ix} as var(func: eq(xid, ${child}))`
           );
           nquads = nquads.concat(
-            `\nuid(persp${id} ) <children> uid(addedChildOf${id}${ix}) .`
+            `\nuid(persp${id}) <children> uid(addedChildOf${id}${ix}) .`
           );
         });
 
@@ -507,7 +522,7 @@ export class UprtclRepository {
             `\nremovedChildOf${id}${ix} as var(func: eq(xid, ${child}))`
           );
           delNquads = delNquads?.concat(
-            `\nuid(persp${id} ) <children> uid(removedChildOf${id}${ix}) .`
+            `\nuid(persp${id}) <children> uid(removedChildOf${id}${ix}) .`
           );
         });
       }
@@ -516,21 +531,35 @@ export class UprtclRepository {
     return { query, nquads, delNquads };
   }
 
-  updateEcosystemUpsert(update: Update, upsert: Upsert) {
+  updateEcosystemUpsert(update: Update, upsert: Upsert, userId: string) {
     let { query, nquads, delNquads } = upsert;
     const { perspectiveId: id } = update;
 
+    /**
+     * #1 Query: Verifies if user can update the perspective
+     * #2 Query: Verifies if the perspective is public for writing.
+     * #3 Query: Will be able to update whether is a publicWrite perspective, or the user can update.
+     */
+
     query = query.concat(
-      `\npersp${id}(func: eq(xid, ${id})) 
-       @recurse
-       {
-         revEcosystem${id} as ~children
+      `\nprivate${id} as var(func: eq(xid, ${id})) @cascade {
+        canWrite @filter(eq(did, ${userId})) {
+          did
+        }
+      }
+      \npublic${id} as var(func: eq(xid, ${id})) @filter(eq(publicWrite, true)) {
+        xid
        }
-       \nperspEl${id} as var(func: eq(xid, ${id}))
-       @recurse
-       {
-         ecosystemOfUref${id} as children
-       }`
+      \npersp${id} as var(func: eq(xid, ${id})) @filter(uid(private${id}) OR uid(public${id}))
+        @recurse
+        {
+          revEcosystem${id} as ~children
+        }
+       \nperspEl${id} as var(func: uid(persp${id}))
+        @recurse
+        {
+          ecosystemOfUref${id} as children
+        }`
     );
 
     nquads = nquads.concat(
@@ -841,13 +870,14 @@ export class UprtclRepository {
     loggedUserId: string | null
   ): Promise<string[]> {
     await this.db.ready();
+    const userId = this.userRepo.formatDid((loggedUserId !== null) ? loggedUserId : '');
 
     const parentsPortion = `
     {
       ~children {
         xid
         finDelegatedTo {
-          canRead @filter(eq(did, "${loggedUserId}")) {
+          canRead @filter(eq(did, "${userId}")) {
             count(uid)
           }
           publicRead
@@ -898,6 +928,8 @@ export class UprtclRepository {
   ): Promise<PerspectiveGetResult> {
     await this.db.ready();
 
+    const userId = this.userRepo.formatDid((loggedUserId !== null) ? this.userRepo.formatDid(loggedUserId) : '');
+
     if (options.levels !== 0 && options.levels !== -1) {
       throw new Error(
         `Levels can only be 0 (shallow get) or -1, fully recusvie`
@@ -929,10 +961,10 @@ export class UprtclRepository {
       delegate
       delegateTo
       finDelegatedTo {
-        canWrite @filter(eq(did, "${loggedUserId}")) {
+        canWrite @filter(eq(did, "${userId}")) {
           count(uid)
         }
-        canRead @filter(eq(did, "${loggedUserId}")) {
+        canRead @filter(eq(did, "${userId}")) {
           count(uid)
         }
         publicWrite
@@ -964,21 +996,19 @@ export class UprtclRepository {
     };
 
     const all = options.levels === -1 ? readData.ecosystem : [readData];
-
     /** data is under ecosystem */
     all.forEach((element: any) => {
       if (element) {
         /** check access control, if user can't read, simply return undefined head  */
-        const canRead = !element.finDelegatedTo.publicRead
-          ? element.finDelegatedTo.canRead[0].count > 0
-          : true;
+
+        const { finDelegatedTo: { canRead, canWrite, publicRead, publicWrite } } = element
+
+        const read = !publicRead ? (canRead !== undefined) ? (canRead[0].count > 0) : false : true;
 
         const elementDetails = {
-          headId: canRead ? element.head.xid : undefined,
+          headId: read ? element.head.xid : undefined,
           guardianId: element.delegate ? element.delegateTo : undefined,
-          canUpdate: !element.finDelegatedTo.publicWrite
-            ? element.finDelegatedTo.canWrite[0].count > 0
-            : true,
+          canUpdate: !publicWrite ? (canWrite !== undefined) ? (canWrite[0].count > 0) : false : true
         };
 
         if (element.xid === perspectiveId) {
