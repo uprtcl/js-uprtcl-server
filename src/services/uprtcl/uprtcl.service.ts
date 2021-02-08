@@ -6,6 +6,7 @@ import {
   Commit,
   PerspectiveGetResult,
   GetPerspectiveOptions,
+  ParentAndChild,
 } from '@uprtcl/evees';
 
 import { PermissionType } from './types';
@@ -134,14 +135,13 @@ export class UprtclService {
     perspectiveId: string,
     includeForks: boolean,
     loggedUserId: string | null
-  ): Promise<string[]> {
+  ): Promise<ParentAndChild[]> {
     return await this.uprtclRepo.locatePerspective(
       perspectiveId,
       includeForks,
       loggedUserId
     );
   }
-
 
   async findIndPerspectives(
     perspectiveId: string,
@@ -188,5 +188,4 @@ export class UprtclService {
 
     return accessiblePerspectives.filter((e: string) => e !== '');
   }
-
 }

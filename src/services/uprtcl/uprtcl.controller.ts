@@ -1,10 +1,5 @@
 import { Request, Response } from 'express';
-import {
-  Secured,
-  Perspective,
-  PerspectiveDetails,
-  PerspectiveGetResult,
-} from '@uprtcl/evees';
+import { PerspectiveGetResult, ParentAndChild } from '@uprtcl/evees';
 
 import { UprtclService } from './uprtcl.service';
 import { checkJwt } from '../../middleware/jwtCheck';
@@ -146,7 +141,7 @@ export class UprtclController {
                 getUserFromReq(req)
               );
 
-              let result: GetResult<string[]> = {
+              let result: GetResult<ParentAndChild[]> = {
                 result: SUCCESS,
                 message: 'perspectives located',
                 data: perspectives,
