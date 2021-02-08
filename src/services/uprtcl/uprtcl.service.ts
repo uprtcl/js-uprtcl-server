@@ -56,8 +56,7 @@ export class UprtclService {
     await this.uprtclRepo.createPerspectives(perspectivesData, loggedUserId);
 
     await this.uprtclRepo.updatePerspectives(
-      perspectivesData.map((newPerspective) => newPerspective.update),
-      loggedUserId
+      perspectivesData.map((newPerspective) => newPerspective.update)
     );
 
     return [];
@@ -73,7 +72,13 @@ export class UprtclService {
      */
     if(loggedUserId === null)
       throw new Error('Anonymous user. Cant update a perspective');
-    await this.uprtclRepo.updatePerspectives(updates,loggedUserId);
+
+    const canUpdate = await this.access.canUpdate(updates, loggedUserId);
+
+    if(!canUpdate)
+      throw new Error('Anonymous user. Cant update a perspective');
+
+    await this.uprtclRepo.updatePerspectives(updates);
   }
 
   async deletePerspective(

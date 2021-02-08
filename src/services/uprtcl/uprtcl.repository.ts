@@ -377,10 +377,9 @@ export class UprtclRepository {
     return { query, nquads };
   }
 
-  async updatePerspectives(updates: Update[], loggedUserId: string): Promise<void> {
+  async updatePerspectives(updates: Update[]): Promise<void> {
     let childrenUpsert: Upsert = { nquads: ``, delNquads: ``, query: `` };
     let ecoUpsert: Upsert = { query: ``, nquads: ``, delNquads: `` };
-    const userId = this.userRepo.formatDid(loggedUserId);
 
     /**
      * The reason why we have a second loop, is beacuse the first one
@@ -394,14 +393,13 @@ export class UprtclRepository {
        */
       const childrenUpsertString = this.updatePerspectiveUpsert(
         updates[i],
-        childrenUpsert,
-        userId
+        childrenUpsert
       );
 
       /**
        * Consequently, we start calling the ecosystem upsert function.
        */
-      const ecoUpsertString = this.updateEcosystemUpsert(updates[i], ecoUpsert, userId);
+      const ecoUpsertString = this.updateEcosystemUpsert(updates[i], ecoUpsert);
 
       /**
        * To have in mind: The 2 previous functions are synchronous, which
@@ -465,24 +463,15 @@ export class UprtclRepository {
     }
   }
 
-  updatePerspectiveUpsert(update: Update, upsert: Upsert, userId: string) {
+  updatePerspectiveUpsert(update: Update, upsert: Upsert) {
     let { query, nquads, delNquads } = upsert;
     const { perspectiveId: id } = update;
 
     // WARNING: IF THE PERSPECTIVE ENDS UP HAVING TWO HEADS, CHECK DGRAPH DOCS FOR RECENT UPDATES
     // IF NO SOLUTION, THEN BATCH DELETE ALL HEADS BEFORE BATCH UPDATE THEM
     
-    // We check if current user can update the perspective.
     query = query.concat(
-      `\nprivate${id} as var(func: eq(xid, ${id})) @cascade {
-          canWrite @filter(eq(did, ${userId})) {
-            did
-          }
-        }
-      \npublic${id} as var(func: eq(xid, ${id})) @filter(eq(publicWrite, true)) {
-        xid
-       }
-      \npersp${id} as var(func: eq(xid, ${id})) @filter(uid(private${id}) OR uid(public${id})) {
+      `\npersp${id} as var(func: eq(xid, ${id})) {
           xid
         }`
     );
@@ -531,26 +520,12 @@ export class UprtclRepository {
     return { query, nquads, delNquads };
   }
 
-  updateEcosystemUpsert(update: Update, upsert: Upsert, userId: string) {
+  updateEcosystemUpsert(update: Update, upsert: Upsert) {
     let { query, nquads, delNquads } = upsert;
     const { perspectiveId: id } = update;
 
-    /**
-     * #1 Query: Verifies if user can update the perspective
-     * #2 Query: Verifies if the perspective is public for writing.
-     * #3 Query: Will be able to update whether is a publicWrite perspective, or the user can update.
-     */
-
     query = query.concat(
-      `\nprivate${id} as var(func: eq(xid, ${id})) @cascade {
-        canWrite @filter(eq(did, ${userId})) {
-          did
-        }
-      }
-      \npublic${id} as var(func: eq(xid, ${id})) @filter(eq(publicWrite, true)) {
-        xid
-       }
-      \npersp${id} as var(func: eq(xid, ${id})) @filter(uid(private${id}) OR uid(public${id}))
+      `\npersp${id} as var(func: eq(xid, ${id}))
         @recurse
         {
           revEcosystem${id} as ~children
