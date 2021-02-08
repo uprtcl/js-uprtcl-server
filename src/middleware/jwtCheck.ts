@@ -1,5 +1,6 @@
 import { C1_ETH_AUTH } from '../services/user/user.service';
 import { NextFunction } from 'express';
+import { isValidUser } from './userOkList';
 
 var jwt = require('jsonwebtoken');
 const fs = require('fs');
@@ -107,7 +108,7 @@ export const checkJwt = (req: any, res: any, next: NextFunction) => {
       try {
         verifyC1Token(token)
           .then((decodedToken: any) => {
-            req.user = decodedToken.user;
+            req.user = isValidUser(decodedToken.user);
             console.log(`[JWT CHECK] Authenticated req.user: ${req.user}`);
             next();
           })
@@ -122,7 +123,7 @@ export const checkJwt = (req: any, res: any, next: NextFunction) => {
     case `https://${process.env.AUTH0_DOMAIN}/`:
       try {
         verifyAuth0Token(token, dtoken.header.kid).then((decodedToken: any) => {
-          req.user = decodedToken.sub;
+          req.user = isValidUser(decodedToken.sub);
           console.log(`[JWT CHECK] Authenticated req.user: ${req.user}`);
           next();
         });
