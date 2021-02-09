@@ -183,11 +183,10 @@ export class AccessRepository {
     updates: Update[],
     loggedUserId: string
   ): Promise<boolean> {
-    const userId = this.userRepo.formatDid(loggedUserId);
     let query = '';
 
     for (let i = 0; i < updates.length; i++) {
-      const queryString = this.canUpdateQuery(updates[i].perspectiveId, query, userId);
+      const queryString = this.canUpdateQuery(updates[i].perspectiveId, query, loggedUserId);
 
       if(i < 1) {
         query = query.concat(queryString);

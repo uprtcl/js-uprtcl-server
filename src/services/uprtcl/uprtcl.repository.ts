@@ -160,11 +160,10 @@ export class UprtclRepository {
 
     let { query, nquads } = upsert;
 
-    const did = this.userRepo.formatDid(creatorId);
 
-    if (!upsertedProfiles.includes(did)) {
-      upsertedProfiles.push(did);
-      const creatorSegment = this.userRepo.upsertQueries(did);
+    if (!upsertedProfiles.includes(creatorId)) {
+      upsertedProfiles.push(creatorId);
+      const creatorSegment = this.userRepo.upsertQueries(creatorId);
       query = query.concat(creatorSegment.query);
       nquads = nquads.concat(creatorSegment.nquads);
     }
@@ -182,7 +181,7 @@ export class UprtclRepository {
 
     nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
     nquads = nquads.concat(`\nuid(persp${id}) <stored> "true" .`);
-    nquads = nquads.concat(`\nuid(persp${id}) <creator> uid(profile${did}) .`);
+    nquads = nquads.concat(`\nuid(persp${id}) <creator> uid(profile${this.userRepo.formatDid(creatorId)}) .`);
     nquads = nquads.concat(
       `\nuid(persp${id}) <timextamp> "${timestamp}"^^<xs:int> .`
     );
@@ -212,9 +211,9 @@ export class UprtclRepository {
     nquads = nquads.concat(
       `\nuid(persp${id}) <publicRead> "false" .
        \nuid(persp${id}) <publicWrite> "false" .
-       \nuid(persp${id}) <canRead> uid(profile${did}) .
-       \nuid(persp${id}) <canWrite> uid(profile${did}) .
-       \nuid(persp${id}) <canAdmin> uid(profile${did}) .`
+       \nuid(persp${id}) <canRead> uid(profile${this.userRepo.formatDid(creatorId)}) .
+       \nuid(persp${id}) <canWrite> uid(profile${this.userRepo.formatDid(creatorId)}) .
+       \nuid(persp${id}) <canAdmin> uid(profile${this.userRepo.formatDid(creatorId)}) .`
     );
 
     /** add itself as its ecosystem */
@@ -846,7 +845,7 @@ export class UprtclRepository {
     loggedUserId: string | null
   ): Promise<ParentAndChild[]> {
     await this.db.ready();
-    const userId = this.userRepo.formatDid((loggedUserId !== null) ? loggedUserId : '');
+    const userId = loggedUserId !== null ? loggedUserId : '';
 
     const parentsPortion = `
     {
@@ -922,7 +921,7 @@ export class UprtclRepository {
   ): Promise<PerspectiveGetResult> {
     await this.db.ready();
 
-    const userId = this.userRepo.formatDid((loggedUserId !== null) ? this.userRepo.formatDid(loggedUserId) : '');
+    const userId = (loggedUserId !== null) ? loggedUserId : '';
 
     if (options.levels !== 0 && options.levels !== -1) {
       throw new Error(
