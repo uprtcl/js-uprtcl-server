@@ -18,6 +18,7 @@
   DGRAPH_PORT=9080
   AUTH0_DOMAIN=linked-thoughts-dev.eu.auth0.com
   PUBKEY_FILE=auth0.pem
+  ONLY_VALID_USERS=false
 
   ```
 
