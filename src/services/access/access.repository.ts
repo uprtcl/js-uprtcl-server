@@ -207,7 +207,7 @@ export class AccessRepository {
   canUpdateQuery(updateId: string, query: string, userId: string) {
     query = query.concat(
       `\nprivate${updateId} as var(func: eq(xid, ${updateId})) @cascade {
-          canWrite @filter(eq(did, ${userId})) {
+          canWrite @filter(eq(did, "${userId}")) {
             did
           }
         }
@@ -264,13 +264,13 @@ export class AccessRepository {
   ): Promise<UserPermissions> {
     let query = `
     element(func: eq(xid, "${elementId}")) {
-      canRead @filter(eq(did, "${userId.toLowerCase()}")) {
+      canRead @filter(eq(did, "${userId}")) {
         count(uid)
       }
-      canWrite @filter(eq(did, "${userId.toLowerCase()}")) {
+      canWrite @filter(eq(did, "${userId}")) {
         count(uid)
       }
-      canAdmin @filter(eq(did, "${userId.toLowerCase()}")) {
+      canAdmin @filter(eq(did, "${userId}")) {
         count(uid)
       }
     }`;
