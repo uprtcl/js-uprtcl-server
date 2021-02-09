@@ -890,14 +890,16 @@ export class UprtclRepository {
     const parentsAndChildrenMap = new Map<string, ParentAndChild[]>();
 
     perspectives.forEach((perspective: any) => {
-      perspective['~children'].forEach((parent: any) => {
-        const current = parentsAndChildrenMap.get(parent.xid) || [];
-        current.push({
-          parentId: parent.xid,
-          childId: perspective.xid,
+      if (perspective['~children']) {
+        perspective['~children'].forEach((parent: any) => {
+          const current = parentsAndChildrenMap.get(parent.xid) || [];
+          current.push({
+            parentId: parent.xid,
+            childId: perspective.xid,
+          });
+          parentsAndChildrenMap.set(parent.xid, current);
         });
-        parentsAndChildrenMap.set(parent.xid, current);
-      });
+      }
     });
 
     // concatenate all the parents of all perspectives
