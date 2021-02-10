@@ -37,5 +37,5 @@
 - Run in debug mode.
 
   ```
-  npm run debug
+  npm run dev
   ```
