@@ -1,3 +1,7 @@
+const okLiks: string[] = JSON.parse(
+  process.env.VALID_USERS ? process.env.VALID_USERS : '[]'
+);
+
 export const isValidUser = (userId: string) => {
   if (process.env.ONLY_VALID_USERS === undefined) {
     throw new Error(
@@ -5,7 +9,10 @@ export const isValidUser = (userId: string) => {
     );
   }
   if (process.env.ONLY_VALID_USERS !== 'false') {
-    return [''].includes(userId) ? userId : undefined;
+    if (okLiks.includes(userId)) {
+      return userId;
+    }
+    throw new Error(`User ${userId} not authorized`);
   }
   return userId;
 };
