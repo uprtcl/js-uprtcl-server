@@ -20,6 +20,7 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   head: ${COMMIT_SCHEMA_NAME}
   name: string
   context: ${CONTEXT_SCHEMA_NAME}
+  linksTo: [uid]
   stored: bool
   path: string
   remote: string
@@ -62,6 +63,7 @@ message: string .
 head: uid .
 name: string @index(exact) .
 context: uid .
+linksTo: [uid] @reverse .
 perspectives: [uid] @reverse .
 parents: [uid] .
 signature: string .

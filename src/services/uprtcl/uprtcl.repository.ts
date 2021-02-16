@@ -482,6 +482,8 @@ export class UprtclRepository {
         const { details, linkChanges } = update;
 
         const headId = details.headId;
+        const addedLinksTo = linkChanges?.linksTo?.added;
+        const removedLinksTo = linkChanges?.linksTo?.removed;
         const addedChildren = linkChanges?.children?.added;
         const removedChildren = linkChanges?.children?.removed;
 
@@ -492,6 +494,38 @@ export class UprtclRepository {
         nquads = nquads.concat(`\nuid(headOf${id}) <xid> "${headId}" .`);
         nquads = nquads.concat(`\nuid(persp${id} ) <head> uid(headOf${id}) .`);
 
+        // The linksTo edges are generic links from this perspective to any another perspective. 
+        // Once created, they can be used by the searchEngine to query the all perspectives that 
+        // have a linkTo another one.
+        
+        // linksTo[] to be added.
+        addedLinksTo?.forEach((link, ix) => {
+          query = query.concat(
+            `\naddedLinkToOf${id}${ix} as var(func: eq(xid, ${link}))`
+          );
+          nquads = nquads.concat(
+            `\nuid(persp${id} ) <linksTo> uid(addedLinkToOf${id}${ix}) .`
+          );
+        });
+
+        // linksTo[] to be removed.
+        removedLinksTo?.forEach((link, ix) => {
+          query = query.concat(
+            `\nremovedLinksToOf${id}${ix} as var(func: eq(xid, ${link}))`
+          );
+          nquads = nquads.concat(
+            `\nuid(persp${id} ) <linksTo> uid(removedLinksToOf${id}${ix}) .`
+          );
+        });
+
+
+        // Children links are a special case of linkTo and a first-class citizen in _Prtcl. 
+        // When forking and merging perpsectives of an evee, the children links are recursively forked and 
+        // merged (while linksTo are not). In addition, the children of a perspective build its "ecosystem"  
+        // (the set of itself, all its children and their children, recursively). 
+        // The ecosystem can be used by the searchEngine to search "under" a given perspective and it is 
+        // expected that searchEngine implementations will optimize for these kind of queries.
+        
         // We set the external children for the previous created persvective.
         addedChildren?.forEach((child, ix) => {
           query = query.concat(
