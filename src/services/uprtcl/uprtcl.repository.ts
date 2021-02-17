@@ -513,7 +513,7 @@ export class UprtclRepository {
           query = query.concat(
             `\nremovedLinksToOf${id}${ix} as var(func: eq(xid, ${link}))`
           );
-          nquads = nquads.concat(
+          delNquads = delNquads?.concat(
             `\nuid(persp${id} ) <linksTo> uid(removedLinksToOf${id}${ix}) .`
           );
         });
