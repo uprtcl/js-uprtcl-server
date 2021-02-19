@@ -10,6 +10,7 @@ import {
   Update,
   Slice,
   ParentAndChild,
+  SearchOptions,
 } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
@@ -479,7 +480,7 @@ export class UprtclRepository {
     // If the current perspective we are seeing isn't headless, we proceed to update the ecosystem and its head.
     if (update.details !== undefined) {
       if (update.details.headId !== undefined) {
-        const { details, linkChanges } = update;
+        const { details, linkChanges, text } = update;
 
         const headId = details.headId;
         const addedLinksTo = linkChanges?.linksTo?.added;
@@ -493,6 +494,7 @@ export class UprtclRepository {
         );
         nquads = nquads.concat(`\nuid(headOf${id}) <xid> "${headId}" .`);
         nquads = nquads.concat(`\nuid(persp${id} ) <head> uid(headOf${id}) .`);
+        nquads = nquads.concat(`\nuid(persp${id}) <text> "${text}" .`);
 
         // The linksTo edges are generic links from this perspective to any another perspective. 
         // Once created, they can be used by the searchEngine to query the all perspectives that 
@@ -943,17 +945,17 @@ export class UprtclRepository {
     );
   }
 
-  async getPerspective(
-    perspectiveId: string,
+  async getPerspectives(
     loggedUserId: string | null,
-    options: GetPerspectiveOptions = {
-      levels: 0,
-      entities: true,
-    }
-  ): Promise<PerspectiveGetResult> {
-    await this.db.ready();
+    getPerspectiveOptions: GetPerspectiveOptions = {},
+    perspectiveId?: string,
+    searchOptions?: SearchOptions
+  ) {
 
-    if (options.levels !== 0 && options.levels !== -1) {
+    let query = ``;
+    const { levels, entities } = getPerspectiveOptions;
+
+    if (levels !== 0 && levels !== -1) {
       throw new Error(
         `Levels can only be 0 (shallow get) or -1, fully recusvie`
       );
@@ -977,9 +979,9 @@ export class UprtclRepository {
         xid
         data {
           xid
-          ${options.entities ? `jsonString` : ''}
+          ${entities ? `jsonString` : ''}
         }
-        ${options.entities ? COMMIT_PROPERTIES : ''}
+        ${entities ? COMMIT_PROPERTIES : ''}
       }
       delegate
       delegateTo {
@@ -997,83 +999,108 @@ export class UprtclRepository {
       }
       `;
 
-    const query = `query {
-      perspectives(func: eq(xid, ${perspectiveId})) {
-        ${
-          options.levels === -1
-            ? `ecosystem {${elementQuery}}`
-            : `${elementQuery}`
-        }
+      // If search options exists, it means that the search is wide
+      if(searchOptions) {
+        // We make sure the results found match the ACL of the user.
+        query = query.concat(
+          `public as var(func: anyoftext(text, ${searchOptions.query}))
+           privateRead as var(func: anyoftext(text, ${searchOptions.query}))
+           @cascade {
+             canRead @filter(eq(did, ${loggedUserId}))
+           }
+           privateWrite as var(func: anyoftext(text, ${searchOptions.query}))
+           @cascade {
+             canWrite @filter(eq(did, ${loggedUserId}))
+           }`);
       }
-    }`;
 
-    let dbResult = await this.db.client.newTxn().query(query);
-    let json = dbResult.getJson();
+      /**
+       * We build the function depending on how the method is implemented.
+       * For searching or for grabbing an specific perspective.
+       */
+      const dgraphFunction = (searchOptions) 
+        ? `perspectives(func: (anyoftext(text, ${searchOptions.query})) 
+           @filter(uid(public) OR uid(privateRead) OR uid(privateWrite))`
+          : `perspectives(func: eq(xid, ${perspectiveId}))`;
 
-    console.log('[DGRAPH] getPerspective', { query }, JSON.stringify(json));
+      query = query.concat(
+        ` ${dgraphFunction} {
+          ${
+            levels === -1
+              ? `ecosystem {${elementQuery}}`
+              : `${elementQuery}`
+          }
+        }`);
 
-    const readData = json.perspectives[0];
+      let dbResult = await this.db.client.newTxn().query(`query{${query}}`);
+      let json = dbResult.getJson();
 
-    let topDetails: PerspectiveDetails = {};
-    let slice: Slice = {
-      entities: [],
-      perspectives: [],
-    };
+      const perspectives = json.perspectives;
 
-    const all = options.levels === -1 ? readData.ecosystem : [readData];
-
-    /** data is under ecosystem */
-    all.forEach((element: any) => {
-      if (element) {
-        /** check access control, if user can't read, simply return undefined head  */
-        const canRead = !element.finDelegatedTo.publicRead
-          ? element.finDelegatedTo.canRead[0].count > 0
-          : true;
-
-        const elementDetails = {
-          headId: canRead ? element.head.xid : undefined,
-          guardianId: element.delegate ? element.delegateTo.xid : undefined,
-          canUpdate: !element.finDelegatedTo.publicWrite
-            ? element.finDelegatedTo.canWrite
-              ? element.finDelegatedTo.canWrite[0].count > 0
-              : false
-            : true,
+      const data = perspectives.map((persp:any) => {
+        let topDetails: PerspectiveDetails = {};
+        let slice: Slice = {
+          entities: [],
+          perspectives: [],
         };
 
-        if (element.xid === perspectiveId) {
-          topDetails = elementDetails;
-        } else {
-          slice.perspectives.push({
-            id: element.xid,
-            details: elementDetails,
-          });
-        }
+        const all = levels === -1 ? persp.ecosystem : [persp];
 
-        if (options.entities) {
-          const commit = assembleCommit(element.head);
+          /** data is under ecosystem */
+        all.forEach((element: any) => {
+          if (element) {
+            /** check access control, if user can't read, simply return undefined head  */
+            const canRead = !element.finDelegatedTo.publicRead
+              ? element.finDelegatedTo.canRead[0].count > 0
+              : true;
 
-          const data: Entity<any> = {
-            id: element.head.data.xid,
-            object: decodeData(element.head.data.jsonString),
-          };
+            const elementDetails = {
+              headId: canRead ? element.head.xid : undefined,
+              guardianId: element.delegate ? element.delegateTo.xid : undefined,
+              canUpdate: !element.finDelegatedTo.publicWrite
+                ? element.finDelegatedTo.canWrite
+                  ? element.finDelegatedTo.canWrite[0].count > 0
+                  : false
+                : true,
+            };
 
-          slice.entities.push(commit, data);
+            if (element.xid === perspectiveId) {
+              topDetails = elementDetails;
+            } else {
+              slice.perspectives.push({
+                id: element.xid,
+                details: elementDetails,
+              });
+            }
 
-          if (element.xid !== perspectiveId) {
-            // add the perspective entity only if a subperspective
-            const perspective = assemblePerspective(element);
-            slice.entities.push(perspective);
+            if (entities) {
+              const commit = assembleCommit(element.head);
+
+              const data: Entity<any> = {
+                id: element.head.data.xid,
+                object: decodeData(element.head.data.jsonString),
+              };
+
+              slice.entities.push(commit, data);
+
+              if (element.xid !== perspectiveId) {
+                // add the perspective entity only if a subperspective
+                const perspective = assemblePerspective(element);
+                slice.entities.push(perspective);
+              }
+            }
           }
-        }
-      }
-    });
+        });
 
-    const result: PerspectiveGetResult = {
-      details: topDetails,
-      slice,
-    };
+        const result: PerspectiveGetResult = {
+          details: topDetails,
+          slice,
+        };
 
-    return result;
+        return result;
+      });
+
+      return data;
   }
 
   async getCommit(commitId: string): Promise<Secured<Commit>> {
