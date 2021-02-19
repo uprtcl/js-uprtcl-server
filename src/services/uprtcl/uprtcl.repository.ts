@@ -1001,26 +1001,28 @@ export class UprtclRepository {
      * We build the function depending on how the method is implemented.
      * For searching or for grabbing an specific perspective.
      */
-    const dgraphFunction = searchOptions
-      ? `filtered as search(func: (eq(dgraph.type, "Perspective")) {
-        ${
-          searchOptions.query ? `@filter(anyoftext(${searchOptions.query})` : ''
-        }
-        ${
-          searchOptions.linksTo
-            ? `~linksTo @filter(eq(xid, ${searchOptions.linksTo})`
-            : ''
-        }
-        ${
-          searchOptions.under
-            ? `~ecosystem @filter(eq(xid, ${searchOptions.under})`
-            : ''
-        }
-      }`
-      : `filtered as search(func: eq(xid, ${perspectiveId}))`;
+     query = query.concat(
+       ` ${ searchOptions
+            ? `filtered as search(func: eq(dgraph.type, "Perspective"))
+              ${
+                searchOptions.query ? `@filter(anyoftext(text, "${searchOptions.query}")) {` : '{'
+              }
+              ${
+                searchOptions.linksTo
+                  ? `~linksTo @filter(eq(xid, "${searchOptions.linksTo}"))`
+                  : ''
+              }
+              ${
+                searchOptions.under
+                  ? `~ecosystem @filter(eq(xid, "${searchOptions.under}"))`
+                  : ''
+              }
+            }`
+            : `filtered as search(func: eq(xid, ${perspectiveId}))` 
+      }`);
 
     query = query.concat(
-      `(perspectives(func: uid(filtered)) {
+      `\nperspectives(func: uid(filtered)) {
           ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
         }`
     );
