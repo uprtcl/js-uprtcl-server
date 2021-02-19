@@ -21,6 +21,7 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   name: string
   context: ${CONTEXT_SCHEMA_NAME}
   linksTo: [uid]
+  text: string
   stored: bool
   path: string
   remote: string
@@ -57,6 +58,7 @@ type ${COMMIT_SCHEMA_NAME} {
 
 stored: bool @index(bool) . 
 xid: string @index(hash) .
+text: string @index(fulltext) .
 authority: string .
 timextamp: int .
 message: string .
