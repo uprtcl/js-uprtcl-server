@@ -78,7 +78,7 @@ export const getRoutes = async () => {
     knownSourcesService
   );
 
-  const searchRepo = new SearchRepository(dbService);
+  const searchRepo = new SearchRepository(dbService, uprtclRepo);
   const searchService = new SearchService(searchRepo);
   const searchController = new SearchController(searchService);
 
@@ -89,5 +89,6 @@ export const getRoutes = async () => {
     ...accessController.routes(),
     ...knownSourcesController.routes(),
     ...proposalsController.routes(),
+    ...searchController.routes()
   ];
 };

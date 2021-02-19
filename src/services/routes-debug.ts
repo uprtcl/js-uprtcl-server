@@ -17,6 +17,9 @@ import { DataController } from './data/data.controller';
 import { KnownSourcesService } from './knownsources/knownsources.service';
 import { ProposalsRepository } from './proposals/proposals.repository';
 import { ProposalsController } from './proposals/proposals.controller';
+import { SearchController } from './search/search.controller';
+import { SearchService } from './search/search.service';
+import { SearchRepository } from './search/search.repository';
 
 // TODO: Update index.ts
 
@@ -67,6 +70,10 @@ const knownSourcesService = new KnownSourcesService(
 );
 const knownSourcesController = new KnownSourcesController(knownSourcesService);
 
+const searchRepo = new SearchRepository(dbService, uprtclRepo);
+const searchService = new SearchService(searchRepo);
+const searchController = new SearchController(searchService);
+
 export const routes = [
   ...uprtclController.routes(),
   ...proposalsController.routes(),
@@ -74,4 +81,5 @@ export const routes = [
   ...userController.routes(),
   ...accessController.routes(),
   ...knownSourcesController.routes(),
+  ...searchController.routes()
 ];
