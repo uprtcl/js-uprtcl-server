@@ -24,13 +24,36 @@ export class SearchController {
 
     routes() {
         return [
+          // A Get with post, it receive the get and search options in the body
             {
                 path: '/uprtcl/1/explore',
-                method: 'get',
+                method: 'post',
                 handler: [
                     checkJwt,
                     async(req: Request, res: Response) => {
-                        
+                        const perspectives = await this.searchService.explore(
+                          req.body.searchOptions,
+                          req.body.getPerspectiveOptions,
+                          getUserFromReq(req)
+                        );
+
+                        try {
+                          let result: GetResult<any[]> = {
+                            result: SUCCESS,
+                            message: 'search result',
+                            data: perspectives,
+                          };
+  
+                          res.status(200).send(result);
+                        } catch(error) {
+                          console.error(error);
+                          let result: PostResult = {
+                            result: ERROR,
+                            message: error.message,
+                            elementIds: [],
+                          };
+                          res.status(400).send(result);
+                        }
                     }
                 ]
             }
