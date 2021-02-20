@@ -1032,12 +1032,13 @@ export class UprtclRepository {
 
     const perspectives = json.perspectives;
 
+    let topDetails: PerspectiveDetails = {};
+    let slice: Slice = {
+      entities: [],
+      perspectives: [],
+    };
+
     const data = perspectives.map((persp: any) => {
-      let topDetails: PerspectiveDetails = {};
-      let slice: Slice = {
-        entities: [],
-        perspectives: [],
-      };
 
       const all = levels === -1 ? persp.ecosystem : [persp];
 
@@ -1094,6 +1095,15 @@ export class UprtclRepository {
 
       return result;
     });
+
+    if(data.length === 0) {
+      return [
+        {
+          details: topDetails,
+          slice
+        }
+      ]
+    }
 
     return data;
   }
