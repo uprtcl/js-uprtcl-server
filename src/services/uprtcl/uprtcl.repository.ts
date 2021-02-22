@@ -1049,7 +1049,8 @@ export class UprtclRepository {
         if (element) {
           /** check access control, if user can't read, simply return undefined head  */
           const canRead = !element.finDelegatedTo.publicRead
-            ? element.finDelegatedTo.canRead[0].count > 0
+            ? element.finDelegatedTo.canRead 
+              ? element.finDelegatedTo.canRead[0].count > 0 : false
             : true;
 
           const elementDetails = {
