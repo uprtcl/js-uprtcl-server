@@ -495,8 +495,8 @@ export class UprtclRepository {
         nquads = nquads.concat(`\nuid(headOf${id}) <xid> "${headId}" .`);
         nquads = nquads.concat(`\nuid(persp${id} ) <head> uid(headOf${id}) .`);
 
-        if(text)
-          nquads = nquads.concat(`\nuid(persp${id}) <text> "${(text)}" .`);
+        if (text)
+          nquads = nquads.concat(`\nuid(persp${id}) <text> "${text}" .`);
 
         // The linksTo edges are generic links from this perspective to any another perspective.
         // Once created, they can be used by the searchEngine to query the all perspectives that
@@ -507,8 +507,12 @@ export class UprtclRepository {
           query = query.concat(
             `\naddedLinkToOf${id}${ix} as var(func: eq(xid, ${link}))`
           );
+          // create a stub xid in case the link does not exist locally
           nquads = nquads.concat(
-            `\nuid(persp${id} ) <linksTo> uid(addedLinkToOf${id}${ix}) .`
+            `\nuid(addedLinkToOf${id}${ix}) <xid> "${link}" .`
+          );
+          nquads = nquads.concat(
+            `\nuid(persp${id}) <linksTo> uid(addedLinkToOf${id}${ix}) .`
           );
         });
 
@@ -1003,11 +1007,14 @@ export class UprtclRepository {
      * We build the function depending on how the method is implemented.
      * For searching or for grabbing an specific perspective.
      */
-     query = query.concat(
-       ` ${ searchOptions
-            ? `filtered as search(func: eq(dgraph.type, "Perspective"))
+    query = query.concat(
+      ` ${
+        searchOptions
+          ? `filtered as search(func: eq(dgraph.type, "Perspective"))
               ${
-                searchOptions.query ? `@filter(anyoftext(text, "${searchOptions.query}")) {` : '{'
+                searchOptions.query
+                  ? `@filter(anyoftext(text, "${searchOptions.query}")) {`
+                  : '{'
               }
               ${
                 searchOptions.linksTo
@@ -1020,8 +1027,9 @@ export class UprtclRepository {
                   : ''
               }
             }`
-            : `filtered as search(func: eq(xid, ${perspectiveId}))` 
-      }`);
+          : `filtered as search(func: eq(xid, ${perspectiveId}))`
+      }`
+    );
 
     query = query.concat(
       `\nperspectives(func: uid(filtered)) {
@@ -1041,7 +1049,6 @@ export class UprtclRepository {
     };
 
     const data = perspectives.map((persp: any) => {
-
       const all = levels === -1 ? persp.ecosystem : [persp];
 
       /** data is under ecosystem */
@@ -1049,8 +1056,9 @@ export class UprtclRepository {
         if (element) {
           /** check access control, if user can't read, simply return undefined head  */
           const canRead = !element.finDelegatedTo.publicRead
-            ? element.finDelegatedTo.canRead 
-              ? element.finDelegatedTo.canRead[0].count > 0 : false
+            ? element.finDelegatedTo.canRead
+              ? element.finDelegatedTo.canRead[0].count > 0
+              : false
             : true;
 
           const elementDetails = {
@@ -1099,13 +1107,13 @@ export class UprtclRepository {
       return result;
     });
 
-    if(data.length === 0) {
+    if (data.length === 0) {
       return [
         {
           details: topDetails,
-          slice
-        }
-      ]
+          slice,
+        },
+      ];
     }
 
     return data;
