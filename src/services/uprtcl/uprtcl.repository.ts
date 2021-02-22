@@ -1063,7 +1063,7 @@ export class UprtclRepository {
               : true,
           };
 
-          if (element.xid === perspectiveId) {
+          if (element.xid === perspectiveId || !perspectiveId) {
             topDetails = elementDetails;
           } else {
             slice.perspectives.push({
