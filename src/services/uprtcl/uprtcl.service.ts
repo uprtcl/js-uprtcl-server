@@ -7,6 +7,8 @@ import {
   PerspectiveGetResult,
   GetPerspectiveOptions,
   ParentAndChild,
+  SearchOptions,
+  SearchResult
 } from '@uprtcl/evees';
 
 import { PermissionType } from './types';
@@ -180,5 +182,17 @@ export class UprtclService {
     );
 
     return accessiblePerspectives.filter((e: string) => e !== '');
+  }
+
+  async explore(
+    searchOptions: SearchOptions,
+    getPerspectiveOptions: GetPerspectiveOptions,
+    loggedUserId: string | null
+  ): Promise<SearchResult> {
+    return await this.uprtclRepo.explore(
+      searchOptions,
+      getPerspectiveOptions,
+      loggedUserId
+    );
   }
 }
