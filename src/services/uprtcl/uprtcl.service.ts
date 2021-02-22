@@ -97,13 +97,13 @@ export class UprtclService {
     options?: GetPerspectiveOptions
   ): Promise<PerspectiveGetResult> {
     console.log('[UPRTCL-SERVICE] getPerspectiveDetails', { perspectiveId });
-    let details = await this.uprtclRepo.getPerspectives(
-      loggedUserId,
-      options,
+    let result = await this.uprtclRepo.getPerspective(
       perspectiveId,
+      loggedUserId,
+      options
     );
 
-    return details[0];
+    return result;
   }
 
   async createCommits(

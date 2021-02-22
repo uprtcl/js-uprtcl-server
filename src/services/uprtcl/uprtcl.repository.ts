@@ -11,6 +11,7 @@ import {
   Slice,
   ParentAndChild,
   SearchOptions,
+  SearchResult,
 } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
@@ -135,6 +136,12 @@ const assemblePerspective = (dperspective: DgPerspective) => {
   };
   return securedPerspective;
 };
+
+export interface FetchResult {
+  perspectiveIds: string[];
+  details: PerspectiveDetails;
+  slice: Slice;
+}
 
 export class UprtclRepository {
   constructor(
@@ -950,12 +957,47 @@ export class UprtclRepository {
     );
   }
 
-  async getPerspectives(
+  async getPerspective(
+    perspectiveId: string,
+    loggedUserId: string | null,
+    getPerspectiveOptions: GetPerspectiveOptions = {}
+  ): Promise<PerspectiveGetResult> {
+    const exploreResult = await this.fetchPerspectives(
+      loggedUserId,
+      getPerspectiveOptions,
+      perspectiveId
+    );
+    return {
+      details: exploreResult.details,
+      slice: exploreResult.slice,
+    };
+  }
+
+  async explorePerspectives(
+    searchOptions: SearchOptions,
+    loggedUserId: string | null,
+    getPerspectiveOptions: GetPerspectiveOptions = {}
+  ): Promise<SearchResult> {
+    const exploreResult = await this.fetchPerspectives(
+      loggedUserId,
+      getPerspectiveOptions,
+      undefined,
+      searchOptions
+    );
+    return {
+      perspectiveIds: exploreResult.perspectiveIds,
+      slice: exploreResult.slice,
+    };
+  }
+
+  /** A reusable function that can get a perspective or search perspectives while fetching the perspective ecosystem and
+  its entities */
+  private async fetchPerspectives(
     loggedUserId: string | null,
     getPerspectiveOptions: GetPerspectiveOptions = {},
     perspectiveId?: string,
     searchOptions?: SearchOptions
-  ) {
+  ): Promise<FetchResult> {
     let query = ``;
     const { levels, entities } = getPerspectiveOptions;
 
@@ -1042,19 +1084,25 @@ export class UprtclRepository {
 
     const perspectives = json.perspectives;
 
-    let topDetails: PerspectiveDetails = {};
-    let slice: Slice = {
-      entities: [],
-      perspectives: [],
+    // initalize the returned result with empty values
+    const result: FetchResult = {
+      details: {},
+      perspectiveIds: [],
+      slice: {
+        perspectives: [],
+        entities: [],
+      },
     };
 
-    const data = perspectives.map((persp: any) => {
+    // then loop over the dgraph results and fill the function output result
+    perspectives.forEach((persp: any) => {
       const all = levels === -1 ? persp.ecosystem : [persp];
 
-      /** data is under ecosystem */
       all.forEach((element: any) => {
         if (element) {
           /** check access control, if user can't read, simply return undefined head  */
+          result.perspectiveIds.push(element.xid);
+
           const canRead = !element.finDelegatedTo.publicRead
             ? element.finDelegatedTo.canRead
               ? element.finDelegatedTo.canRead[0].count > 0
@@ -1072,9 +1120,9 @@ export class UprtclRepository {
           };
 
           if (element.xid === perspectiveId) {
-            topDetails = elementDetails;
+            result.details = elementDetails;
           } else {
-            slice.perspectives.push({
+            result.slice.perspectives.push({
               id: element.xid,
               details: elementDetails,
             });
@@ -1088,35 +1136,19 @@ export class UprtclRepository {
               object: decodeData(element.head.data.jsonString),
             };
 
-            slice.entities.push(commit, data);
+            result.slice.entities.push(commit, data);
 
             if (element.xid !== perspectiveId) {
               // add the perspective entity only if a subperspective
               const perspective = assemblePerspective(element);
-              slice.entities.push(perspective);
+              result.slice.entities.push(perspective);
             }
           }
         }
       });
-
-      const result: PerspectiveGetResult = {
-        details: topDetails,
-        slice,
-      };
-
-      return result;
     });
 
-    if (data.length === 0) {
-      return [
-        {
-          details: topDetails,
-          slice,
-        },
-      ];
-    }
-
-    return data;
+    return result;
   }
 
   async getCommit(commitId: string): Promise<Secured<Commit>> {
