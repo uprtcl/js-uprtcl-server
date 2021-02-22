@@ -1059,13 +1059,15 @@ export class UprtclRepository {
                   : '{'
               }
               ${
-                searchOptions.linksTo
+                searchOptions.linksTo.length > 0
                   ? `linksTo @filter(eq(xid, "${searchOptions.linksTo[0].id}"))`
                   : ''
               }
               ${
                 searchOptions.under
-                  ? `ecosystem @filter(eq(xid, "${searchOptions.under[0].id}"))`
+                  ? searchOptions.under.length > 0
+                    ? `ecosystem @filter(eq(xid, "${searchOptions.under[0].id}"))`
+                    : ''
                   : ''
               }
             }`
@@ -1174,5 +1176,20 @@ export class UprtclRepository {
     if (!dcommit.stored) new Error(`Commit with id ${commitId} not found`);
 
     return assembleCommit(dcommit);
+  }
+
+  async explore(
+    searchOptions: SearchOptions,
+    getPerspectiveOptions: GetPerspectiveOptions = {
+      levels: 0,
+      entities: true,
+    },
+    loggedUserId: string | null
+  ): Promise<SearchResult> {
+    return this.explorePerspectives(
+      searchOptions,
+      loggedUserId,
+      getPerspectiveOptions
+    );
   }
 }
