@@ -1,4 +1,4 @@
-import { PerspectiveGetResult, GetPerspectiveOptions, SearchOptions } from '@uprtcl/evees';
+import { PerspectiveGetResult, GetPerspectiveOptions, SearchOptions, Slice } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { UprtclRepository } from '../uprtcl/uprtcl.repository';
 
@@ -18,11 +18,16 @@ export class SearchRepository {
       },
       loggedUserId: string | null,
     ): Promise<PerspectiveGetResult[]> {
-      return this.uprtclRepo.getPerspectives(
+      const results = await this.uprtclRepo.getPerspectives(
           loggedUserId, 
           getPerspectiveOptions, 
           undefined, 
           searchOptions
         );
+
+      /** Filters by accessibility, if no headId is present in result,
+       *  the perspective can't be read or accessed.
+       * */
+      return results.filter((res:any) => res.details.headId);
     }
 }
