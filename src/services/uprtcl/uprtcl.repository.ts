@@ -1070,13 +1070,25 @@ export class UprtclRepository {
                     : ''
                   : ''
               }
+            }
+            private as aclPriv(func: uid(filtered)) @cascade {
+              finDelegatedTo {
+                canRead @filter(eq(did, "${loggedUserId}")) {
+                  count(uid)
+                }
+              }
+            }
+            public as aclPub(func: uid(filtered)) @cascade {
+              finDelegatedTo @filter(eq(publicRead, true)) {
+                uid
+              }
             }`
           : `filtered as search(func: eq(xid, ${perspectiveId}))`
       }`
     );
 
     query = query.concat(
-      `\nperspectives(func: uid(filtered)) {
+      `\nperspectives(func: uid(filtered)) ${searchOptions ? `@filter(uid(private) OR uid(public))` : ``} {
           ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
         }`
     );
@@ -1186,10 +1198,21 @@ export class UprtclRepository {
     },
     loggedUserId: string | null
   ): Promise<SearchResult> {
-    return this.explorePerspectives(
+    const searchResult = await this.explorePerspectives(
       searchOptions,
       loggedUserId,
       getPerspectiveOptions
     );
+
+    let { perspectiveIds, slice: {  ['perspectives']: perspectives = {} } = {} } = {...searchResult};
+
+    if(searchResult.slice) {
+      perspectives = searchResult?.slice.perspectives.filter((p:any) => p.details.headId);
+      perspectiveIds = perspectiveIds.filter((id: any) => (searchResult.slice) ? id == searchResult.slice.perspectives[id] : true);
+
+      console.log(perspectives, perspectiveIds)
+    }
+
+    return searchResult
   }
 }
