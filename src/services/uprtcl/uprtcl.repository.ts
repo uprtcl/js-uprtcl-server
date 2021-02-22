@@ -1198,21 +1198,10 @@ export class UprtclRepository {
     },
     loggedUserId: string | null
   ): Promise<SearchResult> {
-    const searchResult = await this.explorePerspectives(
+    return  await this.explorePerspectives(
       searchOptions,
       loggedUserId,
       getPerspectiveOptions
     );
-
-    let { perspectiveIds, slice: {  ['perspectives']: perspectives = {} } = {} } = {...searchResult};
-
-    if(searchResult.slice) {
-      perspectives = searchResult?.slice.perspectives.filter((p:any) => p.details.headId);
-      perspectiveIds = perspectiveIds.filter((id: any) => (searchResult.slice) ? id == searchResult.slice.perspectives[id] : true);
-
-      console.log(perspectives, perspectiveIds)
-    }
-
-    return searchResult
   }
 }
