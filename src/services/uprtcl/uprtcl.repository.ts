@@ -1052,7 +1052,7 @@ export class UprtclRepository {
     query = query.concat(
       ` ${
         searchOptions
-          ? `filtered as search(func: eq(dgraph.type, "Perspective"))
+          ? `filtered as search(func: eq(dgraph.type, "Perspective")) @cascade 
               ${
                 searchOptions.query
                   ? `@filter(anyoftext(text, "${searchOptions.query}")) {`
@@ -1060,12 +1060,12 @@ export class UprtclRepository {
               }
               ${
                 searchOptions.linksTo
-                  ? `~linksTo @filter(eq(xid, "${searchOptions.linksTo}"))`
+                  ? `linksTo @filter(eq(xid, "${searchOptions.linksTo[0].id}"))`
                   : ''
               }
               ${
                 searchOptions.under
-                  ? `~ecosystem @filter(eq(xid, "${searchOptions.under}"))`
+                  ? `ecosystem @filter(eq(xid, "${searchOptions.under[0].id}"))`
                   : ''
               }
             }`

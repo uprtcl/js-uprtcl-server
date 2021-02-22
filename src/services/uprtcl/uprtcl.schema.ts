@@ -22,12 +22,12 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   context: ${CONTEXT_SCHEMA_NAME}
   linksTo: [uid]
   text: string
+  ecosystem: [uid]
   stored: bool
   path: string
   remote: string
   signature: string
   proof_type: string
-  ecosystem: [uid]
   children: [uid]
   deleted: bool
   delegate: bool
@@ -65,7 +65,6 @@ message: string .
 head: uid .
 name: string @index(exact) .
 context: uid .
-linksTo: [uid] @reverse .
 perspectives: [uid] @reverse .
 parents: [uid] .
 signature: string .
@@ -75,6 +74,7 @@ creators: [uid] .
 data: uid .
 ecosystem: [uid] @reverse .
 children: [uid] @reverse .
+linksTo: [uid] @reverse .
 deleted: bool @index(bool) . 
 remote: string .
 path: string .
