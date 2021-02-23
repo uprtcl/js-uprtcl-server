@@ -1086,18 +1086,17 @@ export class UprtclRepository {
         }${DgraphACL}`;
 
         query = query.concat(
-          `${
-              searchOptions
-                ? !searchOptions.under && !searchOptions.query
-                  ? `${exclusiveLinksToSearch}`
-                  : searchOptions.under || searchOptions.query
-                    ? searchOptions.under?.length === 0 && searchOptions.query === ''
-                      ? `${exclusiveLinksToSearch}`
-                      : `${normalSearch}`
+          `${ !searchOptions.under && !searchOptions.query
+                ? `${exclusiveLinksToSearch}`
+                : searchOptions.under || searchOptions.query
+                  ? searchOptions.under?.length === 0 && searchOptions.query === ''
+                    ? `${exclusiveLinksToSearch}`
                     : `${normalSearch}`
-                : `filtered as search(func: eq(xid, ${perspectiveId}))`  
+                  : `${normalSearch}`
             }`
         );
+      } else {
+        query = query.concat(`filtered as search(func: eq(xid, ${perspectiveId}))`);
       }
 
     query = query.concat(
