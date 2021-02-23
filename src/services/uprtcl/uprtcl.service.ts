@@ -71,7 +71,14 @@ export class UprtclService {
      * What about the access control? We might need to find a way to check
      * if the user can write a perspective, we used to call access.can(id, userId, permisstions)
      */
-    // update needs to be done one by one to manipulate the ecosystem links
+    if(loggedUserId === null)
+      throw new Error('Anonymous user. Cant update a perspective');
+
+    const canUpdate = await this.access.canUpdate(updates, loggedUserId);
+
+    if(!canUpdate)
+      throw new Error('Anonymous user. Cant update a perspective');
+
     await this.uprtclRepo.updatePerspectives(updates);
   }
 

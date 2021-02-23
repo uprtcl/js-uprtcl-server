@@ -1,6 +1,7 @@
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
 import { Upsert, PermissionType } from '../uprtcl/types';
+import { Update } from '@uprtcl/evees';
 
 const dgraph = require('dgraph-js');
 export interface PermissionConfig {
@@ -178,6 +179,49 @@ export class AccessRepository {
     }
   }
 
+  async canUpdate(
+    updates: Update[],
+    loggedUserId: string
+  ): Promise<boolean> {
+    let query = '';
+
+    for (let i = 0; i < updates.length; i++) {
+      const queryString = this.canUpdateQuery(updates[i].perspectiveId, query, loggedUserId);
+
+      if(i < 1) {
+        query = query.concat(queryString);
+      }
+
+      query = queryString;
+    }
+
+    const result = (
+      await this.db.client.newTxn().query(`query{${query}}`)
+    ).getJson();
+
+    const notAllowed = Object.keys(result).filter(el => result[el].length < 1);
+
+    return notAllowed.length === 0;
+  }
+
+  canUpdateQuery(updateId: string, query: string, userId: string) {
+    query = query.concat(
+      `\nprivate${updateId} as var(func: eq(xid, ${updateId})) @cascade {
+          canWrite @filter(eq(did, "${userId}")) {
+            did
+          }
+        }
+      \npublic${updateId} as var(func: eq(xid, ${updateId})) @filter(eq(publicWrite, true)) {
+        xid
+       }
+      \npersp${updateId}(func: eq(xid, ${updateId})) @filter(uid(private${updateId}) OR uid(public${updateId})) {
+          xid
+        }`
+    );
+
+    return query;
+  }
+
   async getPublicPermissions(elementId: string): Promise<PublicPermissions> {
     let query = `
     element(func: eq(xid, "${elementId}")) {
@@ -220,13 +264,13 @@ export class AccessRepository {
   ): Promise<UserPermissions> {
     let query = `
     element(func: eq(xid, "${elementId}")) {
-      canRead @filter(eq(did, "${userId.toLowerCase()}")) {
+      canRead @filter(eq(did, "${userId}")) {
         count(uid)
       }
-      canWrite @filter(eq(did, "${userId.toLowerCase()}")) {
+      canWrite @filter(eq(did, "${userId}")) {
         count(uid)
       }
-      canAdmin @filter(eq(did, "${userId.toLowerCase()}")) {
+      canAdmin @filter(eq(did, "${userId}")) {
         count(uid)
       }
     }`;
