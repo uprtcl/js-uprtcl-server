@@ -20,12 +20,14 @@ type ${PERSPECTIVE_SCHEMA_NAME} {
   head: ${COMMIT_SCHEMA_NAME}
   name: string
   context: ${CONTEXT_SCHEMA_NAME}
+  linksTo: [uid]
+  text: string
+  ecosystem: [uid]
   stored: bool
   path: string
   remote: string
   signature: string
   proof_type: string
-  ecosystem: [uid]
   children: [uid]
   deleted: bool
   delegate: bool
@@ -56,6 +58,7 @@ type ${COMMIT_SCHEMA_NAME} {
 
 stored: bool @index(bool) . 
 xid: string @index(hash) .
+text: string @index(fulltext) .
 authority: string .
 timextamp: int .
 message: string .
@@ -71,6 +74,7 @@ creators: [uid] .
 data: uid .
 ecosystem: [uid] @reverse .
 children: [uid] @reverse .
+linksTo: [uid] @reverse .
 deleted: bool @index(bool) . 
 remote: string .
 path: string .

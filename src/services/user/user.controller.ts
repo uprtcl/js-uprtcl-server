@@ -3,6 +3,7 @@ import { checksPlaceholder } from '../../middleware/checks';
 import { UserService } from './user.service';
 import { checkJwt } from '../../middleware/jwtCheck';
 import { GetResult, getUserFromReq } from '../../utils';
+import { isValidUser } from '../../middleware/userOkList';
 
 const SUCCESS = 'success';
 
@@ -56,7 +57,12 @@ export class UserController {
         handler: [
           checkJwt,
           async (req: any, res: Response) => {
-            const nonce = await this.userService.getNonce(req.params.userId);
+            const user = req.params.userId;
+            const valid = isValidUser(user);
+            if (!valid) {
+              throw new Error(`User ${user} not authorized`);
+            }
+            const nonce = await this.userService.getNonce(user);
             let result: GetResult<String> = {
               result: SUCCESS,
               message: '',

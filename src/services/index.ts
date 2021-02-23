@@ -17,6 +17,9 @@ import { KnownSourcesService } from './knownsources/knownsources.service';
 import { ProposalsController } from './proposals/proposals.controller';
 import { ProposalsService } from './proposals/proposals.service';
 import { ProposalsRepository } from './proposals/proposals.repository';
+import { SearchController } from './search/search.controller';
+import { SearchService } from './search/search.service';
+import { SearchRepository } from './search/search.repository';
 
 export const getRoutes = async () => {
   /** poors man dependency injection */
@@ -75,6 +78,10 @@ export const getRoutes = async () => {
     knownSourcesService
   );
 
+  const searchRepo = new SearchRepository(dbService, uprtclRepo);
+  const searchService = new SearchService(searchRepo);
+  const searchController = new SearchController(searchService);
+
   return [
     ...uprtclController.routes(),
     ...dataController.routes(),
@@ -82,5 +89,6 @@ export const getRoutes = async () => {
     ...accessController.routes(),
     ...knownSourcesController.routes(),
     ...proposalsController.routes(),
+    ...searchController.routes()
   ];
 };

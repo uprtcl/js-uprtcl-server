@@ -10,6 +10,8 @@ import {
   Update,
   Slice,
   ParentAndChild,
+  SearchOptions,
+  SearchResult,
 } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
@@ -134,6 +136,12 @@ const assemblePerspective = (dperspective: DgPerspective) => {
   };
   return securedPerspective;
 };
+
+export interface FetchResult {
+  perspectiveIds: string[];
+  details: PerspectiveDetails;
+  slice: Slice;
+}
 
 export class UprtclRepository {
   constructor(
@@ -482,9 +490,11 @@ export class UprtclRepository {
     // If the current perspective we are seeing isn't headless, we proceed to update the ecosystem and its head.
     if (update.details !== undefined) {
       if (update.details.headId !== undefined) {
-        const { details, linkChanges } = update;
+        const { details, linkChanges, text } = update;
 
         const headId = details.headId;
+        const addedLinksTo = linkChanges?.linksTo?.added;
+        const removedLinksTo = linkChanges?.linksTo?.removed;
         const addedChildren = linkChanges?.children?.added;
         const removedChildren = linkChanges?.children?.removed;
 
@@ -494,6 +504,44 @@ export class UprtclRepository {
         );
         nquads = nquads.concat(`\nuid(headOf${id}) <xid> "${headId}" .`);
         nquads = nquads.concat(`\nuid(persp${id}) <head> uid(headOf${id}) .`);
+
+        if (text)
+          nquads = nquads.concat(`\nuid(persp${id}) <text> "${text}" .`);
+
+        // The linksTo edges are generic links from this perspective to any another perspective.
+        // Once created, they can be used by the searchEngine to query the all perspectives that
+        // have a linkTo another one.
+
+        // linksTo[] to be added.
+        addedLinksTo?.forEach((link, ix) => {
+          query = query.concat(
+            `\naddedLinkToOf${id}${ix} as var(func: eq(xid, ${link}))`
+          );
+          // create a stub xid in case the link does not exist locally
+          nquads = nquads.concat(
+            `\nuid(addedLinkToOf${id}${ix}) <xid> "${link}" .`
+          );
+          nquads = nquads.concat(
+            `\nuid(persp${id}) <linksTo> uid(addedLinkToOf${id}${ix}) .`
+          );
+        });
+
+        // linksTo[] to be removed.
+        removedLinksTo?.forEach((link, ix) => {
+          query = query.concat(
+            `\nremovedLinksToOf${id}${ix} as var(func: eq(xid, ${link}))`
+          );
+          delNquads = delNquads?.concat(
+            `\nuid(persp${id} ) <linksTo> uid(removedLinksToOf${id}${ix}) .`
+          );
+        });
+
+        // Children links are a special case of linkTo and a first-class citizen in _Prtcl.
+        // When forking and merging perpsectives of an evee, the children links are recursively forked and
+        // merged (while linksTo are not). In addition, the children of a perspective build its "ecosystem"
+        // (the set of itself, all its children and their children, recursively).
+        // The ecosystem can be used by the searchEngine to search "under" a given perspective and it is
+        // expected that searchEngine implementations will optimize for these kind of queries.
 
         // We set the external children for the previous created persvective.
         addedChildren?.forEach((child, ix) => {
@@ -894,14 +942,16 @@ export class UprtclRepository {
     const parentsAndChildrenMap = new Map<string, ParentAndChild[]>();
 
     perspectives.forEach((perspective: any) => {
-      perspective['~children'].forEach((parent: any) => {
-        const current = parentsAndChildrenMap.get(parent.xid) || [];
-        current.push({
-          parentId: parent.xid,
-          childId: perspective.xid,
+      if (perspective['~children']) {
+        perspective['~children'].forEach((parent: any) => {
+          const current = parentsAndChildrenMap.get(parent.xid) || [];
+          current.push({
+            parentId: parent.xid,
+            childId: perspective.xid,
+          });
+          parentsAndChildrenMap.set(parent.xid, current);
         });
-        parentsAndChildrenMap.set(parent.xid, current);
-      });
+      }
     });
 
     // concatenate all the parents of all perspectives
@@ -914,16 +964,48 @@ export class UprtclRepository {
   async getPerspective(
     perspectiveId: string,
     loggedUserId: string | null,
-    options: GetPerspectiveOptions = {
-      levels: 0,
-      entities: true,
-    }
+    getPerspectiveOptions: GetPerspectiveOptions = {}
   ): Promise<PerspectiveGetResult> {
-    await this.db.ready();
+    const exploreResult = await this.fetchPerspectives(
+      loggedUserId,
+      getPerspectiveOptions,
+      perspectiveId
+    );
+    return {
+      details: exploreResult.details,
+      slice: exploreResult.slice,
+    };
+  }
 
-    const userId = (loggedUserId !== null) ? loggedUserId : '';
+  async explorePerspectives(
+    searchOptions: SearchOptions,
+    loggedUserId: string | null,
+    getPerspectiveOptions: GetPerspectiveOptions = {}
+  ): Promise<SearchResult> {
+    const exploreResult = await this.fetchPerspectives(
+      loggedUserId,
+      getPerspectiveOptions,
+      undefined,
+      searchOptions
+    );
+    return {
+      perspectiveIds: exploreResult.perspectiveIds,
+      slice: exploreResult.slice,
+    };
+  }
 
-    if (options.levels !== 0 && options.levels !== -1) {
+  /** A reusable function that can get a perspective or search perspectives while fetching the perspective ecosystem and
+  its entities */
+  private async fetchPerspectives(
+    loggedUserId: string | null,
+    getPerspectiveOptions: GetPerspectiveOptions = {},
+    perspectiveId?: string,
+    searchOptions?: SearchOptions
+  ): Promise<FetchResult> {
+    let query = ``;
+    const { levels, entities } = getPerspectiveOptions;
+
+    if (levels !== 0 && levels !== -1) {
       throw new Error(
         `Levels can only be 0 (shallow get) or -1, fully recusvie`
       );
@@ -947,103 +1029,128 @@ export class UprtclRepository {
         xid
         data {
           xid
-          ${options.entities ? `jsonString` : ''}
+          ${entities ? `jsonString` : ''}
         }
-        ${options.entities ? COMMIT_PROPERTIES : ''}
+        ${entities ? COMMIT_PROPERTIES : ''}
       }
       delegate
       delegateTo {
         xid
       }
       finDelegatedTo {
-        canWrite @filter(eq(did, "${userId}")) {
+        canWrite @filter(eq(did, "${loggedUserId}")) {
           count(uid)
         }
-        canRead @filter(eq(did, "${userId}")) {
+        canRead @filter(eq(did, "${loggedUserId}")) {
           count(uid)
         }
         publicWrite
         publicRead
       }
-      `;
+    `;
 
-    const query = `query {
-      perspectives(func: eq(xid, ${perspectiveId})) {
-        ${
-          options.levels === -1
-            ? `ecosystem {${elementQuery}}`
-            : `${elementQuery}`
-        }
-      }
-    }`;
+    /**
+     * We build the function depending on how the method is implemented.
+     * For searching or for grabbing an specific perspective.
+     */
+    query = query.concat(
+      ` ${
+        searchOptions
+          ? `filtered as search(func: eq(dgraph.type, "Perspective")) @cascade 
+              ${
+                searchOptions.query
+                  ? `@filter(anyoftext(text, "${searchOptions.query}")) {`
+                  : '{'
+              }
+              ${
+                searchOptions.linksTo
+                  ? `linksTo @filter(eq(xid, "${searchOptions.linksTo[0].id}"))`
+                  : ''
+              }
+              ${
+                searchOptions.under
+                  ? `ecosystem @filter(eq(xid, "${searchOptions.under[0].id}"))`
+                  : ''
+              }
+            }`
+          : `filtered as search(func: eq(xid, ${perspectiveId}))`
+      }`
+    );
 
-    let dbResult = await this.db.client.newTxn().query(query);
+    query = query.concat(
+      `\nperspectives(func: uid(filtered)) {
+          ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
+        }`
+    );
+
+    let dbResult = await this.db.client.newTxn().query(`query{${query}}`);
     let json = dbResult.getJson();
 
-    console.log('[DGRAPH] getPerspective', { query }, JSON.stringify(json));
+    const perspectives = json.perspectives;
 
-    const readData = json.perspectives[0];
-
-    let topDetails: PerspectiveDetails = {};
-    let slice: Slice = {
-      entities: [],
-      perspectives: [],
+    // initalize the returned result with empty values
+    const result: FetchResult = {
+      details: {},
+      perspectiveIds: [],
+      slice: {
+        perspectives: [],
+        entities: [],
+      },
     };
 
-    const all = options.levels === -1 ? readData.ecosystem : [readData];
-    /** data is under ecosystem */
-    all.forEach((element: any) => {
-      if (element) {
-        /** check access control, if user can't read, simply return undefined head  */
+    // then loop over the dgraph results and fill the function output result
+    perspectives.forEach((persp: any) => {
+      const all = levels === -1 ? persp.ecosystem : [persp];
 
-        const canRead = !element.finDelegatedTo.publicRead
-        ? element.finDelegatedTo.canRead
-          ? element.finDelegatedTo.canRead[0].count > 0
-          : false
-        : true;
+      all.forEach((element: any) => {
+        if (element) {
+          /** check access control, if user can't read, simply return undefined head  */
+          result.perspectiveIds.push(element.xid);
 
-        const elementDetails = {
-          headId: canRead ? element.head.xid : undefined,
-          guardianId: element.delegate ? element.delegateTo.xid : undefined,
-          canUpdate: !element.finDelegatedTo.publicWrite
-            ? element.finDelegatedTo.canWrite
-              ? element.finDelegatedTo.canWrite[0].count > 0
+          const canRead = !element.finDelegatedTo.publicRead
+            ? element.finDelegatedTo.canRead
+              ? element.finDelegatedTo.canRead[0].count > 0
               : false
-            : true,
-        };
+            : true;
 
-        if (element.xid === perspectiveId) {
-          topDetails = elementDetails;
-        } else {
-          slice.perspectives.push({
-            id: element.xid,
-            details: elementDetails,
-          });
-        }
-
-        if (options.entities) {
-          const commit = assembleCommit(element.head);
-
-          const data: Entity<any> = {
-            id: element.head.data.xid,
-            object: decodeData(element.head.data.jsonString),
+          const elementDetails = {
+            headId: canRead ? element.head.xid : undefined,
+            guardianId: element.delegate ? element.delegateTo.xid : undefined,
+            canUpdate: !element.finDelegatedTo.publicWrite
+              ? element.finDelegatedTo.canWrite
+                ? element.finDelegatedTo.canWrite[0].count > 0
+                : false
+              : true,
           };
 
-          slice.entities.push(commit, data);
+          if (element.xid === perspectiveId) {
+            result.details = elementDetails;
+          } else {
+            result.slice.perspectives.push({
+              id: element.xid,
+              details: elementDetails,
+            });
+          }
 
-          if (element.xid !== perspectiveId) {
-            // add the perspective entity only if a subperspective
-            const perspective = assemblePerspective(element);
-            slice.entities.push(perspective);
+          if (entities) {
+            const commit = assembleCommit(element.head);
+
+            const data: Entity<any> = {
+              id: element.head.data.xid,
+              object: decodeData(element.head.data.jsonString),
+            };
+
+            result.slice.entities.push(commit, data);
+
+            if (element.xid !== perspectiveId) {
+              // add the perspective entity only if a subperspective
+              const perspective = assemblePerspective(element);
+              result.slice.entities.push(perspective);
+            }
           }
         }
-      }
+      });
     });
-
-    const result: PerspectiveGetResult = {
-      details: topDetails,
-      slice,
-    };
 
     return result;
   }

@@ -82,5 +82,8 @@
     "modulePathIgnorePatterns": [
       "dist"
     ]
+  },
+  "engines": {
+    "node": ">=12 <13"
   }
 }
