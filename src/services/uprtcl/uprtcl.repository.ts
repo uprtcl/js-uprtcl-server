@@ -1049,43 +1049,56 @@ export class UprtclRepository {
      * We build the function depending on how the method is implemented.
      * For searching or for grabbing an specific perspective.
      */
-    query = query.concat(
-      ` ${
-        searchOptions
-          ? `filtered as search(func: eq(dgraph.type, "Perspective")) @cascade 
-              ${
-                searchOptions.query
-                  ? `@filter(anyoftext(text, "${searchOptions.query}")) {`
-                  : '{'
-              }
-              ${
-                searchOptions.linksTo.length > 0
-                  ? `linksTo @filter(eq(xid, "${searchOptions.linksTo[0].id}"))`
-                  : ''
-              }
-              ${
-                searchOptions.under
-                  ? searchOptions.under.length > 0
-                    ? `ecosystem @filter(eq(xid, "${searchOptions.under[0].id}"))`
-                    : ''
-                  : ''
-              }
-            }
-            private as aclPriv(func: uid(filtered)) @cascade {
-              finDelegatedTo {
-                canRead @filter(eq(did, "${loggedUserId}")) {
-                  count(uid)
-                }
-              }
-            }
-            public as aclPub(func: uid(filtered)) @cascade {
-              finDelegatedTo @filter(eq(publicRead, true)) {
-                uid
-              }
+
+    const DgraphACL = `\nprivate as aclPriv(func: uid(filtered)) @cascade {
+      finDelegatedTo {
+        canRead @filter(eq(did, "${loggedUserId}")) {
+          count(uid)
+        }
+      }
+    }
+    public as aclPub(func: uid(filtered)) @cascade {
+      finDelegatedTo @filter(eq(publicRead, true)) {
+        uid
+      }
+    }`;
+
+    if(searchOptions) {
+      const exclusiveLinksToSearch = `linksTo(func:eq(xid, "${(searchOptions.linksTo.length > 0) ? searchOptions.linksTo[0].id : ''}")) { filtered as ~linksTo }${DgraphACL}`
+      const normalSearch = `filtered as search(func: eq(dgraph.type, "Perspective")) @cascade 
+          ${
+            searchOptions.query
+              ? `@filter(anyoftext(text, "${searchOptions.query}")) {`
+              : '{'
+          }
+          ${
+            searchOptions.linksTo.length > 0
+              ? `linksTo @filter(eq(xid, "${searchOptions.linksTo[0].id}"))`
+              : ''
+          }
+          ${
+            searchOptions.under
+              ? searchOptions.under.length > 0
+                ? `ecosystem @filter(eq(xid, "${searchOptions.under[0].id}"))`
+                : ''
+              : ''
+          }
+        }${DgraphACL}`;
+
+        query = query.concat(
+          `${
+              searchOptions
+                ? !searchOptions.under && !searchOptions.query
+                  ? `${exclusiveLinksToSearch}`
+                  : searchOptions.under || searchOptions.query
+                    ? searchOptions.under?.length === 0 && searchOptions.query === ''
+                      ? `${exclusiveLinksToSearch}`
+                      : `${normalSearch}`
+                    : `${normalSearch}`
+                : `filtered as search(func: eq(xid, ${perspectiveId}))`  
             }`
-          : `filtered as search(func: eq(xid, ${perspectiveId}))`
-      }`
-    );
+        );
+      }
 
     query = query.concat(
       `\nperspectives(func: uid(filtered)) ${searchOptions ? `@filter(uid(private) OR uid(public))` : ``} {
