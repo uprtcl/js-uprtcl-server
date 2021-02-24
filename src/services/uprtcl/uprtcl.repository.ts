@@ -139,6 +139,7 @@ const assemblePerspective = (dperspective: DgPerspective) => {
 
 export interface FetchResult {
   perspectiveIds: string[];
+  ended?: boolean;
   details: PerspectiveDetails;
   slice: Slice;
 }
@@ -986,6 +987,7 @@ export class UprtclRepository {
     );
     return {
       perspectiveIds: exploreResult.perspectiveIds,
+      ended: exploreResult.ended ? exploreResult.ended : false,
       slice: exploreResult.slice,
     };
   }
@@ -1043,10 +1045,6 @@ export class UprtclRepository {
         publicWrite
         publicRead
       }
-      ~ecosystem @filter(has(linksTo)) {
-        xid
-        text
-      }
     `;
 
     /**
@@ -1064,40 +1062,57 @@ export class UprtclRepository {
     }`;
 
     if (searchOptions) {
+      const { 
+              query:searchText = '', 
+              under = [], 
+              linksTo = [] 
+            } = searchOptions;
+
+      const emptySearchOptions =  
+        searchOptions
+          ? linksTo.length === 0 && searchText === ''
+            ? under.length === 0
+            : false
+          : false
+
       const exclusiveLinksToSearch = `linksTo(func:eq(xid, "${
-        searchOptions.linksTo.length > 0 ? searchOptions.linksTo[0].id : ''
+        linksTo.length > 0 ? linksTo[0].id : ''
       }")) { filtered as ~linksTo }${DgraphACL}`;
       const normalSearch = `filtered as search(func: eq(dgraph.type, "Perspective")) @cascade 
-          ${
-            searchOptions.query
-              ? `@filter(anyoftext(text, "${searchOptions.query}")) {`
-              : '{'
+          ${  
+              searchText !== ''
+                ? `@filter(anyoftext(text, "${searchText}")) {`
+                : '{'
           }
           ${
-            searchOptions.linksTo.length > 0
-              ? `linksTo @filter(eq(xid, "${searchOptions.linksTo[0].id}"))`
+              linksTo.length > 0
+              ? `linksTo @filter(eq(xid, "${linksTo[0].id}"))`
               : ''
           }
-          ${
-            searchOptions.under
-              ? searchOptions.under.length > 0
-                ? `ecosystem @filter(eq(xid, "${searchOptions.under[0].id}"))`
+          ${   
+              under.length > 0
+                ? `ecosystem @filter(eq(xid, "${under[0].id}"))`
                 : ''
-              : ''
           }
         }${DgraphACL}`;
 
-      query = query.concat(
-        `${
-          !searchOptions.under && !searchOptions.query
-            ? `${exclusiveLinksToSearch}`
-            : searchOptions.under || searchOptions.query
-            ? searchOptions.under?.length === 0 && searchOptions.query === ''
+      if(!emptySearchOptions) {
+        query = query.concat(
+          `${
+            !searchOptions.under && !searchOptions.query
               ? `${exclusiveLinksToSearch}`
+              : searchOptions.under || searchOptions.query
+              ? searchOptions.under?.length === 0 && searchOptions.query === ''
+                ? `${exclusiveLinksToSearch}`
+                : `${normalSearch}`
               : `${normalSearch}`
-            : `${normalSearch}`
-        }`
-      );
+          }`
+        );
+      } else {
+        query = query.concat(
+          `filtered as search(func: eq(dgraph.type, "Perspective"))${DgraphACL}`
+        );
+      }
     } else {
       query = query.concat(
         `filtered as search(func: eq(xid, ${perspectiveId}))`
@@ -1106,20 +1121,34 @@ export class UprtclRepository {
 
     /**
      * TODO: Do not need to hardcode (orderdesc: timextamp) once orderby is working.
-     */
+     */ 
+
+
+    // Initializes pagination parameters
+    const { first, offset } = {
+      first: searchOptions ? searchOptions.pagination.first : 0,
+      offset: searchOptions ? searchOptions.pagination.offset : 0
+    };
+
     query = query.concat(
-      `\nperspectives(func: uid(filtered), orderdesc: timextamp) ${
-        searchOptions ? `@filter(uid(private) OR uid(public))` : ``
-      } {
-          ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
-        }`
+      `\nelements as var(func: uid(filtered), orderdesc: timextamp) {
+          head {
+            updatedAt as timextamp
+          }
+          date as avg(val(updatedAt))
+        }
+        perspectives(func: uid(elements), orderdesc: val(date) ${ searchOptions ? `,first: ${first}, offset: ${offset}` : '' } ) ${
+          searchOptions ? `@filter(uid(private) OR uid(public))` : ``
+        } {
+            ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
+          }`
     );
 
     let dbResult = await this.db.client.newTxn().query(`query{${query}}`);
     let json = dbResult.getJson();
 
     const perspectives = json.perspectives;
-
+    
     // initalize the returned result with empty values
     const result: FetchResult = {
       details: {},
@@ -1129,6 +1158,10 @@ export class UprtclRepository {
         entities: [],
       },
     };
+
+    if(perspectives.length < first) {
+      result.ended = true;
+    }
 
     // then loop over the dgraph results and fill the function output result
     perspectives.forEach((persp: any) => {
