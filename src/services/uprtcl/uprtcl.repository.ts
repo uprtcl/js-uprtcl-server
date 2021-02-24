@@ -1063,8 +1063,10 @@ export class UprtclRepository {
       }
     }`;
 
-    if(searchOptions) {
-      const exclusiveLinksToSearch = `linksTo(func:eq(xid, "${(searchOptions.linksTo.length > 0) ? searchOptions.linksTo[0].id : ''}")) { filtered as ~linksTo }${DgraphACL}`
+    if (searchOptions) {
+      const exclusiveLinksToSearch = `linksTo(func:eq(xid, "${
+        searchOptions.linksTo.length > 0 ? searchOptions.linksTo[0].id : ''
+      }")) { filtered as ~linksTo }${DgraphACL}`;
       const normalSearch = `filtered as search(func: eq(dgraph.type, "Perspective")) @cascade 
           ${
             searchOptions.query
@@ -1085,22 +1087,30 @@ export class UprtclRepository {
           }
         }${DgraphACL}`;
 
-        query = query.concat(
-          `${ !searchOptions.under && !searchOptions.query
-                ? `${exclusiveLinksToSearch}`
-                : searchOptions.under || searchOptions.query
-                  ? searchOptions.under?.length === 0 && searchOptions.query === ''
-                    ? `${exclusiveLinksToSearch}`
-                    : `${normalSearch}`
-                  : `${normalSearch}`
-            }`
-        );
-      } else {
-        query = query.concat(`filtered as search(func: eq(xid, ${perspectiveId}))`);
-      }
+      query = query.concat(
+        `${
+          !searchOptions.under && !searchOptions.query
+            ? `${exclusiveLinksToSearch}`
+            : searchOptions.under || searchOptions.query
+            ? searchOptions.under?.length === 0 && searchOptions.query === ''
+              ? `${exclusiveLinksToSearch}`
+              : `${normalSearch}`
+            : `${normalSearch}`
+        }`
+      );
+    } else {
+      query = query.concat(
+        `filtered as search(func: eq(xid, ${perspectiveId}))`
+      );
+    }
 
+    /**
+     * TODO: Do not need to hardcode (orderdesc: timextamp) once orderby is working.
+     */
     query = query.concat(
-      `\nperspectives(func: uid(filtered)) ${searchOptions ? `@filter(uid(private) OR uid(public))` : ``} {
+      `\nperspectives(func: uid(filtered), orderdesc: timextamp) ${
+        searchOptions ? `@filter(uid(private) OR uid(public))` : ``
+      } {
           ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
         }`
     );
@@ -1210,7 +1220,7 @@ export class UprtclRepository {
     },
     loggedUserId: string | null
   ): Promise<SearchResult> {
-    return  await this.explorePerspectives(
+    return await this.explorePerspectives(
       searchOptions,
       loggedUserId,
       getPerspectiveOptions
