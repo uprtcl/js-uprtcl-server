@@ -1043,6 +1043,10 @@ export class UprtclRepository {
         publicWrite
         publicRead
       }
+      ~ecosystem @filter(has(linksTo)) {
+        xid
+        text
+      }
     `;
 
     /**
@@ -1052,15 +1056,11 @@ export class UprtclRepository {
 
     const DgraphACL = `\nprivate as aclPriv(func: uid(filtered)) @cascade {
       finDelegatedTo {
-        canRead @filter(eq(did, "${loggedUserId}")) {
-          count(uid)
-        }
+        canRead @filter(eq(did, "${loggedUserId}"))
       }
     }
     public as aclPub(func: uid(filtered)) @cascade {
-      finDelegatedTo @filter(eq(publicRead, true)) {
-        uid
-      }
+      finDelegatedTo @filter(eq(publicRead, true))
     }`;
 
     if (searchOptions) {
