@@ -1062,41 +1062,40 @@ export class UprtclRepository {
     }`;
 
     if (searchOptions) {
-      const { 
-              query:searchText = '', 
-              under = [], 
-              linksTo = [] 
-            } = searchOptions;
+      const {
+        query: searchText = '',
+        under = [],
+        linksTo = [],
+      } = searchOptions;
 
-      const emptySearchOptions =  
-        searchOptions
-          ? linksTo.length === 0 && searchText === ''
-            ? under.length === 0
-            : false
+      const emptySearchOptions = searchOptions
+        ? linksTo.length === 0 && searchText === ''
+          ? under.length === 0
           : false
+        : false;
 
       const exclusiveLinksToSearch = `linksTo(func:eq(xid, "${
         linksTo.length > 0 ? linksTo[0].id : ''
       }")) { filtered as ~linksTo }${DgraphACL}`;
       const normalSearch = `filtered as search(func: eq(dgraph.type, "Perspective")) @cascade 
-          ${  
-              searchText !== ''
-                ? `@filter(anyoftext(text, "${searchText}")) {`
-                : '{'
+          ${
+            searchText !== ''
+              ? `@filter(anyoftext(text, "${searchText}")) {`
+              : '{'
           }
           ${
-              linksTo.length > 0
+            linksTo.length > 0
               ? `linksTo @filter(eq(xid, "${linksTo[0].id}"))`
               : ''
           }
-          ${   
-              under.length > 0
-                ? `ecosystem @filter(eq(xid, "${under[0].id}"))`
-                : ''
+          ${
+            under.length > 0
+              ? `ecosystem @filter(eq(xid, "${under[0].id}"))`
+              : ''
           }
         }${DgraphACL}`;
 
-      if(!emptySearchOptions) {
+      if (!emptySearchOptions) {
         query = query.concat(
           `${
             !searchOptions.under && !searchOptions.query
@@ -1121,13 +1120,12 @@ export class UprtclRepository {
 
     /**
      * TODO: Do not need to hardcode (orderdesc: timextamp) once orderby is working.
-     */ 
-
+     */
 
     // Initializes pagination parameters
     const { first, offset } = {
-      first: searchOptions ? searchOptions.pagination.first : 0,
-      offset: searchOptions ? searchOptions.pagination.offset : 0
+      first: searchOptions ? searchOptions.pagination?.first : 0,
+      offset: searchOptions ? searchOptions.pagination?.offset : 0,
     };
 
     query = query.concat(
@@ -1137,9 +1135,9 @@ export class UprtclRepository {
           }
           date as avg(val(updatedAt))
         }
-        perspectives(func: uid(elements), orderdesc: val(date) ${ searchOptions ? `,first: ${first}, offset: ${offset}` : '' } ) ${
-          searchOptions ? `@filter(uid(private) OR uid(public))` : ``
-        } {
+        perspectives(func: uid(elements), orderdesc: val(date) ${
+          searchOptions ? `,first: ${first}, offset: ${offset}` : ''
+        } ) ${searchOptions ? `@filter(uid(private) OR uid(public))` : ``} {
             ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
           }`
     );
@@ -1148,7 +1146,7 @@ export class UprtclRepository {
     let json = dbResult.getJson();
 
     const perspectives = json.perspectives;
-    
+
     // initalize the returned result with empty values
     const result: FetchResult = {
       details: {},
@@ -1159,7 +1157,7 @@ export class UprtclRepository {
       },
     };
 
-    if(perspectives.length < first) {
+    if (first && perspectives.length < first) {
       result.ended = true;
     }
 
