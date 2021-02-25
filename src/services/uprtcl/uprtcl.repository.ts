@@ -84,6 +84,8 @@ signature
 type
 `;
 
+const defaultFirst = 10;
+
 const assembleCommit = (dcommit: DgCommit): Secured<Commit> => {
   const commit: Commit = {
     creatorsIds: dcommit.creators
@@ -1127,7 +1129,7 @@ export class UprtclRepository {
       first:
         searchOptions && searchOptions.pagination
           ? searchOptions.pagination.first
-          : 10,
+          : defaultFirst,
       offset:
         searchOptions && searchOptions.pagination
           ? searchOptions.pagination.offset
