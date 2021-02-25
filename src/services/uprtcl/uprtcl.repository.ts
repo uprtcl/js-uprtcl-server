@@ -171,6 +171,7 @@ export class UprtclRepository {
 
     let { query, nquads } = upsert;
 
+
     if (!upsertedProfiles.includes(creatorId)) {
       upsertedProfiles.push(creatorId);
       const creatorSegment = this.userRepo.upsertQueries(creatorId);
@@ -184,8 +185,6 @@ export class UprtclRepository {
       );
     }
 
-    const did = this.userRepo.formatDid(creatorId);
-
     query = query.concat(`\npersp${id} as var(func: eq(xid, "${id}"))`);
     query = query.concat(
       `\ncontextOf${id} as var(func: eq(name, "${context}"))`
@@ -193,7 +192,7 @@ export class UprtclRepository {
 
     nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
     nquads = nquads.concat(`\nuid(persp${id}) <stored> "true" .`);
-    nquads = nquads.concat(`\nuid(persp${id}) <creator> uid(profile${did}) .`);
+    nquads = nquads.concat(`\nuid(persp${id}) <creator> uid(profile${this.userRepo.formatDid(creatorId)}) .`);
     nquads = nquads.concat(
       `\nuid(persp${id}) <timextamp> "${timestamp}"^^<xs:int> .`
     );
@@ -223,9 +222,9 @@ export class UprtclRepository {
     nquads = nquads.concat(
       `\nuid(persp${id}) <publicRead> "false" .
        \nuid(persp${id}) <publicWrite> "false" .
-       \nuid(persp${id}) <canRead> uid(profile${did}) .
-       \nuid(persp${id}) <canWrite> uid(profile${did}) .
-       \nuid(persp${id}) <canAdmin> uid(profile${did}) .`
+       \nuid(persp${id}) <canRead> uid(profile${this.userRepo.formatDid(creatorId)}) .
+       \nuid(persp${id}) <canWrite> uid(profile${this.userRepo.formatDid(creatorId)}) .
+       \nuid(persp${id}) <canAdmin> uid(profile${this.userRepo.formatDid(creatorId)}) .`
     );
 
     /** add itself as its ecosystem */
@@ -444,7 +443,6 @@ export class UprtclRepository {
     if (childrenUpsert.query && childrenUpsert.nquads !== '') {
       // We call the db to be prepared for transactions
       await this.db.ready();
-
       // We perform first, the children transaction | TRX #3
       const childrenMutation = new dgraph.Mutation();
       const childrenRequest = new dgraph.Request();
@@ -457,7 +455,7 @@ export class UprtclRepository {
 
       await this.db.callRequest(childrenRequest);
 
-      // Secondly, we perform the ecosystem transaction | TRX #4
+      // Consequently, we perform the ecosystem transaction | TRX #4
       /**
        * We need to perforn TXR #4 after TXR #3, because the ecosystem query will rely
        * on the children of each perspective that already exists inside the database.
@@ -482,9 +480,14 @@ export class UprtclRepository {
 
     // WARNING: IF THE PERSPECTIVE ENDS UP HAVING TWO HEADS, CHECK DGRAPH DOCS FOR RECENT UPDATES
     // IF NO SOLUTION, THEN BATCH DELETE ALL HEADS BEFORE BATCH UPDATE THEM
+    
+    query = query.concat(
+      `\npersp${id} as var(func: eq(xid, ${id})) {
+          xid
+        }`
+    );
 
     // We update the current xid.
-    query = query.concat(`\npersp${id} as var(func: eq(xid, "${id}"))`);
     nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
 
     // If the current perspective we are seeing isn't headless, we proceed to update the ecosystem and its head.
@@ -503,7 +506,7 @@ export class UprtclRepository {
           `\nheadOf${id} as var(func: eq(xid, "${headId}"))`
         );
         nquads = nquads.concat(`\nuid(headOf${id}) <xid> "${headId}" .`);
-        nquads = nquads.concat(`\nuid(persp${id} ) <head> uid(headOf${id}) .`);
+        nquads = nquads.concat(`\nuid(persp${id}) <head> uid(headOf${id}) .`);
 
         if (text)
           nquads = nquads.concat(`\nuid(persp${id}) <text> "${text}" .`);
@@ -549,7 +552,7 @@ export class UprtclRepository {
             `\naddedChildOf${id}${ix} as var(func: eq(xid, ${child}))`
           );
           nquads = nquads.concat(
-            `\nuid(persp${id} ) <children> uid(addedChildOf${id}${ix}) .`
+            `\nuid(persp${id}) <children> uid(addedChildOf${id}${ix}) .`
           );
         });
 
@@ -559,7 +562,7 @@ export class UprtclRepository {
             `\nremovedChildOf${id}${ix} as var(func: eq(xid, ${child}))`
           );
           delNquads = delNquads?.concat(
-            `\nuid(persp${id} ) <children> uid(removedChildOf${id}${ix}) .`
+            `\nuid(persp${id}) <children> uid(removedChildOf${id}${ix}) .`
           );
         });
       }
@@ -573,16 +576,16 @@ export class UprtclRepository {
     const { perspectiveId: id } = update;
 
     query = query.concat(
-      `\npersp${id}(func: eq(xid, ${id})) 
-       @recurse
-       {
-         revEcosystem${id} as ~children
-       }
-       \nperspEl${id} as var(func: eq(xid, ${id}))
-       @recurse
-       {
-         ecosystemOfUref${id} as children
-       }`
+      `\npersp${id} as var(func: eq(xid, ${id}))
+        @recurse
+        {
+          revEcosystem${id} as ~children
+        }
+       \nperspEl${id} as var(func: uid(persp${id}))
+        @recurse
+        {
+          ecosystemOfUref${id} as children
+        }`
     );
 
     nquads = nquads.concat(
@@ -893,6 +896,7 @@ export class UprtclRepository {
     loggedUserId: string | null
   ): Promise<ParentAndChild[]> {
     await this.db.ready();
+    const userId = loggedUserId !== null ? loggedUserId : '';
 
     const parentsPortion = `
     {
@@ -900,7 +904,7 @@ export class UprtclRepository {
       ~children {
         xid
         finDelegatedTo {
-          canRead @filter(eq(did, "${loggedUserId}")) {
+          canRead @filter(eq(did, "${userId}")) {
             count(uid)
           }
           publicRead
