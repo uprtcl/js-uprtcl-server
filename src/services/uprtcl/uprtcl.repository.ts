@@ -84,6 +84,8 @@ signature
 type
 `;
 
+const defaultFirst = 10;
+
 const assembleCommit = (dcommit: DgCommit): Secured<Commit> => {
   const commit: Commit = {
     creatorsIds: dcommit.creators
@@ -139,6 +141,7 @@ const assemblePerspective = (dperspective: DgPerspective) => {
 
 export interface FetchResult {
   perspectiveIds: string[];
+  ended?: boolean;
   details: PerspectiveDetails;
   slice: Slice;
 }
@@ -990,6 +993,7 @@ export class UprtclRepository {
     );
     return {
       perspectiveIds: exploreResult.perspectiveIds,
+      ended: exploreResult.ended ? exploreResult.ended : false,
       slice: exploreResult.slice,
     };
   }
@@ -1053,41 +1057,114 @@ export class UprtclRepository {
      * We build the function depending on how the method is implemented.
      * For searching or for grabbing an specific perspective.
      */
-    query = query.concat(
-      ` ${
-        searchOptions
-          ? `filtered as search(func: eq(dgraph.type, "Perspective")) @cascade 
-              ${
-                searchOptions.query
-                  ? `@filter(anyoftext(text, "${searchOptions.query}")) {`
-                  : '{'
-              }
-              ${
-                searchOptions.linksTo
-                  ? `linksTo @filter(eq(xid, "${searchOptions.linksTo[0].id}"))`
-                  : ''
-              }
-              ${
-                searchOptions.under
-                  ? `ecosystem @filter(eq(xid, "${searchOptions.under[0].id}"))`
-                  : ''
-              }
-            }`
-          : `filtered as search(func: eq(xid, ${perspectiveId}))`
-      }`
-    );
+
+    const DgraphACL = `\nprivate as aclPriv(func: uid(filtered)) @cascade {
+      finDelegatedTo {
+        canRead @filter(eq(did, "${loggedUserId}"))
+      }
+    }
+    public as aclPub(func: uid(filtered)) @cascade {
+      finDelegatedTo @filter(eq(publicRead, true))
+    }`;
+
+    if (searchOptions) {
+      const {
+        query: searchText = '',
+        under = [],
+        linksTo = [],
+      } = searchOptions;
+
+      const start = (under.length > 0) 
+                    ? under
+                    : (linksTo.length > 0)
+                      ? linksTo
+                      : searchText !== ''
+                        ? searchText
+                        : false;
+      
+      query = query.concat(`
+        ${
+          !start
+          ? `filtered as search(func: eq(dgraph.type, "Perspective"))`
+          : start === searchText
+            ? `filtered as search(func: anyoftext(text, "${start}"))`
+            : start === under
+              ? `search(func: eq(xid, ${under[0].id})) @cascade`
+              : `search(func: eq(xid, ${linksTo[0].id}))`
+        }
+        ${
+          `{
+            ${
+              start === under
+              ? `${
+                    linksTo.length > 0
+                    ? `ecosystem  @filter(eq(xid, ${linksTo[0].id})) {
+                        ${
+                          searchText !== ''
+                          ? `~linksTo @filter(anyoftext(text, "${searchText}")) {
+                            filtered as uid
+                          }`
+                          : `filtered as ~linksTo`
+                        }
+                    }`
+                    : searchText !== ''
+                      ? `ecosystem @filter(anyoftext(text, "${searchText}")) {
+                        filtered as uid
+                      }`
+                      : `filtered as ecosystem`
+                  }`
+              : start === linksTo
+                ? `${
+                      searchText !== ''
+                      ? `~linksTo @filter(anyoftext(text, ${searchText})) {
+                        filtered as uid  
+                      }`
+                      : `filtered as ~linksTo`
+                    }`
+                : ``
+            }
+          }${DgraphACL}`
+        }
+      `);
+    } else {
+      query = query.concat(
+        `filtered as search(func: eq(xid, ${perspectiveId}))`
+      );
+    }
+
+    /**
+     * TODO: Do not need to hardcode (orderdesc: timextamp) once orderby is working.
+     */
+
+    // Initializes pagination parameters
+    const { first, offset } = {
+      first:
+        searchOptions && searchOptions.pagination
+          ? searchOptions.pagination.first
+          : defaultFirst,
+      offset:
+        searchOptions && searchOptions.pagination
+          ? searchOptions.pagination.offset
+          : 0,
+    };
 
     query = query.concat(
-      `\nperspectives(func: uid(filtered)) {
-          ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
-        }`
+      `\nelements as var(func: uid(filtered), orderdesc: timextamp) {
+          head {
+            updatedAt as timextamp
+          }
+          date as avg(val(updatedAt))
+        }
+        perspectives(func: uid(elements), orderdesc: val(date) ${
+          searchOptions ? `,first: ${first}, offset: ${offset}` : ''
+        } ) ${searchOptions ? `@filter(uid(private) OR uid(public))` : ``} {
+            ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
+          }`
     );
-
     let dbResult = await this.db.client.newTxn().query(`query{${query}}`);
     let json = dbResult.getJson();
 
     const perspectives = json.perspectives;
-
     // initalize the returned result with empty values
     const result: FetchResult = {
       details: {},
@@ -1097,6 +1174,10 @@ export class UprtclRepository {
         entities: [],
       },
     };
+
+    if (first && perspectives.length < first) {
+      result.ended = true;
+    }
 
     // then loop over the dgraph results and fill the function output result
     perspectives.forEach((persp: any) => {
@@ -1178,5 +1259,20 @@ export class UprtclRepository {
     if (!dcommit.stored) new Error(`Commit with id ${commitId} not found`);
 
     return assembleCommit(dcommit);
+  }
+
+  async explore(
+    searchOptions: SearchOptions,
+    getPerspectiveOptions: GetPerspectiveOptions = {
+      levels: 0,
+      entities: true,
+    },
+    loggedUserId: string | null
+  ): Promise<SearchResult> {
+    return await this.explorePerspectives(
+      searchOptions,
+      loggedUserId,
+      getPerspectiveOptions
+    );
   }
 }

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PerspectiveGetResult, ParentAndChild } from '@uprtcl/evees';
+import { PerspectiveGetResult, ParentAndChild, SearchResult } from '@uprtcl/evees';
 
 import { UprtclService } from './uprtcl.service';
 import { checkJwt } from '../../middleware/jwtCheck';
@@ -265,6 +265,38 @@ export class UprtclController {
           },
         ],
       },
+      {
+        path: '/uprtcl/1/explore',
+        method: 'put',
+        handler: [
+          checkJwt,
+          async (req: Request, res: Response) => {
+            const perspectives = await this.uprtclService.explore(
+              req.body.searchOptions,
+              req.body.fetchOptions,
+              getUserFromReq(req)
+            );
+
+            try {
+              let result: GetResult<SearchResult> = {
+                result: SUCCESS,
+                message: 'search result',
+                data: perspectives,
+              };
+
+              res.status(200).send(result);
+            } catch (error) {
+              console.error(error);
+              let result: PostResult = {
+                result: ERROR,
+                message: error.message,
+                elementIds: [],
+              };
+              res.status(400).send(result);
+            }
+          },
+        ],
+      }
     ];
   }
 }
