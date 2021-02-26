@@ -171,7 +171,6 @@ export class UprtclRepository {
 
     let { query, nquads } = upsert;
 
-
     if (!upsertedProfiles.includes(creatorId)) {
       upsertedProfiles.push(creatorId);
       const creatorSegment = this.userRepo.upsertQueries(creatorId);
@@ -192,7 +191,11 @@ export class UprtclRepository {
 
     nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
     nquads = nquads.concat(`\nuid(persp${id}) <stored> "true" .`);
-    nquads = nquads.concat(`\nuid(persp${id}) <creator> uid(profile${this.userRepo.formatDid(creatorId)}) .`);
+    nquads = nquads.concat(
+      `\nuid(persp${id}) <creator> uid(profile${this.userRepo.formatDid(
+        creatorId
+      )}) .`
+    );
     nquads = nquads.concat(
       `\nuid(persp${id}) <timextamp> "${timestamp}"^^<xs:int> .`
     );
@@ -222,9 +225,15 @@ export class UprtclRepository {
     nquads = nquads.concat(
       `\nuid(persp${id}) <publicRead> "false" .
        \nuid(persp${id}) <publicWrite> "false" .
-       \nuid(persp${id}) <canRead> uid(profile${this.userRepo.formatDid(creatorId)}) .
-       \nuid(persp${id}) <canWrite> uid(profile${this.userRepo.formatDid(creatorId)}) .
-       \nuid(persp${id}) <canAdmin> uid(profile${this.userRepo.formatDid(creatorId)}) .`
+       \nuid(persp${id}) <canRead> uid(profile${this.userRepo.formatDid(
+        creatorId
+      )}) .
+       \nuid(persp${id}) <canWrite> uid(profile${this.userRepo.formatDid(
+        creatorId
+      )}) .
+       \nuid(persp${id}) <canAdmin> uid(profile${this.userRepo.formatDid(
+        creatorId
+      )}) .`
     );
 
     /** add itself as its ecosystem */
@@ -480,7 +489,7 @@ export class UprtclRepository {
 
     // WARNING: IF THE PERSPECTIVE ENDS UP HAVING TWO HEADS, CHECK DGRAPH DOCS FOR RECENT UPDATES
     // IF NO SOLUTION, THEN BATCH DELETE ALL HEADS BEFORE BATCH UPDATE THEM
-    
+
     query = query.concat(
       `\npersp${id} as var(func: eq(xid, ${id})) {
           xid
@@ -1058,14 +1067,8 @@ export class UprtclRepository {
      * For searching or for grabbing an specific perspective.
      */
 
-    const DgraphACL = `\nprivate as aclPriv(func: uid(filtered)) @cascade {
-      finDelegatedTo {
-        canRead @filter(eq(did, "${loggedUserId}"))
-      }
-    }
-    public as aclPub(func: uid(filtered)) @cascade {
-      finDelegatedTo @filter(eq(publicRead, true))
-    }`;
+    let startQuery = '';
+    let internalWrapper = '';
 
     if (searchOptions) {
       const {
@@ -1074,62 +1077,67 @@ export class UprtclRepository {
         linksTo = [],
       } = searchOptions;
 
-      const start = (under.length > 0) 
-                    ? under
-                    : (linksTo.length > 0)
-                      ? linksTo
-                      : searchText !== ''
-                        ? searchText
-                        : false;
-      
-      query = query.concat(`
-        ${
-          !start
-          ? `filtered as search(func: eq(dgraph.type, "Perspective"))`
-          : start === searchText
-            ? `filtered as search(func: anyoftext(text, "${start}"))`
-            : start === under
-              ? `search(func: eq(xid, ${under[0].id})) @cascade`
-              : `search(func: eq(xid, ${linksTo[0].id}))`
-        }
-        ${
-          `{
-            ${
-              start === under
-              ? `${
-                    linksTo.length > 0
-                    ? `ecosystem  @filter(eq(xid, ${linksTo[0].id})) {
-                        ${
-                          searchText !== ''
-                          ? `~linksTo @filter(anyoftext(text, "${searchText}")) {
-                            filtered as uid
-                          }`
-                          : `filtered as ~linksTo`
-                        }
-                    }`
-                    : searchText !== ''
-                      ? `ecosystem @filter(anyoftext(text, "${searchText}")) {
-                        filtered as uid
-                      }`
-                      : `filtered as ecosystem`
-                  }`
-              : start === linksTo
-                ? `${
-                      searchText !== ''
-                      ? `~linksTo @filter(anyoftext(text, ${searchText})) {
-                        filtered as uid  
-                      }`
-                      : `filtered as ~linksTo`
-                    }`
-                : ``
-            }
-          }${DgraphACL}`
-        }
-      `);
+      enum StartCase {
+        all = 'all',
+        under = 'under',
+        linksTo = 'linksTo',
+        searchText = 'searchText',
+      }
+
+      const start: StartCase =
+        under.length > 0
+          ? StartCase.under
+          : linksTo.length > 0
+          ? StartCase.linksTo
+          : searchText !== ''
+          ? StartCase.searchText
+          : StartCase.all;
+
+      switch (start) {
+        case StartCase.all:
+          startQuery = `filtered as search(func: eq(dgraph.type, "Perspective"))`;
+          break;
+
+        case StartCase.searchText:
+          startQuery = `filtered as search(func: anyoftext(text, "${searchText}"))`;
+          break;
+
+        case StartCase.under:
+          startQuery = `search(func: eq(xid, ${under[0].id})) @cascade`;
+          internalWrapper =
+            linksTo.length > 0
+              ? `filtered as ecosystem {
+              linksTo @filter(eq(xid, ${linksTo[0].id}))
+            }`
+              : '';
+          break;
+
+        case StartCase.linksTo:
+          startQuery = `search(func: eq(xid, ${linksTo[0].id}))`;
+          internalWrapper = linksTo.length > 0 ? `filtered as ~linksTo` : '';
+          break;
+      }
     } else {
-      query = query.concat(
-        `filtered as search(func: eq(xid, ${perspectiveId}))`
-      );
+      startQuery = `filtered as search(func: eq(xid, ${perspectiveId}))`;
+    }
+
+    query = query.concat(`
+      ${startQuery} {
+        ${internalWrapper}
+      }`);
+
+    if (searchOptions) {
+      const DgraphACL = `
+        private as aclPriv(func: uid(filtered)) @cascade {
+          finDelegatedTo {
+            canRead @filter(eq(did, "${loggedUserId}"))
+          }
+        }
+        public as aclPub(func: uid(filtered)) @cascade {
+          finDelegatedTo @filter(eq(publicRead, true))
+        }`;
+
+      query = query.concat(DgraphACL);
     }
 
     /**
@@ -1151,9 +1159,8 @@ export class UprtclRepository {
     query = query.concat(
       `\nelements as var(func: uid(filtered), orderdesc: timextamp) {
           head {
-            updatedAt as timextamp
+            date as timextamp
           }
-          date as avg(val(updatedAt))
         }
         perspectives(func: uid(elements), orderdesc: val(date) ${
           searchOptions ? `,first: ${first}, offset: ${offset}` : ''
