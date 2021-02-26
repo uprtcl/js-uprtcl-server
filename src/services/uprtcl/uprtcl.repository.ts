@@ -1149,7 +1149,7 @@ export class UprtclRepository {
     };
 
     query = query.concat(
-      `\nelements as var(func: uid(filtered), orderdesc: timextamp) {
+      `\nelements as var(func: uid(filtered)) {
           head {
             updatedAt as timextamp
           }
