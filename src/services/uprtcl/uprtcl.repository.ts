@@ -1157,12 +1157,13 @@ export class UprtclRepository {
     };
 
     query = query.concat(
-      `\nelements as var(func: uid(filtered), orderdesc: timextamp) {
+      `\nelements as var(func: uid(filtered)) {
           head {
             date as timextamp
           }
+          datetemp as max(val(date))
         }
-        perspectives(func: uid(elements), orderdesc: val(date) ${
+        perspectives(func: uid(elements), orderdesc: val(datetemp) ${
           searchOptions ? `,first: ${first}, offset: ${offset}` : ''
         } ) ${searchOptions ? `@filter(uid(private) OR uid(public))` : ``} {
             ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
