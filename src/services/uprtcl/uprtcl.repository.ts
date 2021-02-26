@@ -1074,50 +1074,58 @@ export class UprtclRepository {
         linksTo = [],
       } = searchOptions;
 
-      const emptySearchOptions = searchOptions
-        ? linksTo.length === 0 && searchText === ''
-          ? under.length === 0
-          : false
-        : false;
-
-      const exclusiveLinksToSearch = `linksTo(func:eq(xid, "${
-        linksTo.length > 0 ? linksTo[0].id : ''
-      }")) { filtered as ~linksTo }${DgraphACL}`;
-      const normalSearch = `filtered as search(func: eq(dgraph.type, "Perspective")) @cascade 
-          ${
-            searchText !== ''
-              ? `@filter(anyoftext(text, "${searchText}")) {`
-              : '{'
-          }
-          ${
-            linksTo.length > 0
-              ? `linksTo @filter(eq(xid, "${linksTo[0].id}"))`
-              : ''
-          }
-          ${
-            under.length > 0
-              ? `ecosystem @filter(eq(xid, "${under[0].id}"))`
-              : ''
-          }
-        }${DgraphACL}`;
-
-      if (!emptySearchOptions) {
-        query = query.concat(
-          `${
-            !searchOptions.under && !searchOptions.query
-              ? `${exclusiveLinksToSearch}`
-              : searchOptions.under || searchOptions.query
-              ? searchOptions.under?.length === 0 && searchOptions.query === ''
-                ? `${exclusiveLinksToSearch}`
-                : `${normalSearch}`
-              : `${normalSearch}`
-          }`
-        );
-      } else {
-        query = query.concat(
-          `filtered as search(func: eq(dgraph.type, "Perspective"))${DgraphACL}`
-        );
-      }
+      const start = (under.length > 0) 
+                    ? under
+                    : (linksTo.length > 0)
+                      ? linksTo
+                      : searchText !== ''
+                        ? searchText
+                        : false;
+      
+      query = query.concat(`
+        ${
+          !start
+          ? `filtered as search(func: eq(dgraph.type, "Perspective"))`
+          : start === searchText
+            ? `filtered as search(func: anyoftext(text, "${start}"))`
+            : start === under
+              ? `search(func: eq(xid, ${under[0].id})) @cascade`
+              : `search(func: eq(xid, ${linksTo[0].id}))`
+        }
+        ${
+          `{
+            ${
+              start === under
+              ? `${
+                    linksTo.length > 0
+                    ? `ecosystem  @filter(eq(xid, ${linksTo[0].id})) {
+                        ${
+                          searchText !== ''
+                          ? `~linksTo @filter(anyoftext(text, "${searchText}")) {
+                            filtered as uid
+                          }`
+                          : `filtered as ~linksTo`
+                        }
+                    }`
+                    : searchText !== ''
+                      ? `ecosystem @filter(anyoftext(text, "${searchText}")) {
+                        filtered as uid
+                      }`
+                      : `filtered as ecosystem`
+                  }`
+              : start === linksTo
+                ? `${
+                      searchText !== ''
+                      ? `~linksTo @filter(anyoftext(text, ${searchText})) {
+                        filtered as uid  
+                      }`
+                      : `filtered as ~linksTo`
+                    }`
+                : ``
+            }
+          }${DgraphACL}`
+        }
+      `);
     } else {
       query = query.concat(
         `filtered as search(func: eq(xid, ${perspectiveId}))`
@@ -1143,7 +1151,7 @@ export class UprtclRepository {
     query = query.concat(
       `\nelements as var(func: uid(filtered), orderdesc: timextamp) {
           head {
-            updatedAt as timextampz
+            updatedAt as timextamp
           }
           date as avg(val(updatedAt))
         }
