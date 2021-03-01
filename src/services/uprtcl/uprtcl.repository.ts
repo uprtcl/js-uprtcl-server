@@ -1104,17 +1104,26 @@ export class UprtclRepository {
 
         case StartCase.under:
           startQuery = `search(func: eq(xid, ${under[0].id})) @cascade`;
-          internalWrapper =
+          internalWrapper = `filtered as ecosystem ${
             linksTo.length > 0
-              ? `filtered as ecosystem {
-              linksTo @filter(eq(xid, ${linksTo[0].id}))
-            }`
-              : '';
+              ? `{
+                linksTo @filter(eq(xid, ${linksTo[0].id} ${
+                  searchText !== '' 
+                    ? `AND anyoftext(text, ${searchText})` 
+                    : ''
+                }))
+              }`
+                : searchText !== ''
+                ? `@filter(anyoftext(text, "${searchText}"))` 
+                : ''
+          }`
           break;
 
         case StartCase.linksTo:
           startQuery = `search(func: eq(xid, ${linksTo[0].id}))`;
-          internalWrapper = linksTo.length > 0 ? `filtered as ~linksTo` : '';
+          internalWrapper = `filtered as ~linksTo ${
+            searchText !== '' ? `@filter(anyoftext(text, ${searchText}))` : ''
+          }`;
           break;
       }
     } else {
@@ -1140,10 +1149,6 @@ export class UprtclRepository {
       query = query.concat(DgraphACL);
     }
 
-    /**
-     * TODO: Do not need to hardcode (orderdesc: timextamp) once orderby is working.
-     */
-
     // Initializes pagination parameters
     const { first, offset } = {
       first:
@@ -1156,13 +1161,20 @@ export class UprtclRepository {
           : 0,
     };
 
+    
+    /**
+     * Order by subnode has been clarified here: 
+     * https://discuss.dgraph.io/t/sort-query-results-by-any-edge-property/12989
+     */
+
     query = query.concat(
       `\nelements as var(func: uid(filtered)) {
           head {
             date as timextamp
           }
+          lastUpdated as max(val(date))
         }
-        perspectives(func: uid(elements), orderdesc: val(date) ${
+        perspectives(func: uid(elements), orderdesc: val(lastUpdated) ${
           searchOptions ? `,first: ${first}, offset: ${offset}` : ''
         } ) ${searchOptions ? `@filter(uid(private) OR uid(public))` : ``} {
             ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
