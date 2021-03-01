@@ -1104,25 +1104,25 @@ export class UprtclRepository {
 
         case StartCase.under:
           startQuery = `search(func: eq(xid, ${under[0].id})) @cascade`;
-          internalWrapper = `filtered as ecosystem ${
+          internalWrapper = `filtered as ecosystem 
+          ${
+            searchText !== '' 
+              ? `@filter(anyoftext(text, "${searchText}"))` 
+              : ''
+          }
+          ${
             linksTo.length > 0
               ? `{
-                linksTo @filter(eq(xid, ${linksTo[0].id}) ${
-                  searchText !== '' 
-                    ? `AND anyoftext(text, ${searchText})` 
-                    : ''
-                })
+                linksTo @filter(eq(xid, ${linksTo[0].id}))
               }`
-                : searchText !== ''
-                ? `@filter(anyoftext(text, "${searchText}"))` 
-                : ''
+              : ''
           }`
           break;
 
         case StartCase.linksTo:
           startQuery = `search(func: eq(xid, ${linksTo[0].id}))`;
           internalWrapper = `filtered as ~linksTo ${
-            searchText !== '' ? `@filter(anyoftext(text, ${searchText}))` : ''
+            searchText !== '' ? `@filter(anyoftext(text, "${searchText}"))` : ''
           }`;
           break;
       }
