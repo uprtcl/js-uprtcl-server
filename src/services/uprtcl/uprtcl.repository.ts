@@ -1172,9 +1172,9 @@ export class UprtclRepository {
           head {
             date as timextamp
           }
-          lastUpdated as max(val(date))
+          datetemp as max(val(date))
         }
-        perspectives(func: uid(elements), orderdesc: val(lastUpdated) ${
+        perspectives(func: uid(elements), orderdesc: val(datetemp) ${
           searchOptions ? `,first: ${first}, offset: ${offset}` : ''
         } ) ${searchOptions ? `@filter(uid(private) OR uid(public))` : ``} {
             ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
