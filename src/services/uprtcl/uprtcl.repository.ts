@@ -1107,11 +1107,11 @@ export class UprtclRepository {
           internalWrapper = `filtered as ecosystem ${
             linksTo.length > 0
               ? `{
-                linksTo @filter(eq(xid, ${linksTo[0].id} ${
+                linksTo @filter(eq(xid, ${linksTo[0].id}) ${
                   searchText !== '' 
                     ? `AND anyoftext(text, ${searchText})` 
                     : ''
-                }))
+                })
               }`
                 : searchText !== ''
                 ? `@filter(anyoftext(text, "${searchText}"))` 
