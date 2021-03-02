@@ -1072,10 +1072,7 @@ export class UprtclRepository {
 
     if (searchOptions) {
       const {
-        text: {
-          value: searchText = '',
-          levels = 0
-        } = {},
+        text: { value: searchText = '', levels = 0 } = {},
         under = [],
         linksTo = [],
       } = searchOptions;
@@ -1107,14 +1104,14 @@ export class UprtclRepository {
 
         case StartCase.under:
           startQuery = `search(func: eq(xid, ${under[0].id})) @cascade`;
-          internalWrapper = `${ levels !== -1 ? `filtered as` : '' } ecosystem 
+          internalWrapper = `${levels !== -1 ? `filtered as` : ''} ecosystem 
           ${
             searchText !== ''
               ? levels === -1
-              ? `{
+                ? `{
                 filtered as ecosystem @filter(anyoftext(text, "${searchText}"))
-              }` 
-              : `@filter(anyoftext(text, "${searchText}"))` 
+              }`
+                : `@filter(anyoftext(text, "${searchText}"))`
               : ''
           }
           ${
@@ -1123,18 +1120,18 @@ export class UprtclRepository {
                 linksTo @filter(eq(xid, ${linksTo[0].id}))
               }`
               : ''
-          }`
+          }`;
           break;
 
         case StartCase.linksTo:
           startQuery = `search(func: eq(xid, ${linksTo[0].id}))`;
-          internalWrapper = `${ levels !== -1 ? `filtered as` : '' } ~linksTo ${
-            searchText !== '' 
+          internalWrapper = `${levels !== -1 ? `filtered as` : ''} ~linksTo ${
+            searchText !== ''
               ? levels === -1
-              ? `{
+                ? `{
                 filtered as ecosystem @filter(anyoftext(text, "${searchText}"))
               }`
-              : `@filter(anyoftext(text, "${searchText}"))`
+                : `@filter(anyoftext(text, "${searchText}"))`
               : ''
           }`;
           break;
@@ -1174,9 +1171,8 @@ export class UprtclRepository {
           : 0,
     };
 
-    
     /**
-     * Order by subnode has been clarified here: 
+     * Order by subnode has been clarified here:
      * https://discuss.dgraph.io/t/sort-query-results-by-any-edge-property/12989
      */
 
