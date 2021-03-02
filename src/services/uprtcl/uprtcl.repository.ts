@@ -1072,7 +1072,10 @@ export class UprtclRepository {
 
     if (searchOptions) {
       const {
-        query: searchText = '',
+        text: {
+          value: searchText = '',
+          levels = 0
+        } = {},
         under = [],
         linksTo = [],
       } = searchOptions;
@@ -1104,10 +1107,14 @@ export class UprtclRepository {
 
         case StartCase.under:
           startQuery = `search(func: eq(xid, ${under[0].id})) @cascade`;
-          internalWrapper = `filtered as ecosystem 
+          internalWrapper = `${ levels !== -1 ? `filtered as` : '' } ecosystem 
           ${
-            searchText !== '' 
-              ? `@filter(anyoftext(text, "${searchText}"))` 
+            searchText !== ''
+              ? levels === -1
+              ? `{
+                filtered as ecosystem @filter(anyoftext(text, "${searchText}"))
+              }` 
+              : `@filter(anyoftext(text, "${searchText}"))` 
               : ''
           }
           ${
@@ -1121,8 +1128,14 @@ export class UprtclRepository {
 
         case StartCase.linksTo:
           startQuery = `search(func: eq(xid, ${linksTo[0].id}))`;
-          internalWrapper = `filtered as ~linksTo ${
-            searchText !== '' ? `@filter(anyoftext(text, "${searchText}"))` : ''
+          internalWrapper = `${ levels !== -1 ? `filtered as` : '' } ~linksTo ${
+            searchText !== '' 
+              ? levels === -1
+              ? `{
+                filtered as ecosystem @filter(anyoftext(text, "${searchText}"))
+              }`
+              : `@filter(anyoftext(text, "${searchText}"))`
+              : ''
           }`;
           break;
       }
