@@ -1069,10 +1069,11 @@ export class UprtclRepository {
 
     let startQuery = '';
     let internalWrapper = '';
+    let allOptionsSet = false;
 
     if (searchOptions) {
       const {
-        query: searchText = '',
+        text: { value: searchText = '', levels = 0 } = {},
         under = [],
         linksTo = [],
       } = searchOptions;
@@ -1104,17 +1105,37 @@ export class UprtclRepository {
 
         case StartCase.under:
           startQuery = `search(func: eq(xid, ${under[0].id})) @cascade`;
-          internalWrapper =
-            linksTo.length > 0
-              ? `filtered as ecosystem {
-              linksTo @filter(eq(xid, ${linksTo[0].id}))
-            }`
-              : '';
+          internalWrapper = `${
+            searchText !== '' && linksTo.length > 0
+            ? levels !== -1
+              ? `filtered as ecosystem @filter(anyoftext(text, "${searchText}")) {
+                linksTo @filter(eq(xid, ${linksTo[0].id}))
+              }`
+              : `${ allOptionsSet = true } rootSearch as ecosystem  {
+                linksTo @filter(eq(xid, ${linksTo[0].id}))
+                foundEvees as byText: ecosystem @filter(anyoftext(text, "${searchText}"))
+              }`
+            : searchText !== ''
+              ? `filtered as ecosystem @filter(anyoftext(text, "${searchText}"))`
+              : linksTo.length > 0
+                ? `filtered as ecosystem {
+                  linksTo @filter(eq(xid, ${linksTo[0].id}))
+                }`
+                : 'filtered as ecosystem'
+          }`;
           break;
 
         case StartCase.linksTo:
           startQuery = `search(func: eq(xid, ${linksTo[0].id}))`;
-          internalWrapper = linksTo.length > 0 ? `filtered as ~linksTo` : '';
+          internalWrapper = `${levels !== -1 ? `filtered as` : ''} ~linksTo ${
+            searchText !== ''
+              ? levels === -1
+                ? `{
+                filtered as ecosystem @filter(anyoftext(text, "${searchText}"))
+              }`
+                : `@filter(anyoftext(text, "${searchText}"))`
+              : ''
+          }`;
           break;
       }
     } else {
@@ -1124,6 +1145,12 @@ export class UprtclRepository {
     query = query.concat(`
       ${startQuery} {
         ${internalWrapper}
+      } ${
+        allOptionsSet
+        ? `allOptions(func: uid(rootSearch)) {
+          filtered as ecosystem @filter(uid(foundEvees))
+        }`
+        : ''
       }`);
 
     if (searchOptions) {
@@ -1140,10 +1167,6 @@ export class UprtclRepository {
       query = query.concat(DgraphACL);
     }
 
-    /**
-     * TODO: Do not need to hardcode (orderdesc: timextamp) once orderby is working.
-     */
-
     // Initializes pagination parameters
     const { first, offset } = {
       first:
@@ -1155,6 +1178,11 @@ export class UprtclRepository {
           ? searchOptions.pagination.offset
           : 0,
     };
+
+    /**
+     * Order by subnode has been clarified here:
+     * https://discuss.dgraph.io/t/sort-query-results-by-any-edge-property/12989
+     */
 
     query = query.concat(
       `\nelements as var(func: uid(filtered)) {
