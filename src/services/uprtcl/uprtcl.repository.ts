@@ -1069,14 +1069,21 @@ export class UprtclRepository {
 
     let startQuery = '';
     let internalWrapper = '';
-    let allOptionsSet = false;
+    let optionalWrapper = '';
 
     if (searchOptions) {
-      const {
-        text: { value: searchText = '', levels = 0 } = {},
-        under = [],
-        linksTo = [],
-      } = searchOptions;
+      const searchText = searchOptions.text ? searchOptions.text.value : '';
+      const textLevels = searchOptions.text
+        ? searchOptions.text.levels
+          ? searchOptions.text.levels
+          : 0
+        : 0;
+      const under = searchOptions.under ? searchOptions.under : [];
+      const linksTo = searchOptions.linksTo ? searchOptions.linksTo : [];
+
+      if (textLevels !== 0 && textLevels !== -1) {
+        throw new Error('textLevels can only be 0 or 1 for now');
+      }
 
       enum StartCase {
         all = 'all',
@@ -1105,37 +1112,56 @@ export class UprtclRepository {
 
         case StartCase.under:
           startQuery = `search(func: eq(xid, ${under[0].id})) @cascade`;
-          internalWrapper = `${
-            searchText !== '' && linksTo.length > 0
-            ? levels !== -1
-              ? `filtered as ecosystem @filter(anyoftext(text, "${searchText}")) {
-                linksTo @filter(eq(xid, ${linksTo[0].id}))
-              }`
-              : `${ allOptionsSet = true } rootSearch as ecosystem  {
-                linksTo @filter(eq(xid, ${linksTo[0].id}))
-                foundEvees as byText: ecosystem @filter(anyoftext(text, "${searchText}"))
-              }`
-            : searchText !== ''
-              ? `filtered as ecosystem @filter(anyoftext(text, "${searchText}"))`
-              : linksTo.length > 0
-                ? `filtered as ecosystem {
+
+          if (linksTo.length > 0) {
+            // under and linksTo
+            if (searchText !== '') {
+              // under and linksTo and textSearch
+              if (textLevels === -1) {
+                // in ecosystem of each linkTo matched
+                // WARNING THIS IS SAMPLE CODE. How can it be fixed without changing its logic/spirit?
+                internalWrapper = `linkingTo as ecosystem @cascade {
                   linksTo @filter(eq(xid, ${linksTo[0].id}))
-                }`
-                : 'filtered as ecosystem'
-          }`;
+                }`;
+                optionalWrapper = `filtered as (func: uid(linkingTo)) @cascade {
+                  ecosystem @filter(anyoftext(text, "${searchText}"))
+                }`;
+              } else {
+                internalWrapper = `linkingTo as ecosystem @cascade {
+                  linksTo @filter(eq(xid, ${linksTo[0].id}))
+                }`;
+                optionalWrapper = `filtered as (func: uid(linkingTo) AND anyoftext(text, "${searchText}"))`;
+              }
+            } else {
+              // only under and linksTo
+              internalWrapper = `filtered as ecosystem {
+                linksTo @filter(eq(xid, ${linksTo[0].id}))
+              }`;
+            }
+          } else {
+            internalWrapper = 'filtered as ecosystem';
+          }
+
           break;
 
         case StartCase.linksTo:
           startQuery = `search(func: eq(xid, ${linksTo[0].id}))`;
-          internalWrapper = `${levels !== -1 ? `filtered as` : ''} ~linksTo ${
-            searchText !== ''
-              ? levels === -1
-                ? `{
-                filtered as ecosystem @filter(anyoftext(text, "${searchText}"))
-              }`
-                : `@filter(anyoftext(text, "${searchText}"))`
-              : ''
-          }`;
+
+          if (searchText !== '') {
+            // and text
+
+            if (textLevels === -1) {
+              // in link
+              internalWrapper = `filtered as ~linksTo @cascade {
+                ecosystem @filter(anyoftext(text, "${searchText}"))
+              }`;
+            } else {
+              internalWrapper = `filtered as ~linksTo @filter(anyoftext(text, "${searchText}"))`;
+            }
+          } else {
+            internalWrapper = `filtered as ~linksTo`;
+          }
+
           break;
       }
     } else {
@@ -1145,13 +1171,8 @@ export class UprtclRepository {
     query = query.concat(`
       ${startQuery} {
         ${internalWrapper}
-      } ${
-        allOptionsSet
-        ? `allOptions(func: uid(rootSearch)) {
-          filtered as ecosystem @filter(uid(foundEvees))
-        }`
-        : ''
-      }`);
+      }
+      ${optionalWrapper}`);
 
     if (searchOptions) {
       const DgraphACL = `
