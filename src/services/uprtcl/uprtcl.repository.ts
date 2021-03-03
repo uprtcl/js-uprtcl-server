@@ -1069,6 +1069,7 @@ export class UprtclRepository {
 
     let startQuery = '';
     let internalWrapper = '';
+    let allOptionsSet = false;
 
     if (searchOptions) {
       const {
@@ -1104,22 +1105,23 @@ export class UprtclRepository {
 
         case StartCase.under:
           startQuery = `search(func: eq(xid, ${under[0].id})) @cascade`;
-          internalWrapper = `${levels !== -1 ? `filtered as` : ''} ecosystem 
-          ${
-            searchText !== ''
-              ? levels === -1
-                ? `{
-                filtered as ecosystem @filter(anyoftext(text, "${searchText}"))
-              }`
-                : `@filter(anyoftext(text, "${searchText}"))`
-              : ''
-          }
-          ${
-            linksTo.length > 0
-              ? `{
+          internalWrapper = `${
+            searchText !== '' && linksTo.length > 0
+            ? levels !== -1
+              ? `filtered as ecosystem @filter(anyoftext(text, "${searchText}")) {
                 linksTo @filter(eq(xid, ${linksTo[0].id}))
               }`
-              : ''
+              : `${ allOptionsSet = true } rootSearch as ecosystem  {
+                linksTo @filter(eq(xid, ${linksTo[0].id}))
+                foundEvees as byText: ecosystem @filter(anyoftext(text, "${searchText}"))
+              }`
+            : searchText !== ''
+              ? `filtered as ecosystem @filter(anyoftext(text, "${searchText}"))`
+              : linksTo.length > 0
+                ? `filtered as ecosystem {
+                  linksTo @filter(eq(xid, ${linksTo[0].id}))
+                }`
+                : 'filtered as ecosystem'
           }`;
           break;
 
@@ -1143,6 +1145,12 @@ export class UprtclRepository {
     query = query.concat(`
       ${startQuery} {
         ${internalWrapper}
+      } ${
+        allOptionsSet
+        ? `allOptions(func: uid(rootSearch)) {
+          filtered as ecosystem @filter(uid(foundEvees))
+        }`
+        : ''
       }`);
 
     if (searchOptions) {
