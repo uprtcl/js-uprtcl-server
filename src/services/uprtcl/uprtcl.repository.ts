@@ -1123,14 +1123,14 @@ export class UprtclRepository {
                 internalWrapper = `linkingTo as ecosystem @cascade {
                   linksTo @filter(eq(xid, ${linksTo[0].id}))
                 }`;
-                optionalWrapper = `filtered as (func: uid(linkingTo)) @cascade {
+                optionalWrapper = `filtered as var(func: uid(linkingTo)) @cascade {
                   ecosystem @filter(anyoftext(text, "${searchText}"))
                 }`;
               } else {
                 internalWrapper = `linkingTo as ecosystem @cascade {
                   linksTo @filter(eq(xid, ${linksTo[0].id}))
                 }`;
-                optionalWrapper = `filtered as (func: uid(linkingTo) AND anyoftext(text, "${searchText}"))`;
+                optionalWrapper = `filtered as var(func: uid(linkingTo)) @filter(anyoftext(text, "${searchText}"))`;
               }
             } else {
               // only under and linksTo
