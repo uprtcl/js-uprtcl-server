@@ -10,6 +10,8 @@ import {
   Update,
   Slice,
   ParentAndChild,
+  SearchOptions,
+  SearchResult,
 } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
@@ -82,6 +84,8 @@ signature
 type
 `;
 
+const defaultFirst = 10;
+
 const assembleCommit = (dcommit: DgCommit): Secured<Commit> => {
   const commit: Commit = {
     creatorsIds: dcommit.creators
@@ -135,6 +139,13 @@ const assemblePerspective = (dperspective: DgPerspective) => {
   return securedPerspective;
 };
 
+export interface FetchResult {
+  perspectiveIds: string[];
+  ended?: boolean;
+  details: PerspectiveDetails;
+  slice: Slice;
+}
+
 export class UprtclRepository {
   constructor(
     protected db: DGraphService,
@@ -173,8 +184,6 @@ export class UprtclRepository {
       );
     }
 
-    const did = this.userRepo.formatDid(creatorId);
-
     query = query.concat(`\npersp${id} as var(func: eq(xid, "${id}"))`);
     query = query.concat(
       `\ncontextOf${id} as var(func: eq(name, "${context}"))`
@@ -182,7 +191,11 @@ export class UprtclRepository {
 
     nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
     nquads = nquads.concat(`\nuid(persp${id}) <stored> "true" .`);
-    nquads = nquads.concat(`\nuid(persp${id}) <creator> uid(profile${did}) .`);
+    nquads = nquads.concat(
+      `\nuid(persp${id}) <creator> uid(profile${this.userRepo.formatDid(
+        creatorId
+      )}) .`
+    );
     nquads = nquads.concat(
       `\nuid(persp${id}) <timextamp> "${timestamp}"^^<xs:int> .`
     );
@@ -212,9 +225,15 @@ export class UprtclRepository {
     nquads = nquads.concat(
       `\nuid(persp${id}) <publicRead> "false" .
        \nuid(persp${id}) <publicWrite> "false" .
-       \nuid(persp${id}) <canRead> uid(profile${did}) .
-       \nuid(persp${id}) <canWrite> uid(profile${did}) .
-       \nuid(persp${id}) <canAdmin> uid(profile${did}) .`
+       \nuid(persp${id}) <canRead> uid(profile${this.userRepo.formatDid(
+        creatorId
+      )}) .
+       \nuid(persp${id}) <canWrite> uid(profile${this.userRepo.formatDid(
+        creatorId
+      )}) .
+       \nuid(persp${id}) <canAdmin> uid(profile${this.userRepo.formatDid(
+        creatorId
+      )}) .`
     );
 
     /** add itself as its ecosystem */
@@ -433,7 +452,6 @@ export class UprtclRepository {
     if (childrenUpsert.query && childrenUpsert.nquads !== '') {
       // We call the db to be prepared for transactions
       await this.db.ready();
-
       // We perform first, the children transaction | TRX #3
       const childrenMutation = new dgraph.Mutation();
       const childrenRequest = new dgraph.Request();
@@ -446,7 +464,7 @@ export class UprtclRepository {
 
       await this.db.callRequest(childrenRequest);
 
-      // Secondly, we perform the ecosystem transaction | TRX #4
+      // Consequently, we perform the ecosystem transaction | TRX #4
       /**
        * We need to perforn TXR #4 after TXR #3, because the ecosystem query will rely
        * on the children of each perspective that already exists inside the database.
@@ -472,16 +490,23 @@ export class UprtclRepository {
     // WARNING: IF THE PERSPECTIVE ENDS UP HAVING TWO HEADS, CHECK DGRAPH DOCS FOR RECENT UPDATES
     // IF NO SOLUTION, THEN BATCH DELETE ALL HEADS BEFORE BATCH UPDATE THEM
 
+    query = query.concat(
+      `\npersp${id} as var(func: eq(xid, ${id})) {
+          xid
+        }`
+    );
+
     // We update the current xid.
-    query = query.concat(`\npersp${id} as var(func: eq(xid, "${id}"))`);
     nquads = nquads.concat(`\nuid(persp${id}) <xid> "${id}" .`);
 
     // If the current perspective we are seeing isn't headless, we proceed to update the ecosystem and its head.
     if (update.details !== undefined) {
       if (update.details.headId !== undefined) {
-        const { details, linkChanges } = update;
+        const { details, linkChanges, text } = update;
 
         const headId = details.headId;
+        const addedLinksTo = linkChanges?.linksTo?.added;
+        const removedLinksTo = linkChanges?.linksTo?.removed;
         const addedChildren = linkChanges?.children?.added;
         const removedChildren = linkChanges?.children?.removed;
 
@@ -490,7 +515,45 @@ export class UprtclRepository {
           `\nheadOf${id} as var(func: eq(xid, "${headId}"))`
         );
         nquads = nquads.concat(`\nuid(headOf${id}) <xid> "${headId}" .`);
-        nquads = nquads.concat(`\nuid(persp${id} ) <head> uid(headOf${id}) .`);
+        nquads = nquads.concat(`\nuid(persp${id}) <head> uid(headOf${id}) .`);
+
+        if (text)
+          nquads = nquads.concat(`\nuid(persp${id}) <text> "${text}" .`);
+
+        // The linksTo edges are generic links from this perspective to any another perspective.
+        // Once created, they can be used by the searchEngine to query the all perspectives that
+        // have a linkTo another one.
+
+        // linksTo[] to be added.
+        addedLinksTo?.forEach((link, ix) => {
+          query = query.concat(
+            `\naddedLinkToOf${id}${ix} as var(func: eq(xid, ${link}))`
+          );
+          // create a stub xid in case the link does not exist locally
+          nquads = nquads.concat(
+            `\nuid(addedLinkToOf${id}${ix}) <xid> "${link}" .`
+          );
+          nquads = nquads.concat(
+            `\nuid(persp${id}) <linksTo> uid(addedLinkToOf${id}${ix}) .`
+          );
+        });
+
+        // linksTo[] to be removed.
+        removedLinksTo?.forEach((link, ix) => {
+          query = query.concat(
+            `\nremovedLinksToOf${id}${ix} as var(func: eq(xid, ${link}))`
+          );
+          delNquads = delNquads?.concat(
+            `\nuid(persp${id} ) <linksTo> uid(removedLinksToOf${id}${ix}) .`
+          );
+        });
+
+        // Children links are a special case of linkTo and a first-class citizen in _Prtcl.
+        // When forking and merging perpsectives of an evee, the children links are recursively forked and
+        // merged (while linksTo are not). In addition, the children of a perspective build its "ecosystem"
+        // (the set of itself, all its children and their children, recursively).
+        // The ecosystem can be used by the searchEngine to search "under" a given perspective and it is
+        // expected that searchEngine implementations will optimize for these kind of queries.
 
         // We set the external children for the previous created persvective.
         addedChildren?.forEach((child, ix) => {
@@ -498,7 +561,7 @@ export class UprtclRepository {
             `\naddedChildOf${id}${ix} as var(func: eq(xid, ${child}))`
           );
           nquads = nquads.concat(
-            `\nuid(persp${id} ) <children> uid(addedChildOf${id}${ix}) .`
+            `\nuid(persp${id}) <children> uid(addedChildOf${id}${ix}) .`
           );
         });
 
@@ -508,7 +571,7 @@ export class UprtclRepository {
             `\nremovedChildOf${id}${ix} as var(func: eq(xid, ${child}))`
           );
           delNquads = delNquads?.concat(
-            `\nuid(persp${id} ) <children> uid(removedChildOf${id}${ix}) .`
+            `\nuid(persp${id}) <children> uid(removedChildOf${id}${ix}) .`
           );
         });
       }
@@ -522,16 +585,16 @@ export class UprtclRepository {
     const { perspectiveId: id } = update;
 
     query = query.concat(
-      `\npersp${id}(func: eq(xid, ${id})) 
-       @recurse
-       {
-         revEcosystem${id} as ~children
-       }
-       \nperspEl${id} as var(func: eq(xid, ${id}))
-       @recurse
-       {
-         ecosystemOfUref${id} as children
-       }`
+      `\npersp${id} as var(func: eq(xid, ${id}))
+        @recurse
+        {
+          revEcosystem${id} as ~children
+        }
+       \nperspEl${id} as var(func: uid(persp${id}))
+        @recurse
+        {
+          ecosystemOfUref${id} as children
+        }`
     );
 
     nquads = nquads.concat(
@@ -842,6 +905,7 @@ export class UprtclRepository {
     loggedUserId: string | null
   ): Promise<ParentAndChild[]> {
     await this.db.ready();
+    const userId = loggedUserId !== null ? loggedUserId : '';
 
     const parentsPortion = `
     {
@@ -849,7 +913,7 @@ export class UprtclRepository {
       ~children {
         xid
         finDelegatedTo {
-          canRead @filter(eq(did, "${loggedUserId}")) {
+          canRead @filter(eq(did, "${userId}")) {
             count(uid)
           }
           publicRead
@@ -912,14 +976,49 @@ export class UprtclRepository {
   async getPerspective(
     perspectiveId: string,
     loggedUserId: string | null,
-    options: GetPerspectiveOptions = {
-      levels: 0,
-      entities: true,
-    }
+    getPerspectiveOptions: GetPerspectiveOptions = {}
   ): Promise<PerspectiveGetResult> {
-    await this.db.ready();
+    const exploreResult = await this.fetchPerspectives(
+      loggedUserId,
+      getPerspectiveOptions,
+      perspectiveId
+    );
+    return {
+      details: exploreResult.details,
+      slice: exploreResult.slice,
+    };
+  }
 
-    if (options.levels !== 0 && options.levels !== -1) {
+  async explorePerspectives(
+    searchOptions: SearchOptions,
+    loggedUserId: string | null,
+    getPerspectiveOptions: GetPerspectiveOptions = {}
+  ): Promise<SearchResult> {
+    const exploreResult = await this.fetchPerspectives(
+      loggedUserId,
+      getPerspectiveOptions,
+      undefined,
+      searchOptions
+    );
+    return {
+      perspectiveIds: exploreResult.perspectiveIds,
+      ended: exploreResult.ended ? exploreResult.ended : false,
+      slice: exploreResult.slice,
+    };
+  }
+
+  /** A reusable function that can get a perspective or search perspectives while fetching the perspective ecosystem and
+  its entities */
+  private async fetchPerspectives(
+    loggedUserId: string | null,
+    getPerspectiveOptions: GetPerspectiveOptions = {},
+    perspectiveId?: string,
+    searchOptions?: SearchOptions
+  ): Promise<FetchResult> {
+    let query = ``;
+    const { levels, entities } = getPerspectiveOptions;
+
+    if (levels !== 0 && levels !== -1) {
       throw new Error(
         `Levels can only be 0 (shallow get) or -1, fully recusvie`
       );
@@ -943,9 +1042,9 @@ export class UprtclRepository {
         xid
         data {
           xid
-          ${options.entities ? `jsonString` : ''}
+          ${entities ? `jsonString` : ''}
         }
-        ${options.entities ? COMMIT_PROPERTIES : ''}
+        ${entities ? COMMIT_PROPERTIES : ''}
       }
       delegate
       delegateTo {
@@ -961,83 +1060,235 @@ export class UprtclRepository {
         publicWrite
         publicRead
       }
-      `;
+    `;
 
-    const query = `query {
-      perspectives(func: eq(xid, ${perspectiveId})) {
-        ${
-          options.levels === -1
-            ? `ecosystem {${elementQuery}}`
-            : `${elementQuery}`
-        }
+    /**
+     * We build the function depending on how the method is implemented.
+     * For searching or for grabbing an specific perspective.
+     */
+
+    let startQuery = '';
+    let internalWrapper = '';
+    let optionalWrapper = '';
+
+    if (searchOptions) {
+      const searchText = searchOptions.text ? searchOptions.text.value : '';
+      const textLevels = searchOptions.text
+        ? searchOptions.text.levels
+          ? searchOptions.text.levels
+          : 0
+        : 0;
+      const under = searchOptions.under ? searchOptions.under : [];
+      const linksTo = searchOptions.linksTo ? searchOptions.linksTo : [];
+
+      if (textLevels !== 0 && textLevels !== -1) {
+        throw new Error('textLevels can only be 0 or 1 for now');
       }
-    }`;
 
-    let dbResult = await this.db.client.newTxn().query(query);
-    let json = dbResult.getJson();
+      enum StartCase {
+        all = 'all',
+        under = 'under',
+        linksTo = 'linksTo',
+        searchText = 'searchText',
+      }
 
-    console.log('[DGRAPH] getPerspective', { query }, JSON.stringify(json));
+      const start: StartCase =
+        under.length > 0
+          ? StartCase.under
+          : linksTo.length > 0
+          ? StartCase.linksTo
+          : searchText !== ''
+          ? StartCase.searchText
+          : StartCase.all;
 
-    const readData = json.perspectives[0];
+      switch (start) {
+        case StartCase.all:
+          startQuery = `filtered as search(func: eq(dgraph.type, "Perspective"))`;
+          break;
 
-    let topDetails: PerspectiveDetails = {};
-    let slice: Slice = {
-      entities: [],
-      perspectives: [],
-    };
+        case StartCase.searchText:
+          startQuery = `filtered as search(func: anyoftext(text, "${searchText}"))`;
+          break;
 
-    const all = options.levels === -1 ? readData.ecosystem : [readData];
+        case StartCase.under:
+          startQuery = `search(func: eq(xid, ${under[0].id})) @cascade`;
 
-    /** data is under ecosystem */
-    all.forEach((element: any) => {
-      if (element) {
-        /** check access control, if user can't read, simply return undefined head  */
-        const canRead = !element.finDelegatedTo.publicRead
-          ? element.finDelegatedTo.canRead[0].count > 0
-          : true;
+          if (linksTo.length > 0) {
+            // under and linksTo
+            if (searchText !== '') {
+              // under and linksTo and textSearch
+              if (textLevels === -1) {
+                // in ecosystem of each linkTo matched
+                // WARNING THIS IS SAMPLE CODE. How can it be fixed without changing its logic/spirit?
+                internalWrapper = `linkingTo as ecosystem @cascade {
+                  linksTo @filter(eq(xid, ${linksTo[0].id}))
+                }`;
+                optionalWrapper = `filtered as (func: uid(linkingTo)) @cascade {
+                  ecosystem @filter(anyoftext(text, "${searchText}"))
+                }`;
+              } else {
+                internalWrapper = `linkingTo as ecosystem @cascade {
+                  linksTo @filter(eq(xid, ${linksTo[0].id}))
+                }`;
+                optionalWrapper = `filtered as (func: uid(linkingTo) AND anyoftext(text, "${searchText}"))`;
+              }
+            } else {
+              // only under and linksTo
+              internalWrapper = `filtered as ecosystem {
+                linksTo @filter(eq(xid, ${linksTo[0].id}))
+              }`;
+            }
+          } else {
+            internalWrapper = 'filtered as ecosystem';
+          }
 
-        const elementDetails = {
-          headId: canRead ? element.head.xid : undefined,
-          guardianId: element.delegate ? element.delegateTo.xid : undefined,
-          canUpdate: !element.finDelegatedTo.publicWrite
-            ? element.finDelegatedTo.canWrite
-              ? element.finDelegatedTo.canWrite[0].count > 0
-              : false
-            : true,
-        };
+          break;
 
-        if (element.xid === perspectiveId) {
-          topDetails = elementDetails;
-        } else {
-          slice.perspectives.push({
-            id: element.xid,
-            details: elementDetails,
-          });
-        }
+        case StartCase.linksTo:
+          startQuery = `search(func: eq(xid, ${linksTo[0].id}))`;
 
-        if (options.entities) {
-          const commit = assembleCommit(element.head);
+          if (searchText !== '') {
+            // and text
 
-          const data: Entity<any> = {
-            id: element.head.data.xid,
-            object: decodeData(element.head.data.jsonString),
-          };
+            if (textLevels === -1) {
+              // in link
+              internalWrapper = `filtered as ~linksTo @cascade {
+                ecosystem @filter(anyoftext(text, "${searchText}"))
+              }`;
+            } else {
+              internalWrapper = `filtered as ~linksTo @filter(anyoftext(text, "${searchText}"))`;
+            }
+          } else {
+            internalWrapper = `filtered as ~linksTo`;
+          }
 
-          slice.entities.push(commit, data);
+          break;
+      }
+    } else {
+      startQuery = `filtered as search(func: eq(xid, ${perspectiveId}))`;
+    }
 
-          if (element.xid !== perspectiveId) {
-            // add the perspective entity only if a subperspective
-            const perspective = assemblePerspective(element);
-            slice.entities.push(perspective);
+    query = query.concat(`
+      ${startQuery} {
+        ${internalWrapper}
+      }
+      ${optionalWrapper}`);
+
+    if (searchOptions) {
+      const DgraphACL = `
+        private as aclPriv(func: uid(filtered)) @cascade {
+          finDelegatedTo {
+            canRead @filter(eq(did, "${loggedUserId}"))
           }
         }
-      }
-    });
+        public as aclPub(func: uid(filtered)) @cascade {
+          finDelegatedTo @filter(eq(publicRead, true))
+        }`;
 
-    const result: PerspectiveGetResult = {
-      details: topDetails,
-      slice,
+      query = query.concat(DgraphACL);
+    }
+
+    // Initializes pagination parameters
+    const { first, offset } = {
+      first:
+        searchOptions && searchOptions.pagination
+          ? searchOptions.pagination.first
+          : defaultFirst,
+      offset:
+        searchOptions && searchOptions.pagination
+          ? searchOptions.pagination.offset
+          : 0,
     };
+
+    /**
+     * Order by subnode has been clarified here:
+     * https://discuss.dgraph.io/t/sort-query-results-by-any-edge-property/12989
+     */
+
+    query = query.concat(
+      `\nelements as var(func: uid(filtered)) {
+          head {
+            date as timextamp
+          }
+          datetemp as max(val(date))
+        }
+        perspectives(func: uid(elements), orderdesc: val(datetemp) ${
+          searchOptions ? `,first: ${first}, offset: ${offset}` : ''
+        } ) ${searchOptions ? `@filter(uid(private) OR uid(public))` : ``} {
+            ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
+          }`
+    );
+    let dbResult = await this.db.client.newTxn().query(`query{${query}}`);
+    let json = dbResult.getJson();
+
+    const perspectives = json.perspectives;
+    // initalize the returned result with empty values
+    const result: FetchResult = {
+      details: {},
+      perspectiveIds: [],
+      slice: {
+        perspectives: [],
+        entities: [],
+      },
+    };
+
+    if (first && perspectives.length < first) {
+      result.ended = true;
+    }
+
+    // then loop over the dgraph results and fill the function output result
+    perspectives.forEach((persp: any) => {
+      const all = levels === -1 ? persp.ecosystem : [persp];
+
+      all.forEach((element: any) => {
+        if (element) {
+          /** check access control, if user can't read, simply return undefined head  */
+          result.perspectiveIds.push(element.xid);
+
+          const canRead = !element.finDelegatedTo.publicRead
+            ? element.finDelegatedTo.canRead
+              ? element.finDelegatedTo.canRead[0].count > 0
+              : false
+            : true;
+
+          const elementDetails = {
+            headId: canRead ? element.head.xid : undefined,
+            guardianId: element.delegate ? element.delegateTo.xid : undefined,
+            canUpdate: !element.finDelegatedTo.publicWrite
+              ? element.finDelegatedTo.canWrite
+                ? element.finDelegatedTo.canWrite[0].count > 0
+                : false
+              : true,
+          };
+
+          if (element.xid === perspectiveId) {
+            result.details = elementDetails;
+          } else {
+            result.slice.perspectives.push({
+              id: element.xid,
+              details: elementDetails,
+            });
+          }
+
+          if (entities) {
+            const commit = assembleCommit(element.head);
+
+            const data: Entity<any> = {
+              id: element.head.data.xid,
+              object: decodeData(element.head.data.jsonString),
+            };
+
+            result.slice.entities.push(commit, data);
+
+            if (element.xid !== perspectiveId) {
+              // add the perspective entity only if a subperspective
+              const perspective = assemblePerspective(element);
+              result.slice.entities.push(perspective);
+            }
+          }
+        }
+      });
+    });
 
     return result;
   }
@@ -1065,5 +1316,20 @@ export class UprtclRepository {
     if (!dcommit.stored) new Error(`Commit with id ${commitId} not found`);
 
     return assembleCommit(dcommit);
+  }
+
+  async explore(
+    searchOptions: SearchOptions,
+    getPerspectiveOptions: GetPerspectiveOptions = {
+      levels: 0,
+      entities: true,
+    },
+    loggedUserId: string | null
+  ): Promise<SearchResult> {
+    return await this.explorePerspectives(
+      searchOptions,
+      loggedUserId,
+      getPerspectiveOptions
+    );
   }
 }

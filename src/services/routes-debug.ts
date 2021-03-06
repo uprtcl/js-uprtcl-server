@@ -73,5 +73,5 @@ export const routes = [
   ...dataController.routes(),
   ...userController.routes(),
   ...accessController.routes(),
-  ...knownSourcesController.routes(),
+  ...knownSourcesController.routes()
 ];

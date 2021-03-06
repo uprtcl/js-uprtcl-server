@@ -81,6 +81,6 @@ export const getRoutes = async () => {
     ...userController.routes(),
     ...accessController.routes(),
     ...knownSourcesController.routes(),
-    ...proposalsController.routes(),
+    ...proposalsController.routes()
   ];
 };

@@ -4,10 +4,22 @@ import { isValidUser } from './userOkList';
 
 var jwt = require('jsonwebtoken');
 const fs = require('fs');
-const jwksRsa = require('jwks-rsa');
+
+require('dotenv').config();
+
+if (!process.env.PUBKEY_FILE) {
+  throw new Error('process.env.PUBKEY_FILE undefined');
+}
+
+if (!process.env.JWT_SECRET) {
+  throw new Error('process.env.JWT_SECRET undefined');
+}
+
+if (!process.env.AUTH0_DOMAIN) {
+  throw new Error('process.env.AUTH0_DOMAIN undefined');
+}
 
 const publicKey = fs.readFileSync(process.env.PUBKEY_FILE);
-require('dotenv').config();
 
 export function verifyAuth0Token(token: string, kid: string) {
   return new Promise((resolve, reject) => {

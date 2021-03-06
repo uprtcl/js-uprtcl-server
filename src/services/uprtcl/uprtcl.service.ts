@@ -7,6 +7,8 @@ import {
   PerspectiveGetResult,
   GetPerspectiveOptions,
   ParentAndChild,
+  SearchOptions,
+  SearchResult
 } from '@uprtcl/evees';
 
 import { PermissionType } from './types';
@@ -71,7 +73,14 @@ export class UprtclService {
      * What about the access control? We might need to find a way to check
      * if the user can write a perspective, we used to call access.can(id, userId, permisstions)
      */
-    // update needs to be done one by one to manipulate the ecosystem links
+    if(loggedUserId === null)
+      throw new Error('Anonymous user. Cant update a perspective');
+
+    const canUpdate = await this.access.canUpdate(updates, loggedUserId);
+
+    if(!canUpdate)
+      throw new Error('Anonymous user. Cant update a perspective');
+
     await this.uprtclRepo.updatePerspectives(updates);
   }
 
@@ -97,13 +106,13 @@ export class UprtclService {
     options?: GetPerspectiveOptions
   ): Promise<PerspectiveGetResult> {
     console.log('[UPRTCL-SERVICE] getPerspectiveDetails', { perspectiveId });
-    let details = await this.uprtclRepo.getPerspective(
+    let result = await this.uprtclRepo.getPerspective(
       perspectiveId,
       loggedUserId,
       options
     );
 
-    return details;
+    return result;
   }
 
   async createCommits(
@@ -180,5 +189,17 @@ export class UprtclService {
     );
 
     return accessiblePerspectives.filter((e: string) => e !== '');
+  }
+
+  async explore(
+    searchOptions: SearchOptions,
+    getPerspectiveOptions: GetPerspectiveOptions,
+    loggedUserId: string | null
+  ): Promise<SearchResult> {
+    return await this.uprtclRepo.explore(
+      searchOptions,
+      getPerspectiveOptions,
+      loggedUserId
+    );
   }
 }

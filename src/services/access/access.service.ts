@@ -9,6 +9,7 @@ import {
 import { NOT_AUTHORIZED_MSG } from '../../utils';
 import { PermissionType } from '../uprtcl/types';
 import { DgUpdate } from '../proposals/types';
+import { Update } from '@uprtcl/evees';
 
 require('dotenv').config();
 
@@ -191,6 +192,16 @@ export class AccessService {
     }
 
     return this.accessRepo.can(permissionsElement, userId, type);
+  }
+
+  async canUpdate(
+    updates: Update[],
+    loggedUserId: string
+  ): Promise<boolean> {
+    if(loggedUserId === null)
+      throw new Error('Anonymous user. Cant update a perspective');
+    
+    return await this.accessRepo.canUpdate(updates, loggedUserId);
   }
 
   async setPublic(
