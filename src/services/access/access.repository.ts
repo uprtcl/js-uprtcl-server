@@ -46,14 +46,8 @@ export class AccessRepository {
 
   createPermissionsConfigUpsert(
     permissions: PermissionConfig,
-    {
-      upsert: {
-        query,
-        nquads
-      }
-    } : { upsert: Upsert }
+    { upsert: { query, nquads } }: { upsert: Upsert }
   ) {
-
     nquads = nquads.concat(
       `\n_:permissions <publicRead> "${permissions.publicRead}" .
        \n_:permissions <publicWrite> "${permissions.publicWrite}" .`
@@ -65,30 +59,53 @@ export class AccessRepository {
 
     let profiles: string[] = [];
 
-    profiles.push( ...canRead,
-                   PermissionType.Write, ...canWrite,
-                   PermissionType.Admin, ...canAdmin );
+    profiles.push(
+      ...canRead,
+      PermissionType.Write,
+      ...canWrite,
+      PermissionType.Admin,
+      ...canAdmin
+    );
 
     // Upsert profiles just once per user
-    [...new Set(profiles)].map(did => {
+    [...new Set(profiles)].map((did) => {
       query.concat(this.userRepo.upsertQueries(did).query);
       nquads.concat(this.userRepo.upsertQueries(did).nquads);
     });
 
     for (let ix = 0; ix < profiles.length; ix++) {
       if (ix < profiles.indexOf(PermissionType.Write)) {
-        query = query.concat(`\ncanRead${ix} as var(func: eq(did, "${profiles[ix].toLowerCase()}"))` )
+        query = query.concat(
+          `\ncanRead${ix} as var(func: eq(did, "${profiles[
+            ix
+          ].toLowerCase()}"))`
+        );
         nquads = nquads.concat(`\n_:permissions <canRead> uid(canRead${ix}) .`);
-      } else if (ix > profiles.indexOf(PermissionType.Write) && ix < profiles.indexOf(PermissionType.Admin)){
-        query = query.concat(`\ncanWrite${ix} as var(func: eq(did, "${profiles[ix].toLowerCase()}"))` )
-        nquads = nquads.concat(`\n_:permissions <canWrite> uid(canWrite${ix}) .`);
+      } else if (
+        ix > profiles.indexOf(PermissionType.Write) &&
+        ix < profiles.indexOf(PermissionType.Admin)
+      ) {
+        query = query.concat(
+          `\ncanWrite${ix} as var(func: eq(did, "${profiles[
+            ix
+          ].toLowerCase()}"))`
+        );
+        nquads = nquads.concat(
+          `\n_:permissions <canWrite> uid(canWrite${ix}) .`
+        );
       } else {
-        query = query.concat(`\ncanAdmin${ix} as var(func: eq(did, "${profiles[ix].toLowerCase()}"))` )
-        nquads = nquads.concat(`\n_:permissions <canAdmin> uid(canAdmin${ix}) .`);
+        query = query.concat(
+          `\ncanAdmin${ix} as var(func: eq(did, "${profiles[
+            ix
+          ].toLowerCase()}"))`
+        );
+        nquads = nquads.concat(
+          `\n_:permissions <canAdmin> uid(canAdmin${ix}) .`
+        );
       }
     }
 
-    return { query, nquads }
+    return { query, nquads };
   }
 
   /** updates the pointer of the accessControl node of an elementId to point
@@ -179,16 +196,22 @@ export class AccessRepository {
     }
   }
 
-  async canUpdate(
-    updates: Update[],
-    loggedUserId: string
+  async canAll(
+    perspectiveIds: string[],
+    loggedUserId: string,
+    type: PermissionType
   ): Promise<boolean> {
     let query = '';
 
-    for (let i = 0; i < updates.length; i++) {
-      const queryString = this.canUpdateQuery(updates[i].perspectiveId, query, loggedUserId);
+    for (let i = 0; i < perspectiveIds.length; i++) {
+      const queryString = this.canQuery(
+        perspectiveIds[i],
+        query,
+        loggedUserId,
+        type
+      );
 
-      if(i < 1) {
+      if (i < 1) {
         query = query.concat(queryString);
       }
 
@@ -199,25 +222,48 @@ export class AccessRepository {
       await this.db.client.newTxn().query(`query{${query}}`)
     ).getJson();
 
-    const notAllowed = Object.keys(result).filter(el => result[el].length < 1);
+    const notAllowed = Object.keys(result).filter(
+      (el) => result[el].length < 1
+    );
 
     return notAllowed.length === 0;
   }
 
-  canUpdateQuery(updateId: string, query: string, userId: string) {
-    query = query.concat(
-      `\nprivate${updateId} as var(func: eq(xid, ${updateId})) @cascade {
-          canWrite @filter(eq(did, "${userId}")) {
-            did
+  canQuery(
+    updateId: string,
+    query: string,
+    userId: string,
+    type: PermissionType
+  ) {
+    if ([PermissionType.Read || PermissionType.Write].includes(type)) {
+      query = query.concat(
+        `\nprivate${updateId} as var(func: eq(xid, ${updateId})) @cascade {
+            ${
+              type === PermissionType.Write ? 'canWrite' : 'canRead'
+            } @filter(eq(did, "${userId}")) {
+              did
+            }
           }
-        }
-      \npublic${updateId} as var(func: eq(xid, ${updateId})) @filter(eq(publicWrite, true)) {
-        xid
-       }
-      \npersp${updateId}(func: eq(xid, ${updateId})) @filter(uid(private${updateId}) OR uid(public${updateId})) {
+        \npublic${updateId} as var(func: eq(xid, ${updateId})) @filter(eq(publicWrite, true)) {
           xid
-        }`
-    );
+         }
+        \npersp${updateId}(func: eq(xid, ${updateId})) @filter(uid(private${updateId}) OR uid(public${updateId})) {
+            xid
+          }`
+      );
+    } else {
+      /** can adming case */
+      query = query.concat(
+        `\nprivate${updateId} as var(func: eq(xid, ${updateId})) @cascade {
+            canAdmin @filter(eq(did, "${userId}")) {
+              did
+            }
+          }
+        \npersp${updateId}(func: eq(xid, ${updateId})) @filter(uid(private${updateId})) {
+            xid
+          }`
+      );
+    }
 
     return query;
   }
@@ -234,15 +280,11 @@ export class AccessRepository {
 
     if (json.element.length > 0) {
       if (json.element[0] === undefined) {
-        throw new Error(
-          `undefined element ${elementId}`
-        );
+        throw new Error(`undefined element ${elementId}`);
       }
 
-      const publicRead: boolean =
-        json.element[0].publicRead;
-      const publicWrite: boolean =
-        json.element[0].publicWrite;
+      const publicRead: boolean = json.element[0].publicRead;
+      const publicWrite: boolean = json.element[0].publicWrite;
 
       /** apply the logic canAdmin > canWrite > canRead */
       return {
@@ -280,9 +322,7 @@ export class AccessRepository {
 
     if (json.element.length > 0) {
       if (json.element[0] === undefined) {
-        throw new Error(
-          `undefined element ${elementId}`
-        );
+        throw new Error(`undefined element ${elementId}`);
       }
 
       const canReadUser: boolean =
@@ -314,9 +354,7 @@ export class AccessRepository {
   }
 
   /** only accessible to an admin */
-  async getPermissionsConfig(
-    elementId: string
-  ): Promise<PermissionConfig> {
+  async getPermissionsConfig(elementId: string): Promise<PermissionConfig> {
     let query = `
     permissionsOf${elementId}(func: eq(xid, ${elementId})) {
       publicRead
@@ -388,11 +426,9 @@ export class AccessRepository {
       { elementId },
       JSON.stringify(json)
     );
-    
+
     if (json.element[0] === undefined)
-      throw new Error(
-        `undefined for element ${elementId}`
-      );
+      throw new Error(`undefined for element ${elementId}`);
     let daccessConfig = json.element[0];
     return {
       delegate:
@@ -408,7 +444,7 @@ export class AccessRepository {
         publicWrite: daccessConfig.publicWrite,
         canRead: daccessConfig.canRead,
         canWrite: daccessConfig.canWrite,
-        canAdmin: daccessConfig.canAdmin
+        canAdmin: daccessConfig.canAdmin,
       },
     };
   }
@@ -579,41 +615,37 @@ export class AccessRepository {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    const { permissions: { canRead, canWrite, canAdmin } } = accessConfig;
+    const {
+      permissions: { canRead, canWrite, canAdmin },
+    } = accessConfig;
 
     /** make sure creatorId exist */
     let query = `element as var(func: eq(xid, "${elementId}"))`;
     let nquads = `\nuid(element) <delegate> ${accessConfig.delegate} .
                   \nuid(element) <finDelegatedTo> ${accessConfig.finDelegatedTo} .
                   \nuid(element) <canRead> ${accessConfig.delegate} .`;
-    
-    canRead?.map(did => {
-      const creatorSegment = this.userRepo.upsertQueries(
-        did
-      );
+
+    canRead?.map((did) => {
+      const creatorSegment = this.userRepo.upsertQueries(did);
       query = query.concat(creatorSegment.query);
       nquads = nquads.concat(creatorSegment.nquads);
       nquads = nquads.concat(`\nuid(element) <canRead> uid(profile${did}) .`);
     });
 
-    canWrite?.map(did => {
-      const creatorSegment = this.userRepo.upsertQueries(
-        did
-      );
+    canWrite?.map((did) => {
+      const creatorSegment = this.userRepo.upsertQueries(did);
       query = query.concat(creatorSegment.query);
       nquads = nquads.concat(creatorSegment.nquads);
       nquads = nquads.concat(`\nuid(element) <canWrite> uid(profile${did}) .`);
     });
 
-    canAdmin?.map(did => {
-      const creatorSegment = this.userRepo.upsertQueries(
-        did
-      );
+    canAdmin?.map((did) => {
+      const creatorSegment = this.userRepo.upsertQueries(did);
       query = query.concat(creatorSegment.query);
       nquads = nquads.concat(creatorSegment.nquads);
       nquads = nquads.concat(`\nuid(element) <canAdmin> uid(profile${did}) .`);
     });
-        
+
     req.setQuery(`query{${query}}`);
     mu.setSetNquads(nquads);
     req.setMutationsList([mu]);

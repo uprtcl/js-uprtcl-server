@@ -1,5 +1,9 @@
 import { Request, Response } from 'express';
-import { PerspectiveGetResult, ParentAndChild, SearchResult } from '@uprtcl/evees';
+import {
+  PerspectiveGetResult,
+  ParentAndChild,
+  SearchResult,
+} from '@uprtcl/evees';
 
 import { UprtclService } from './uprtcl.service';
 import { checkJwt } from '../../middleware/jwtCheck';
@@ -60,6 +64,37 @@ export class UprtclController {
               let result: PostResult = {
                 result: SUCCESS,
                 message: 'perspective head updated',
+                elementIds: [],
+              };
+              res.status(200).send(result);
+            } catch (error) {
+              console.error(error);
+              let result: PostResult = {
+                result: ERROR,
+                message: error.message,
+                elementIds: [],
+              };
+              res.status(400).send(result);
+            }
+          },
+        ],
+      },
+
+      {
+        path: '/uprtcl/1/persp/delete',
+        method: 'put',
+        handler: [
+          checkJwt,
+          async (req: Request, res: Response) => {
+            try {
+              await this.uprtclService.deletePerspective(
+                req.body.perspectiveIds,
+                getUserFromReq(req)
+              );
+
+              let result: PostResult = {
+                result: SUCCESS,
+                message: 'perspective deleted',
                 elementIds: [],
               };
               res.status(200).send(result);
@@ -145,37 +180,6 @@ export class UprtclController {
                 result: SUCCESS,
                 message: 'perspectives located',
                 data: perspectives,
-              };
-              res.status(200).send(result);
-            } catch (error) {
-              console.error(error);
-              let result: PostResult = {
-                result: ERROR,
-                message: error.message,
-                elementIds: [],
-              };
-              res.status(400).send(result);
-            }
-          },
-        ],
-      },
-
-      {
-        path: '/uprtcl/1/persp/:perspectiveId',
-        method: 'delete',
-        handler: [
-          checkJwt,
-          async (req: Request, res: Response) => {
-            try {
-              await this.uprtclService.deletePerspective(
-                req.params.perspectiveId,
-                getUserFromReq(req)
-              );
-
-              let result: PostResult = {
-                result: SUCCESS,
-                message: 'perspective deleted',
-                elementIds: [],
               };
               res.status(200).send(result);
             } catch (error) {
@@ -296,7 +300,7 @@ export class UprtclController {
             }
           },
         ],
-      }
+      },
     ];
   }
 }
