@@ -24,8 +24,7 @@ import {
 } from './proposals.testsupport';
 
 import {
-  createPerspective,
-  createCommitAndData,
+  createPerspectives,
   updatePerspective,
   getPerspective,
   getPerspectiveDetails,
@@ -49,300 +48,300 @@ describe('Testing proposals controller, service and repo', () => {
   let proposal2Uid: string = '';
   let proposal3Uid: string = '';
 
-  /**
-   * CRUD create
-   */
+  // /**
+  //  * CRUD create
+  //  */
 
-  it('should create a proposal', async () => {
-    user1 = await createUser('seed1');
-    user2 = await createUser('seed2');
+  // it('should create a proposal', async () => {
+  //   user1 = await createUser('seed1');
+  //   user2 = await createUser('seed2');
 
-    commit1Id = await createCommitAndData('text 123456', false, user1.jwt);
-    toPerspectiveId = await createPerspective(
-      user1.userId,
-      846851,
-      'context',
-      user1.jwt,
-      commit1Id
-    );
+  //   commit1Id = await createCommitAndData('text 123456', false, user1.jwt);
+  //   toPerspectiveId = await createPerspective(
+  //     user1.userId,
+  //     846851,
+  //     'context',
+  //     user1.jwt,
+  //     commit1Id
+  //   );
 
-    commit2Id = await createCommitAndData('text 12345', false, user1.jwt);
-    fromPerspectiveId = await createPerspective(
-      user1.userId,
-      118948,
-      'context',
-      user1.jwt,
-      commit2Id
-    );
+  //   commit2Id = await createCommitAndData('text 12345', false, user1.jwt);
+  //   fromPerspectiveId = await createPerspective(
+  //     user1.userId,
+  //     118948,
+  //     'context',
+  //     user1.jwt,
+  //     commit2Id
+  //   );
 
-    const newPersp1 = await getPerspective(toPerspectiveId, user1.jwt);
-    const newPersp1Details = await getPerspectiveDetails(
-      toPerspectiveId,
-      user1.jwt
-    );
-    const newPersp1Obj: NewPerspective = {
-      perspective: newPersp1.data,
-      update: {
-        perspectiveId: newPersp1.data.id,
-        details: newPersp1Details.data,
-      },
-    };
+  //   const newPersp1 = await getPerspective(toPerspectiveId, user1.jwt);
+  //   const newPersp1Details = await getPerspectiveDetails(
+  //     toPerspectiveId,
+  //     user1.jwt
+  //   );
+  //   const newPersp1Obj: NewPerspective = {
+  //     perspective: newPersp1.data,
+  //     update: {
+  //       perspectiveId: newPersp1.data.id,
+  //       details: newPersp1Details.data,
+  //     },
+  //   };
 
-    const newPersp2 = await getPerspective(fromPerspectiveId, user1.jwt);
-    const newPersp2Details = await getPerspectiveDetails(
-      fromPerspectiveId,
-      user1.jwt
-    );
-    const newPersp2Obj: NewPerspective = {
-      perspective: newPersp2.data,
-      update: {
-        perspectiveId: newPersp2.data.id,
-        details: newPersp2Details.data,
-      },
-    };
+  //   const newPersp2 = await getPerspective(fromPerspectiveId, user1.jwt);
+  //   const newPersp2Details = await getPerspectiveDetails(
+  //     fromPerspectiveId,
+  //     user1.jwt
+  //   );
+  //   const newPersp2Obj: NewPerspective = {
+  //     perspective: newPersp2.data,
+  //     update: {
+  //       perspectiveId: newPersp2.data.id,
+  //       details: newPersp2Details.data,
+  //     },
+  //   };
 
-    const proposal = await createProposal(
-      fromPerspectiveId,
-      toPerspectiveId,
-      commit2Id,
-      commit1Id,
-      [],
-      [newPersp1Obj, newPersp2Obj],
-      user2.jwt
-    );
+  //   const proposal = await createProposal(
+  //     fromPerspectiveId,
+  //     toPerspectiveId,
+  //     commit2Id,
+  //     commit1Id,
+  //     [],
+  //     [newPersp1Obj, newPersp2Obj],
+  //     user2.jwt
+  //   );
 
-    const { result, elementIds } = JSON.parse(proposal);
-    proposalUid = elementIds[0];
+  //   const { result, elementIds } = JSON.parse(proposal);
+  //   proposalUid = elementIds[0];
 
-    expect(result).toEqual(SUCCESS);
-  });
+  //   expect(result).toEqual(SUCCESS);
+  // });
 
-  /**
-   * CRUD read
-   */
+  // /**
+  //  * CRUD read
+  //  */
 
-  it('should get a proposal', async () => {
-    const proposal = await getProposal(proposalUid, user1.jwt);
+  // it('should get a proposal', async () => {
+  //   const proposal = await getProposal(proposalUid, user1.jwt);
 
-    expect(proposal.result).toEqual(SUCCESS);
-  });
+  //   expect(proposal.result).toEqual(SUCCESS);
+  // });
 
-  it('should return not found for non-existent proposalId', async () => {
-    const proposal = await getProposal('randomId', user1.jwt);
-    const { result, data } = proposal;
+  // it('should return not found for non-existent proposalId', async () => {
+  //   const proposal = await getProposal('randomId', user1.jwt);
+  //   const { result, data } = proposal;
 
-    expect(result).toEqual(ERROR);
-    expect(data).toBeNull();
-  });
+  //   expect(result).toEqual(ERROR);
+  //   expect(data).toBeNull();
+  // });
 
-  /**
-   * CRUD update
-   */
+  // /**
+  //  * CRUD update
+  //  */
 
-  it('should add updates to the proposal', async () => {
-    //Commit a new change to the fromPerspective
+  // it('should add updates to the proposal', async () => {
+  //   //Commit a new change to the fromPerspective
 
-    commit3Id = await createCommitAndData('text 4745729', false, user1.jwt);
+  //   commit3Id = await createCommitAndData('text 4745729', false, user1.jwt);
 
-    // Update perspective to the new change
+  //   // Update perspective to the new change
 
-    await updatePerspective(
-      user1.jwt,
-      fromPerspectiveId,
-      { headId: commit3Id }
-    );
+  //   await updatePerspective(
+  //     user1.jwt,
+  //     fromPerspectiveId,
+  //     { headId: commit3Id }
+  //   );
 
-    // Commit a new change to the toPerspective
+  //   // Commit a new change to the toPerspective
 
-    const commit4Id = await createCommitAndData(
-      'text 658484',
-      false,
-      user1.jwt
-    );
+  //   const commit4Id = await createCommitAndData(
+  //     'text 658484',
+  //     false,
+  //     user1.jwt
+  //   );
 
-    // Update perspective to the new change
+  //   // Update perspective to the new change
 
-    await updatePerspective(user1.jwt, toPerspectiveId, { headId: commit4Id });
+  //   await updatePerspective(user1.jwt, toPerspectiveId, { headId: commit4Id });
 
-    // Create a third perspective
-    const commit5Id = await createCommitAndData(
-      'text 999999',
-      false,
-      user1.jwt
-    );
-    thirdPerspectiveId = await createPerspective(
-      user1.userId,
-      79878,
-      'context',
-      user1.jwt,
-      commit5Id
-    );
+  //   // Create a third perspective
+  //   const commit5Id = await createCommitAndData(
+  //     'text 999999',
+  //     false,
+  //     user1.jwt
+  //   );
+  //   thirdPerspectiveId = await createPerspective(
+  //     user1.userId,
+  //     79878,
+  //     'context',
+  //     user1.jwt,
+  //     commit5Id
+  //   );
 
-    // Create update requests
+  //   // Create update requests
 
-    const update1 = await createUpdateRequest(
-      fromPerspectiveId,
-      fromPerspectiveId,
-      commit2Id,
-      commit3Id
-    );
-    const update2 = await createUpdateRequest(
-      fromPerspectiveId,
-      toPerspectiveId,
-      commit1Id,
-      commit4Id
-    );
-    const update3 = await createUpdateRequest(
-      fromPerspectiveId,
-      thirdPerspectiveId,
-      '',
-      commit5Id
-    );
+  //   const update1 = await createUpdateRequest(
+  //     fromPerspectiveId,
+  //     fromPerspectiveId,
+  //     commit2Id,
+  //     commit3Id
+  //   );
+  //   const update2 = await createUpdateRequest(
+  //     fromPerspectiveId,
+  //     toPerspectiveId,
+  //     commit1Id,
+  //     commit4Id
+  //   );
+  //   const update3 = await createUpdateRequest(
+  //     fromPerspectiveId,
+  //     thirdPerspectiveId,
+  //     '',
+  //     commit5Id
+  //   );
 
-    const updates = await addUpdatesToProposal(
-      [update1, update2, update3],
-      proposalUid,
-      user2.jwt
-    );
-    expect(updates.result).toEqual(SUCCESS);
-  });
+  //   const updates = await addUpdatesToProposal(
+  //     [update1, update2, update3],
+  //     proposalUid,
+  //     user2.jwt
+  //   );
+  //   expect(updates.result).toEqual(SUCCESS);
+  // });
 
-  // Test the decline of a proposal
+  // // Test the decline of a proposal
 
-  it('should decline a proposal', async () => {
-    const declinedProposal = await declineProposal(proposalUid, user2.jwt);
-    expect(declinedProposal.result).toEqual(SUCCESS);
-  });
+  // it('should decline a proposal', async () => {
+  //   const declinedProposal = await declineProposal(proposalUid, user2.jwt);
+  //   expect(declinedProposal.result).toEqual(SUCCESS);
+  // });
 
-  it('should throw error if not authorized to decline', async () => {
-    const declinedProposal = await declineProposal(proposalUid, user1.jwt);
-    expect(declinedProposal.result).toEqual(ERROR);
-  });
+  // it('should throw error if not authorized to decline', async () => {
+  //   const declinedProposal = await declineProposal(proposalUid, user1.jwt);
+  //   expect(declinedProposal.result).toEqual(ERROR);
+  // });
 
-  it('should throw error if duplicated decline action is performed', async () => {
-    const declinedProposal = await declineProposal(proposalUid, user2.jwt);
-    expect(declinedProposal.result).toEqual(ERROR);
-  });
+  // it('should throw error if duplicated decline action is performed', async () => {
+  //   const declinedProposal = await declineProposal(proposalUid, user2.jwt);
+  //   expect(declinedProposal.result).toEqual(ERROR);
+  // });
 
-  it('DECLINE: should throw error if proposal not found', async () => {
-    const randomUid = '0x546464';
-    const declinedProposal = await declineProposal(randomUid, user2.jwt);
-    expect(declinedProposal.result).toEqual(ERROR);
-  });
+  // it('DECLINE: should throw error if proposal not found', async () => {
+  //   const randomUid = '0x546464';
+  //   const declinedProposal = await declineProposal(randomUid, user2.jwt);
+  //   expect(declinedProposal.result).toEqual(ERROR);
+  // });
 
-  // // Test a proposal rejection
+  // // // Test a proposal rejection
 
-  it('should not allow to make a reject operation to non open proposals', async () => {
-    // User1 is the owner of the perspectives
+  // it('should not allow to make a reject operation to non open proposals', async () => {
+  //   // User1 is the owner of the perspectives
 
-    const rejectedProposal = await rejectProposal(proposalUid, user1.jwt);
-    expect(rejectedProposal.result).toEqual(ERROR);
-  });
+  //   const rejectedProposal = await rejectProposal(proposalUid, user1.jwt);
+  //   expect(rejectedProposal.result).toEqual(ERROR);
+  // });
 
-  it('should not allow to reject a proposal with no permissions', async () => {
-    // User2 created the proposal
+  // it('should not allow to reject a proposal with no permissions', async () => {
+  //   // User2 created the proposal
 
-    const rejectedProposal = await rejectProposal(proposalUid, user2.jwt);
-    expect(rejectedProposal.result).toEqual(ERROR);
-  });
+  //   const rejectedProposal = await rejectProposal(proposalUid, user2.jwt);
+  //   expect(rejectedProposal.result).toEqual(ERROR);
+  // });
 
-  it('should unauthorized a proposal with no updates', async () => {
-    commit5Id = await createCommitAndData('epic text 555', false, user1.jwt);
-    const commit6Id = await createCommitAndData(
-      'epic text 666',
-      false,
-      user2.jwt
-    );
+  // it('should unauthorized a proposal with no updates', async () => {
+  //   commit5Id = await createCommitAndData('epic text 555', false, user1.jwt);
+  //   const commit6Id = await createCommitAndData(
+  //     'epic text 666',
+  //     false,
+  //     user2.jwt
+  //   );
 
-    const proposal = await createProposal(
-      thirdPerspectiveId, // fromPerspective
-      fromPerspectiveId, // new toPerspective
-      commit6Id,
-      commit5Id,
-      [],
-      [],
-      user2.jwt
-    );
+  //   const proposal = await createProposal(
+  //     thirdPerspectiveId, // fromPerspective
+  //     fromPerspectiveId, // new toPerspective
+  //     commit6Id,
+  //     commit5Id,
+  //     [],
+  //     [],
+  //     user2.jwt
+  //   );
 
-    const { elementIds } = JSON.parse(proposal);
-    proposal2Uid = elementIds[0];
+  //   const { elementIds } = JSON.parse(proposal);
+  //   proposal2Uid = elementIds[0];
 
-    const rejectedProposal = await rejectProposal(proposal2Uid, user1.jwt);
-    expect(rejectedProposal.result).toEqual(ERROR);
-  });
+  //   const rejectedProposal = await rejectProposal(proposal2Uid, user1.jwt);
+  //   expect(rejectedProposal.result).toEqual(ERROR);
+  // });
 
-  it('should throw error if permissions are not enough to reject a proposal', async () => {
-    //Commit a new change to the fromPerspective
+  // it('should throw error if permissions are not enough to reject a proposal', async () => {
+  //   //Commit a new change to the fromPerspective
 
-    const commit7Id = await createCommitAndData('text 777', false, user1.jwt);
+  //   const commit7Id = await createCommitAndData('text 777', false, user1.jwt);
 
-    // Update perspective to the new change
+  //   // Update perspective to the new change
 
-    await updatePerspective(
-      user1.jwt,
-      fromPerspectiveId,
-      { headId: commit7Id }
-    );
+  //   await updatePerspective(
+  //     user1.jwt,
+  //     fromPerspectiveId,
+  //     { headId: commit7Id }
+  //   );
 
-    // Commit a new change to the toPerspective
+  //   // Commit a new change to the toPerspective
 
-    const commit8Id = await createCommitAndData('text 888', false, user1.jwt);
+  //   const commit8Id = await createCommitAndData('text 888', false, user1.jwt);
 
-    // Update perspective to the new change
+  //   // Update perspective to the new change
 
-    await updatePerspective(
-      user1.jwt,
-      thirdPerspectiveId,
-      { headId: commit8Id }
-    );
+  //   await updatePerspective(
+  //     user1.jwt,
+  //     thirdPerspectiveId,
+  //     { headId: commit8Id }
+  //   );
 
-    // Create a fourth perspective
+  //   // Create a fourth perspective
 
-    const commit9Id = await createCommitAndData('text 999', false, user2.jwt);
-    const fourthPerspectiveId = await createPerspective(
-      user2.userId,
-      999,
-      'context',
-      user2.jwt,
-      commit9Id
-    );
+  //   const commit9Id = await createCommitAndData('text 999', false, user2.jwt);
+  //   const fourthPerspectiveId = await createPerspective(
+  //     user2.userId,
+  //     999,
+  //     'context',
+  //     user2.jwt,
+  //     commit9Id
+  //   );
 
-    const update1 = await createUpdateRequest(
-      thirdPerspectiveId,
-      fromPerspectiveId,
-      commit3Id,
-      commit7Id
-    );
-    const update2 = await createUpdateRequest(
-      thirdPerspectiveId,
-      thirdPerspectiveId,
-      commit5Id,
-      commit8Id
-    );
-    const update3 = await createUpdateRequest(
-      thirdPerspectiveId,
-      fourthPerspectiveId,
-      '',
-      commit9Id
-    );
+  //   const update1 = await createUpdateRequest(
+  //     thirdPerspectiveId,
+  //     fromPerspectiveId,
+  //     commit3Id,
+  //     commit7Id
+  //   );
+  //   const update2 = await createUpdateRequest(
+  //     thirdPerspectiveId,
+  //     thirdPerspectiveId,
+  //     commit5Id,
+  //     commit8Id
+  //   );
+  //   const update3 = await createUpdateRequest(
+  //     thirdPerspectiveId,
+  //     fourthPerspectiveId,
+  //     '',
+  //     commit9Id
+  //   );
 
-    const updates = await addUpdatesToProposal(
-      [update1, update2, update3],
-      proposal2Uid,
-      user2.jwt
-    );
+  //   const updates = await addUpdatesToProposal(
+  //     [update1, update2, update3],
+  //     proposal2Uid,
+  //     user2.jwt
+  //   );
 
-    await addPermission(
-      thirdPerspectiveId,
-      user2.userId,
-      PermissionType.Admin,
-      user1.jwt
-    );
+  //   await addPermission(
+  //     thirdPerspectiveId,
+  //     user2.userId,
+  //     PermissionType.Admin,
+  //     user1.jwt
+  //   );
 
-    // Use the new created proposal
-    const rejectedProposal = await rejectProposal(proposal2Uid, user2.jwt);
-    expect(rejectedProposal.result).toEqual(ERROR);
-  });
+  //   // Use the new created proposal
+  //   const rejectedProposal = await rejectProposal(proposal2Uid, user2.jwt);
+  //   expect(rejectedProposal.result).toEqual(ERROR);
+  // });
 
   it('should reject a proposal', async () => {
     await addPermission(

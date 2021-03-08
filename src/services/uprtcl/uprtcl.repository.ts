@@ -1107,7 +1107,11 @@ export class UprtclRepository {
           break;
 
         case StartCase.searchText:
-          startQuery = `filtered as search(func: anyoftext(text, "${searchText}"))`;
+          if (textLevels === -1) {
+            startQuery = `filtered as search(func: anyoftext(text, "${searchText}"))`;
+          } else {
+            startQuery = `filtered as search(func: anyoftext(text, "${searchText}"))`;
+          }
           break;
 
         case StartCase.under:
