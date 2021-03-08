@@ -516,7 +516,11 @@ export class UprtclRepository {
         nquads = nquads.concat(`\nuid(persp${id}) <head> uid(headOf${id}) .`);
 
         if (text)
-          nquads = nquads.concat(`\nuid(persp${id}) <text> "${text}" .`);
+          nquads = nquads.concat(
+            `\nuid(persp${id}) <text> "${text
+              .toString()
+              .replace(/"/g, '\\"')}" .`
+          );
 
         // The linksTo edges are generic links from this perspective to any another perspective.
         // Once created, they can be used by the searchEngine to query the all perspectives that
