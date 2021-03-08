@@ -8,7 +8,7 @@ import {
   GetPerspectiveOptions,
   ParentAndChild,
   SearchOptions,
-  SearchResult
+  SearchResult,
 } from '@uprtcl/evees';
 
 import { PermissionType } from './types';
@@ -73,31 +73,38 @@ export class UprtclService {
      * What about the access control? We might need to find a way to check
      * if the user can write a perspective, we used to call access.can(id, userId, permisstions)
      */
-    if(loggedUserId === null)
+    if (loggedUserId === null)
       throw new Error('Anonymous user. Cant update a perspective');
 
-    const canUpdate = await this.access.canUpdate(updates, loggedUserId);
+    const canUpdate = await this.access.canAll(
+      updates.map((u) => u.perspectiveId),
+      loggedUserId,
+      PermissionType.Write
+    );
 
-    if(!canUpdate)
+    if (!canUpdate)
       throw new Error('Anonymous user. Cant update a perspective');
 
     await this.uprtclRepo.updatePerspectives(updates);
   }
 
   async deletePerspective(
-    perspectiveId: string,
+    perspectiveIds: string[],
     loggedUserId: string | null
   ): Promise<void> {
-    console.log('[UPRTCL-SERVICE] deletePerspective', { perspectiveId });
+    console.log('[UPRTCL-SERVICE] deletePerspective', { perspectiveIds });
+    if (loggedUserId === null)
+      throw new Error('Anonymous user. Cant delete a perspective');
     if (
-      !(await this.access.can(
-        perspectiveId,
+      !(await this.access.canAll(
+        perspectiveIds,
         loggedUserId,
         PermissionType.Admin
       ))
     )
       throw new Error(NOT_AUTHORIZED_MSG);
-    await this.uprtclRepo.setDeletedPerspective(perspectiveId, true);
+
+    await this.uprtclRepo.setDeletedPerspectives(perspectiveIds, true);
   }
 
   async getPerspective(
