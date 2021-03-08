@@ -81,7 +81,7 @@ export class UprtclController {
       },
 
       {
-        path: '/uprtcl/1/persp/delete',
+        path: '/uprtcl/1/deletePersp',
         method: 'put',
         handler: [
           checkJwt,
