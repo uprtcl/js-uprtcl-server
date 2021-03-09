@@ -194,14 +194,15 @@ export class AccessService {
     return this.accessRepo.can(permissionsElement, userId, type);
   }
 
-  async canUpdate(
-    updates: Update[],
-    loggedUserId: string
+  async canAll(
+    perspectiveIds: string[],
+    loggedUserId: string,
+    type: PermissionType
   ): Promise<boolean> {
-    if(loggedUserId === null)
+    if (loggedUserId === null)
       throw new Error('Anonymous user. Cant update a perspective');
-    
-    return await this.accessRepo.canUpdate(updates, loggedUserId);
+
+    return await this.accessRepo.canAll(perspectiveIds, loggedUserId, type);
   }
 
   async setPublic(

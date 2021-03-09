@@ -115,8 +115,6 @@ const assemblePerspective = (dperspective: DgPerspective) => {
   if (!dperspective) throw new Error(`Perspective not found`);
   if (!dperspective.stored)
     throw new Error(`Perspective with id ${dperspective.xid} not stored`);
-  if (dperspective.deleted)
-    throw new Error(`Perspective with id ${dperspective.xid} deleted`);
 
   const perspective: Perspective = {
     remote: dperspective.remote,
@@ -518,7 +516,11 @@ export class UprtclRepository {
         nquads = nquads.concat(`\nuid(persp${id}) <head> uid(headOf${id}) .`);
 
         if (text)
-          nquads = nquads.concat(`\nuid(persp${id}) <text> "${text}" .`);
+          nquads = nquads.concat(
+            `\nuid(persp${id}) <text> "${text
+              .toString()
+              .replace(/"/g, '\\"')}" .`
+          );
 
         // The linksTo edges are generic links from this perspective to any another perspective.
         // Once created, they can be used by the searchEngine to query the all perspectives that
@@ -822,31 +824,47 @@ export class UprtclRepository {
       : [];
   }
 
-  async setDeletedPerspective(
-    perspectiveId: string,
+  setDeletedUpsert(perspectiveId: string, value: boolean, upsert: Upsert) {
+    upsert.query = upsert.query.concat(
+      `\nperspective as var(func: eq(xid, "${perspectiveId}"))`
+    );
+
+    upsert.nquads = upsert.nquads.concat(
+      `\nuid(perspective) <xid> "${perspectiveId}" .`
+    );
+    upsert.nquads = upsert.nquads.concat(
+      `\nuid(perspective) <deleted> "${value ? 'true' : 'false'}" .`
+    );
+  }
+
+  async setDeletedPerspectives(
+    perspectiveIds: string[],
     deleted: boolean
   ): Promise<void> {
     await this.db.ready();
 
     /**  */
+
+    let upsert: Upsert = {
+      query: ``,
+      nquads: ``,
+    };
+
+    for (let i = 0; i < perspectiveIds.length; i++) {
+      this.setDeletedUpsert(perspectiveIds[i], deleted, upsert);
+    }
+
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    let query = `perspective as var(func: eq(xid, "${perspectiveId}"))`;
-    req.setQuery(`query{${query}}`);
-
-    let nquads = '';
-    nquads = nquads.concat(`\nuid(perspective) <xid> "${perspectiveId}" .`);
-    nquads = nquads.concat(`\nuid(perspective) <deleted> "${deleted}" .`);
-
-    mu.setSetNquads(nquads);
+    req.setQuery(`query{${upsert.query}}`);
+    mu.setSetNquads(upsert.nquads);
     req.setMutationsList([mu]);
 
     let result = await this.db.callRequest(req);
     console.log(
       '[DGRAPH] deletePerspective',
-      { query },
-      { nquads },
+      { upsert },
       result.getUidsMap().toArray()
     );
   }
@@ -1024,44 +1042,6 @@ export class UprtclRepository {
       );
     }
 
-    /** The query uses ecosystem if levels === -1 and get the head and data json objects if entities === true */
-    const elementQuery = `
-      xid
-      context {
-        name
-      }
-      remote
-      path
-      creator {
-        did
-      }
-      timextamp
-      stored
-      deleted
-      head {
-        xid
-        data {
-          xid
-          ${entities ? `jsonString` : ''}
-        }
-        ${entities ? COMMIT_PROPERTIES : ''}
-      }
-      delegate
-      delegateTo {
-        xid
-      }
-      finDelegatedTo {
-        canWrite @filter(eq(did, "${loggedUserId}")) {
-          count(uid)
-        }
-        canRead @filter(eq(did, "${loggedUserId}")) {
-          count(uid)
-        }
-        publicWrite
-        publicRead
-      }
-    `;
-
     /**
      * We build the function depending on how the method is implemented.
      * For searching or for grabbing an specific perspective.
@@ -1176,14 +1156,15 @@ export class UprtclRepository {
 
     if (searchOptions) {
       const DgraphACL = `
-        private as aclPriv(func: uid(filtered)) @cascade {
+        private as aclPriv(func: uid(filtered)) @filter(eq(deleted, false)) @cascade {
           finDelegatedTo {
             canRead @filter(eq(did, "${loggedUserId}"))
           }
         }
-        public as aclPub(func: uid(filtered)) @cascade {
+        public as aclPub(func: uid(filtered)) @filter(eq(deleted, false)) @cascade {
           finDelegatedTo @filter(eq(publicRead, true))
-        }`;
+        }
+        `;
 
       query = query.concat(DgraphACL);
     }
@@ -1204,6 +1185,44 @@ export class UprtclRepository {
      * Order by subnode has been clarified here:
      * https://discuss.dgraph.io/t/sort-query-results-by-any-edge-property/12989
      */
+
+    /** The query uses ecosystem if levels === -1 and get the head and data json objects if entities === true */
+    const elementQuery = `
+      xid
+      context {
+        name
+      }
+      remote
+      path
+      creator {
+        did
+      }
+      timextamp
+      stored
+      deleted
+      head {
+        xid
+        data {
+          xid
+          ${entities ? `jsonString` : ''}
+        }
+        ${entities ? COMMIT_PROPERTIES : ''}
+      }
+      delegate
+      delegateTo {
+        xid
+      }
+      finDelegatedTo {
+        canWrite @filter(eq(did, "${loggedUserId}")) {
+          count(uid)
+        }
+        canRead @filter(eq(did, "${loggedUserId}")) {
+          count(uid)
+        }
+        publicWrite
+        publicRead
+      }
+    `;
 
     query = query.concat(
       `\nelements as var(func: uid(filtered)) {
@@ -1252,7 +1271,7 @@ export class UprtclRepository {
             : true;
 
           const elementDetails = {
-            headId: canRead ? element.head.xid : undefined,
+            headId: canRead && !element.deleted ? element.head.xid : undefined,
             guardianId: element.delegate ? element.delegateTo.xid : undefined,
             canUpdate: !element.finDelegatedTo.publicWrite
               ? element.finDelegatedTo.canWrite
