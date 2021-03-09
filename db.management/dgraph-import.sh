@@ -4,13 +4,13 @@
 
 name=$1
 
-echo Getting docker containers $'\n\n'
+echo Getting docker containers
 
 DOCKER_CNT=$(docker ps --format "{{.Names}}")
 ALPHA=""
 ZERO=""
 
-echo Docker services running: $DOCKER_CNT 
+echo Docker containers $DOCKER_CNT
 
 # Looks for the alpha name
 for value in $DOCKER_CNT
@@ -23,19 +23,8 @@ do
     fi
 done
 
-
-echo inspecting: $ALPHA 
-echo inspecting: $ZERO 
-
-if (($ALPHA == "")); then
-  printf '%s\n' "Alpha not found" >&2  # write error message to stderr
-  exit 1                                
-fi
-
-if (($ZERO == "")); then
-  printf '%s\n' "Zero not found" >&2  # write error message to stderr
-  exit 1                                
-fi
+echo Alpha container $ALPHA
+echo ZERO container $ZERO
 
 # Gets container ID of the alpha
 ALPHA_ID=$(docker inspect --format="{{.Id}}" $ALPHA)
@@ -52,8 +41,6 @@ IFS='/'
 read -a strarr <<< "$LATEST"
 LATEST=${strarr[0]}
 
-echo backing up: s3://$DGRAPH_DB_S3_BACKUP/$LATEST
-
 aws s3 sync s3://$DGRAPH_DB_S3_BACKUP/$LATEST ~/dgraph/backup
 
 echo Adding backup to docker container . . . $'\n\n'
@@ -62,7 +49,7 @@ docker cp ~/dgraph/backup $ZERO_ID:/dgraph/export
 
 # Step 3: Execute bulk
 BACKUP_FOLDER=$(ls backup)
-rm -rf ~/dgraph/backup
+# rm -rf ~/dgraph/backup
 
 echo Executing bulk load . . . ðŸ¤ž ðŸ™ $'\n\n'
 
