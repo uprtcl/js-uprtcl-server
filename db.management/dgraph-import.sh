@@ -41,19 +41,19 @@ IFS='/'
 read -a strarr <<< "$LATEST"
 LATEST=${strarr[0]}
 
-aws s3 sync s3://$DGRAPH_DB_S3_BACKUP/$LATEST ~/dgraph/backup
+aws s3 sync s3://$DGRAPH_DB_S3_BACKUP/$LATEST ~/db/backup
 
 echo Adding backup to docker container . . . $'\n\n'
 
-docker cp ~/dgraph/backup $ZERO_ID:/dgraph/export
+docker cp ~/db/backup $ZERO_ID:/dgraph/export
 
 # Step 3: Execute bulk
-BACKUP_FOLDER=$(ls backup)
-# rm -rf ~/dgraph/backup
+BACKUP_FOLDER=$(ls ~/db/backup)
+rm -rf ~/db/backup
 
 echo Executing bulk load . . . ðŸ¤ž ðŸ™ $'\n\n'
 
-docker exec -t $ZERO_ID dgraph bulk -f /dgraph/export/$BACKUP_FOLDER/g01.rdf.gz -s /dgraph/export/$BA$
+docker exec -t $ZERO_ID dgraph bulk -f /dgraph/export/$BACKUP_FOLDER/g01.rdf.gz -s /dgraph/export/$BACKUP_FOLDER/g01.schema.gz
 
 # Step 4: Remove P directory from zero
 
