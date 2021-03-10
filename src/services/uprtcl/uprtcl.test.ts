@@ -32,8 +32,24 @@ import {
   createFlatScenario,
 } from '../uprtcl/uprtcl.mock.helper';
 import { PermissionType } from '../uprtcl/types';
-import { NewPerspective } from '@uprtcl/evees';
+import {
+  EveesContentModule,
+  NewPerspective,
+  eveesConstructorHelper,
+  AppElement,
+  AppElements,
+} from '@uprtcl/evees';
+import { HttpSupertest } from '@uprtcl/http-provider';
+import { EveesHttp, HttpStore } from '@uprtcl/evees-http';
+import { DocumentsModule, TextType, TextNode } from '@uprtcl/documents';
 import { head } from 'request-promise';
+
+const httpCidConfig: any = {
+  version: 1,
+  type: 'sha3-256',
+  codec: 'raw',
+  base: 'base58btc',
+};
 
 describe('routes', () => {
   // expect.extend({ toBeValidCid });
@@ -583,70 +599,129 @@ describe('routes', () => {
   //   expect(independentPerspectivesEco[0]).toEqual(LC);
   //   done();
   // });
-  test('batch create', async (done) => {
+  test.only('batch create', async (done) => {
     // Emulate the user
     const user = await createUser('seed1');
-    const homeSpace = await createHomeSpace(user);
+    // /const homeSpace = await createHomeSpace(user);
 
-    // Create scenario A
-
-    // Head 1
-    const head1 = await newTitle(
-      'Head 1',
-      homeSpace.private.perspective.id,
+    const httpConnection = await new HttpSupertest(
+      process.env.HOST as string,
       user
     );
 
-    await addNewElementToPerspective(
-      homeSpace.private.perspective.id,
-      head1.perspective.id,
-      user
-    );
+    const httpStore = new HttpStore(httpConnection, httpCidConfig);
+    const httpEvees = new EveesHttp(httpConnection, httpStore.casID);
 
-    // Head 2
-    const head2 = await newTitle('Head 2', head1.perspective.id, user);
+    const remotes = [httpEvees];
+    const modules = new Map<string, EveesContentModule>();
+    modules.set(DocumentsModule.id, new DocumentsModule());
 
-    await addNewElementToPerspective(
-      head1.perspective.id,
-      head2.perspective.id,
-      user
-    );
+    const evees = eveesConstructorHelper(remotes, [httpStore], modules);
 
-    // Head 3
-    const head3 = await newTitle('Head 3', head2.perspective.id, user);
+    // const appElementsInit: AppElement = {
+    //   path: '/',
+    //   getInitData: (children: AppElement[]): TextNode => {
+    //     return { links: children.map((child) => child.perspective.id) };
+    //   },
+    //   children: [
+    //     {
+    //       path: '/privateSection',
+    //       getInitData: (children: AppElement[]) => {
+    //         return {
+    //           text: 'Private',
+    //           type: TextType.Title,
+    //           links: children.map((child) => child.perspective.id),
+    //         };
+    //       },
+    //       children: [
+    //         {
+    //           path: '/firstPage',
+    //           optional: true,
+    //           getInitData: () => {
+    //             return {
+    //               text: '',
+    //               type: TextType.Title,
+    //               links: [],
+    //             };
+    //           },
+    //         },
+    //       ],
+    //     },
+    //     {
+    //       path: '/blogSection',
+    //       getInitData: () => {
+    //         return {
+    //           text: 'Blog',
+    //           type: TextType.Title,
+    //           links: [],
+    //         };
+    //       },
+    //     },
+    //   ],
+    // };
 
-    await addNewElementToPerspective(
-      head2.perspective.id,
-      head3.perspective.id,
-      user
-    );
+    // const elements = new AppElements(evees, appElementsInit);
+    // await elements.check();
 
-    // Head 4
-    const head4 = await newTitle('Head 4', head3.perspective.id, user);
+    // // Create scenario A
 
-    await addNewElementToPerspective(
-      head3.perspective.id,
-      head4.perspective.id,
-      user
-    );
+    // // Head 1
+    // const head1 = await newTitle(
+    //   'Head 1',
+    //   homeSpace.private.perspective.id,
+    //   user
+    // );
 
-    // Head 5
-    const head5 = await newTitle('Head 5', head4.perspective.id, user);
+    // await addNewElementToPerspective(
+    //   homeSpace.private.perspective.id,
+    //   head1.perspective.id,
+    //   user
+    // );
 
-    await addNewElementToPerspective(
-      head4.perspective.id,
-      head5.perspective.id,
-      user
-    );
+    // // Head 2
+    // const head2 = await newTitle('Head 2', head1.perspective.id, user);
 
-    // Head 6
-    const head6 = await newTitle('Head 6', head5.perspective.id, user);
+    // await addNewElementToPerspective(
+    //   head1.perspective.id,
+    //   head2.perspective.id,
+    //   user
+    // );
 
-    await addNewElementToPerspective(
-      head5.perspective.id,
-      head6.perspective.id,
-      user
-    );
+    // // Head 3
+    // const head3 = await newTitle('Head 3', head2.perspective.id, user);
+
+    // await addNewElementToPerspective(
+    //   head2.perspective.id,
+    //   head3.perspective.id,
+    //   user
+    // );
+
+    // // Head 4
+    // const head4 = await newTitle('Head 4', head3.perspective.id, user);
+
+    // await addNewElementToPerspective(
+    //   head3.perspective.id,
+    //   head4.perspective.id,
+    //   user
+    // );
+
+    // // Head 5
+    // const head5 = await newTitle('Head 5', head4.perspective.id, user);
+
+    // await addNewElementToPerspective(
+    //   head4.perspective.id,
+    //   head5.perspective.id,
+    //   user
+    // );
+
+    // // Head 6
+    // const head6 = await newTitle('Head 6', head5.perspective.id, user);
+
+    // await addNewElementToPerspective(
+    //   head5.perspective.id,
+    //   head6.perspective.id,
+    //   user
+    // );
 
     // // We concat all perspectives for this test
     // const allPerspectives = homeSpace.perspectives.concat(scenarioA.perspectives);
@@ -709,7 +784,7 @@ describe('routes', () => {
     done();
   });
 
-  test.only('explore searchText inside private', async (done) => {
+  test('explore searchText inside private', async (done) => {
     // Emulate user.
     const user = await createUser('seed1');
 
@@ -751,7 +826,7 @@ describe('routes', () => {
     done();
   });
 
-  test.only('explore inside blog', async (done) => {
+  test('explore inside blog', async (done) => {
     done();
   });
 
