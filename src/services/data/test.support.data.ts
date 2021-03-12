@@ -13,6 +13,7 @@ export const createData = async (
   const hashedData: Entity<Object> = {
     id: dataId,
     object: data,
+    casID: '',
   };
   const router = await createApp();
   const post = await request(router)
