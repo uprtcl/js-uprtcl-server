@@ -1087,11 +1087,7 @@ export class UprtclRepository {
           break;
 
         case StartCase.searchText:
-          if (textLevels === -1) {
-            startQuery = `filtered as search(func: anyoftext(text, "${searchText}"))`;
-          } else {
-            startQuery = `filtered as search(func: anyoftext(text, "${searchText}"))`;
-          }
+          startQuery = `filtered as search(func: anyoftext(text, "${searchText}"))`;
           break;
 
         case StartCase.under:
@@ -1122,6 +1118,8 @@ export class UprtclRepository {
                 linksTo @filter(eq(xid, ${linksTo[0].id}))
               }`;
             }
+          } else if(searchText != '') {
+            internalWrapper = `filtered as ecosystem @filter(anyoftext(text, "${searchText}"))`;
           } else {
             internalWrapper = 'filtered as ecosystem';
           }
