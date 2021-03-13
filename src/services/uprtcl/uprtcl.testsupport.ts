@@ -20,62 +20,95 @@ import {
   SearchOptions,
 } from '@uprtcl/evees';
 import { FetchResult } from './uprtcl.repository';
+import { addNewElementToPerspective } from './uprtcl.mock.helper';
 
-const db = new DGraphService('localhost', '9080', '');
+const db = new DGraphService(
+  process.env.DGRAPH_HOST as string, 
+  process.env.DGRAPH_PORT as string, 
+  ''
+);
 
 interface PerspectiveData {
   persp: string;
   commit: string;
 }
 
-// export const forkPerspective = async (
-//   perspectiveId: string,
-//   user: TestUser,
-//   parent?: PerspectiveData
-// ): Promise<any> => {
-//   const timestamp = Math.floor(100000 + Math.random() * 900000);
+export const forkPerspective = async (
+  perspectiveId: string,
+  user: TestUser,
+  parentId?: string,
+  topElement?: string,
+): Promise<string> => {
+  const officialPerspective = await getPerspectiveDetails(perspectiveId, user);  
+  let officialData = officialPerspective.data.slice?.entities[1].object;
+  const officialHead = officialPerspective.data.slice?.entities[0].object.payload;
+  
+  if(officialData.pages) {
+    officialData.pages = [];
+  } else if(officialData.links) {
+    officialData.links = [];
+  }
 
-//   const persp = await getPerspective(perspectiveId, user.jwt);
-//   const {
-//     data: {
-//       object: {
-//         payload: { creatorId, context },
-//       },
-//     },
-//   } = persp;
+  const forkData = await createData(
+    [officialData],
+    user.jwt
+  );
 
-//   const forkedPersp = await createAndInitPerspective(
-//     '',
-//     false,
-//     user,
-//     timestamp,
-//     context
-//   );
+  const forkCommit = await createData(
+    [
+      {
+        proof: {
+          signature: '',
+          proof: '',
+        },
+        payload: {
+          creatorsIds: [],
+          dataId: forkData[0].id,
+          message: '',
+          timestamp: Date.now(),
+          parentsIds: officialHead.parentsIds,
+        },
+      }
+    ],
+    user.jwt
+  );
 
-//   if (parent) {
-//     await addChildToPerspective(
-//       forkedPersp.persp,
-//       parent.persp,
-//       parent.commit,
-//       false,
-//       user
-//     );
-//   }
+  const forkedPerspective = await createPerspectives(
+    user,
+    [
+      {
+        perspectiveId: '',
+        details: {
+          headId: forkCommit[0].id,
+          guardianId: parentId
+        },
+        text: officialData.text
+      }
+    ],
+  );
 
-//   const children = (
-//     await getPerspectiveRelatives(perspectiveId, 'children')
-//   ).map(async (child) => {
-//     try {
-//       return await forkPerspective(child, user, forkedPersp);
-//     } catch {
-//       return;
-//     }
-//   });
+  await sendPerspectiveBatch(forkedPerspective, user);
 
-//   await Promise.all(children);
+  if (parentId) {
+    await addNewElementToPerspective(parentId, forkedPerspective[0].perspective.id, user);
+  } else {
+    topElement = forkedPerspective[0].perspective.id;
+  }
 
-//   return parent ? parent.persp : forkedPersp.persp;
-// };
+  const children = (
+    await getPerspectiveRelatives(perspectiveId, 'children')
+  ).map(async (child) => {
+    try {
+      return await forkPerspective(child, user, forkedPerspective[0].perspective.id);
+    } catch {
+      return;
+    }
+  });
+
+  await Promise.all(children);
+
+  return topElement || '';
+};
 
 export const addChildToPerspective = async (
   childId: string,
