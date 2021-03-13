@@ -3,6 +3,7 @@ import { createData, getData } from '../data/test.support.data';
 import {
   createPerspectives,
   getCommit,
+  forkPerspective,
   getPerspectiveDetails,
   sendPerspectiveBatch,
   updatePerspective,
@@ -361,6 +362,7 @@ export const createHomeSpace = async (user: TestUser) => {
   ]);
 
   return {
+    linkedThoughts: perspectivesWrapperNodes[1],
     blog: perspectivesInitialNodes[1],
     private: perspectivesInitialNodes[2],
   };
@@ -519,6 +521,104 @@ export const addNewElementToPerspective = async (
     },
   ]);
 };
+
+export const postElementToBlog = async (
+  blogPerspectiveId: string,
+  elementId: string,
+  user: TestUser
+) => {
+    const forkedPerspective = await forkPerspective(elementId, user);
+    const forkedPerspectiveDetails = await getPerspectiveDetails(forkedPerspective, user);
+    let forkedData = await forkedPerspectiveDetails.data.slice?.entities[1].object;
+    forkedData.isA = ['textnodelinksto'];
+
+    const newForkData = await createData(
+      [forkedData],
+      user.jwt
+    );
+
+    const newForkCommit = await createData(
+      [
+        {
+          proof: {
+            signature: '',
+            type: '',
+          },
+          payload: {
+            creatorsIds: [],
+            dataId: newForkData[0].id,
+            message: '',
+            timestamp: Date.now(),
+            parentsIds: [],
+          },
+        },
+      ],
+      user.jwt
+    );
+
+    await updatePerspective(user.jwt, undefined, undefined, [
+      // Update private perspective with new head and children.
+      {
+        perspectiveId: forkedPerspective,
+        details: {
+          headId: newForkCommit[0].id,
+        },
+        linkChanges: {
+          linksTo: {
+            added: ['textnodelinksto'],
+            removed: [],
+          },
+        },
+      },
+    ]);
+
+    const blogPerspective = await getPerspectiveDetails(blogPerspectiveId, user);
+    let blogData = blogPerspective.data.slice?.entities[1].object;
+    const blogHeadId = blogPerspective.data.details.headId;
+
+    if(blogData.pages) {
+      blogData.pages.push(forkedPerspective);
+    } else {
+      throw new Error('Not a blog perspective.');
+    }
+
+    // Update blog
+    const newBlogData = await createData([blogData], user.jwt);
+    const updateCommit = await createData(
+      [
+        {
+          proof: {
+            signature: '',
+            type: '',
+          },
+          payload: {
+            creatorsIds: [],
+            dataId: newBlogData[0].id,
+            message: '',
+            timestamp: Date.now(),
+            // Previous head of perspective
+            parentsIds: [blogHeadId],
+          },
+        },
+      ],
+      user.jwt
+    )
+
+    await updatePerspective(user.jwt, undefined, undefined, [
+      {
+        perspectiveId: blogPerspectiveId,
+        details: {
+          headId: updateCommit[0].id
+        },
+        linkChanges: {
+          children: {
+            added: [forkedPerspective],
+            removed: [],
+          },
+        }
+      }
+    ]);
+  };
 
 export const createHerarchichalScenario = (user: string) => {
   return {
@@ -948,6 +1048,7 @@ export const createFlatScenario = async (
   user: TestUser
 ) => {
   const homeSpace = await createHomeSpace(user);
+  let createdPages = [];
 
   for (let i = 0; i < pages.length; i++) {
     const title = await newTitle(
@@ -955,6 +1056,8 @@ export const createFlatScenario = async (
       homeSpace.private.perspective.id,
       user
     );
+
+    createdPages.push(title);
 
     await addNewElementToPerspective(
       homeSpace.private.perspective.id,
@@ -970,4 +1073,11 @@ export const createFlatScenario = async (
       user
     );
   }
+
+  return {
+    linkedThoughts: homeSpace.linkedThoughts.perspective.id,
+    blogId: homeSpace.blog.perspective.id,
+    privateId: homeSpace.private.perspective.id,
+    children: createdPages
+  };
 };
