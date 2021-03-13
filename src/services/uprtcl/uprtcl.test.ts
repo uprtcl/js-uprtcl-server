@@ -601,71 +601,72 @@ describe('routes', async () => {
   //   expect(independentPerspectivesEco[0]).toEqual(LC);
   //   done();
   // });
-  test('batch create', async (done) => {
+  test.only('batch create', async (done) => {
     // Emulate the user
+
     const user = await createUser('seed1');
-    const homeSpace = await createHomeSpace(user);
+    // const homeSpace = await createHomeSpace(user);
 
-    // const httpConnection = await new HttpSupertest(
-    //   process.env.HOST as string,
-    //   user
-    // );
+    const httpConnection = await new HttpSupertest(
+      process.env.HOST as string,
+      user
+    );
 
-    // const httpStore = new HttpStore(httpConnection, httpCidConfig);
-    // const httpEvees = new EveesHttp(httpConnection, httpStore.casID);
+    const httpStore = new HttpStore(httpConnection, httpCidConfig);
+    const httpEvees = new EveesHttp(httpConnection, httpStore.casID);
 
-    // const remotes = [httpEvees];
-    // const modules = new Map<string, EveesContentModule>();
-    // modules.set(DocumentsModule.id, new DocumentsModule());
+    const remotes = [httpEvees];
+    const modules = new Map<string, EveesContentModule>();
+    modules.set(DocumentsModule.id, new DocumentsModule());
 
-    // const evees = eveesConstructorHelper(remotes, [httpStore], modules);
+    const evees = eveesConstructorHelper(remotes, [httpStore], modules);
 
-    // const appElementsInit: AppElement = {
-    //   path: '/',
-    //   getInitData: (children?: AppElement[]) => {
-    //     if(children)
-    //       return { links: children.map((child) => child.perspective?.id) };
-    //   },
-    //   children: [
-    //     {
-    //       path: '/privateSection',
-    //       getInitData: (children?: AppElement[]) => {
-    //         if(children)
-    //           return {
-    //             text: 'Private',
-    //             type: TextType.Title,
-    //             links: children.map((child) => child.perspective?.id),
-    //           };
-    //       },
-    //       children: [
-    //         {
-    //           path: '/firstPage',
-    //           optional: true,
-    //           getInitData: () => {
-    //             return {
-    //               text: '',
-    //               type: TextType.Title,
-    //               links: [],
-    //             };
-    //           },
-    //         },
-    //       ],
-    //     },
-    //     {
-    //       path: '/blogSection',
-    //       getInitData: () => {
-    //         return {
-    //           text: 'Blog',
-    //           type: TextType.Title,
-    //           links: [],
-    //         };
-    //       },
-    //     },
-    //   ],
-    // };
+    const appElementsInit: AppElement = {
+      path: '/',
+      getInitData: (children?: AppElement[]) => {
+        if (children)
+          return { links: children.map((child) => child.perspective?.id) };
+      },
+      children: [
+        {
+          path: '/privateSection',
+          getInitData: (children?: AppElement[]) => {
+            if (children)
+              return {
+                text: 'Private',
+                type: TextType.Title,
+                links: children.map((child) => child.perspective?.id),
+              };
+          },
+          children: [
+            {
+              path: '/firstPage',
+              optional: true,
+              getInitData: () => {
+                return {
+                  text: '',
+                  type: TextType.Title,
+                  links: [],
+                };
+              },
+            },
+          ],
+        },
+        {
+          path: '/blogSection',
+          getInitData: () => {
+            return {
+              text: 'Blog',
+              type: TextType.Title,
+              links: [],
+            };
+          },
+        },
+      ],
+    };
 
-    // const elements = new AppElements(evees, appElementsInit);
-    // await elements.check();
+    const elements = new AppElements(evees, appElementsInit);
+    await elements.check();
 
     // // Create scenario A
 
