@@ -16,6 +16,7 @@ import {
   sendPerspectiveBatch,
   getEcosystem,
   explore,
+  forkPerspective,
 } from './uprtcl.testsupport';
 import { createUser } from '../user/user.testsupport';
 import {
@@ -30,6 +31,7 @@ import {
   createHerarchichalScenario,
   TestFlatPage,
   createFlatScenario,
+  postElementToBlog,
 } from '../uprtcl/uprtcl.mock.helper';
 import { PermissionType } from '../uprtcl/types';
 import {
@@ -51,7 +53,7 @@ const httpCidConfig: any = {
   base: 'base58btc',
 };
 
-describe('routes', () => {
+describe('routes', async () => {
   // expect.extend({ toBeValidCid });
   // test('CRUD private perspectives', async (done) => {
   //   const name = 'test';
@@ -599,39 +601,41 @@ describe('routes', () => {
   //   expect(independentPerspectivesEco[0]).toEqual(LC);
   //   done();
   // });
-  test.only('batch create', async (done) => {
+  test('batch create', async (done) => {
     // Emulate the user
     const user = await createUser('seed1');
-    // /const homeSpace = await createHomeSpace(user);
+    const homeSpace = await createHomeSpace(user);
 
-    const httpConnection = await new HttpSupertest(
-      process.env.HOST as string,
-      user
-    );
+    // const httpConnection = await new HttpSupertest(
+    //   process.env.HOST as string,
+    //   user
+    // );
 
-    const httpStore = new HttpStore(httpConnection, httpCidConfig);
-    const httpEvees = new EveesHttp(httpConnection, httpStore.casID);
+    // const httpStore = new HttpStore(httpConnection, httpCidConfig);
+    // const httpEvees = new EveesHttp(httpConnection, httpStore.casID);
 
-    const remotes = [httpEvees];
-    const modules = new Map<string, EveesContentModule>();
-    modules.set(DocumentsModule.id, new DocumentsModule());
+    // const remotes = [httpEvees];
+    // const modules = new Map<string, EveesContentModule>();
+    // modules.set(DocumentsModule.id, new DocumentsModule());
 
-    const evees = eveesConstructorHelper(remotes, [httpStore], modules);
+    // const evees = eveesConstructorHelper(remotes, [httpStore], modules);
 
     // const appElementsInit: AppElement = {
     //   path: '/',
-    //   getInitData: (children: AppElement[]): TextNode => {
-    //     return { links: children.map((child) => child.perspective.id) };
+    //   getInitData: (children?: AppElement[]) => {
+    //     if(children)
+    //       return { links: children.map((child) => child.perspective?.id) };
     //   },
     //   children: [
     //     {
     //       path: '/privateSection',
-    //       getInitData: (children: AppElement[]) => {
-    //         return {
-    //           text: 'Private',
-    //           type: TextType.Title,
-    //           links: children.map((child) => child.perspective.id),
-    //         };
+    //       getInitData: (children?: AppElement[]) => {
+    //         if(children)
+    //           return {
+    //             text: 'Private',
+    //             type: TextType.Title,
+    //             links: children.map((child) => child.perspective?.id),
+    //           };
     //       },
     //       children: [
     //         {
@@ -784,7 +788,7 @@ describe('routes', () => {
     done();
   });
 
-  test('explore searchText inside private', async (done) => {
+  test('search by text in both private and blog', async (done) => {
     // Emulate user.
     const user = await createUser('seed1');
 
@@ -808,12 +812,183 @@ describe('routes', () => {
     ];
 
     // Generate first scenario.
-    await createFlatScenario(pages, user);
+    const flatScenario = await createFlatScenario(pages, user);
 
-    // TextLevel 0
-    // Needs to specify levels in code to pass.
+    const privateResult = await explore(
+      {
+        text: {
+          value: 'Lorem',
+        },
+      },
+      user
+    );
+
+    expect(privateResult.data.perspectiveIds.length).toBe(3);
+
+    // Publish pages
+    await postElementToBlog(
+      flatScenario.blogId,
+      flatScenario.children[0].perspective.id,
+      user
+    );
+    await postElementToBlog(
+      flatScenario.blogId,
+      flatScenario.children[2].perspective.id,
+      user
+    );
+
+    const generalResult = await explore(
+      {
+        text: {
+          value: 'Lorem',
+        },
+      },
+      user
+    );
+
+    expect(generalResult.data.perspectiveIds.length).toBe(6);
+    done();
+  });
+
+  test('search under', async (done) => {
+    // Emulate user.
+    const user = await createUser('seed1');
+
+    // Mock dummy pages for first possible scenario.
+    const pages: TestFlatPage[] = [
+      {
+        title: 'What is Lorem Ipsum?',
+        text:
+          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+      },
+      {
+        title: 'Why do we use it',
+        text:
+          'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+      },
+      {
+        title: 'Where does it come from?',
+        text:
+          'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+      },
+    ];
+
+    // Generate scenario.
+    const scenario = await createFlatScenario(pages, user);
+
+    const result = await explore(
+      {
+        under: [
+          {
+            id: scenario.privateId,
+          },
+        ],
+      },
+      user
+    );
+
+    expect(result.data.perspectiveIds.length).toBe(8);
+    done();
+  });
+
+  test('search by linksTo', async (done) => {
+    // Emulate user.
+    const user = await createUser('seed1');
+
+    // Mock dummy pages for first possible scenario.
+    const pages: TestFlatPage[] = [
+      {
+        title: 'What is Lorem Ipsum?',
+        text:
+          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+      },
+      {
+        title: 'Why do we use it',
+        text:
+          'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+      },
+      {
+        title: 'Where does it come from?',
+        text:
+          'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+      },
+    ];
+
+    // Generate scenario.
+    const scenario = await createFlatScenario(pages, user);
+
+    // Publish pages
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.children[0].perspective.id,
+      user
+    );
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.children[2].perspective.id,
+      user
+    );
+
+    const result = await explore(
+      {
+        linksTo: [
+          {
+            id: 'textnodelinksto',
+          },
+        ],
+      },
+      user
+    );
+
+    expect(result.data.perspectiveIds.length).toBe(2);
+    done();
+  });
+
+  test('search by text and linksTo', async (done) => {
+    // Emulate user.
+    const user = await createUser('seed1');
+
+    // Mock dummy pages for first possible scenario.
+    const pages: TestFlatPage[] = [
+      {
+        title: 'What is Lorem Ipsum?',
+        text:
+          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+      },
+      {
+        title: 'Why do we use it',
+        text:
+          'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+      },
+      {
+        title: 'Where does it come from?',
+        text:
+          'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+      },
+    ];
+
+    // Generate scenario.
+    const scenario = await createFlatScenario(pages, user);
+
+    // Publish pages
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.children[0].perspective.id,
+      user
+    );
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.children[2].perspective.id,
+      user
+    );
+
     const levelZeroResult = await explore(
       {
+        linksTo: [
+          {
+            id: 'textnodelinksto',
+          },
+        ],
         text: {
           value: 'Lorem',
           levels: 0,
@@ -822,17 +997,228 @@ describe('routes', () => {
       user
     );
 
-    expect(levelZeroResult.data.perspectiveIds.length).toBe(3);
+    expect(levelZeroResult.data.perspectiveIds.length).toBe(1);
     done();
   });
 
-  test('explore inside blog', async (done) => {
+  test('seacrh by text and under', async (done) => {
+    // Emulate user.
+    const user = await createUser('seed1');
+
+    // Mock dummy pages for first possible scenario.
+    const pages: TestFlatPage[] = [
+      {
+        title: 'What is Lorem Ipsum?',
+        text:
+          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+      },
+      {
+        title: 'Why do we use it',
+        text:
+          'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+      },
+      {
+        title: 'Where does it come from?',
+        text:
+          'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+      },
+    ];
+
+    // Generate scenario.
+    const scenario = await createFlatScenario(pages, user);
+
+    // Publish pages
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.children[0].perspective.id,
+      user
+    );
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.children[2].perspective.id,
+      user
+    );
+
+    const result = await explore(
+      {
+        under: [
+          {
+            id: scenario.privateId,
+          },
+        ],
+        text: {
+          value: 'long established',
+          levels: 0,
+        },
+      },
+      user
+    );
+
+    expect(result.data.perspectiveIds.length).toBe(1);
     done();
   });
 
-  // Test searching inside blog section.
-  // Test searching under alone.
-  // Test searching linksTo alone.
-  // Test searching under and linksTo.
-  // Test searchnig under,linksTo and search.
+  test('search by under and linksTo', async (done) => {
+    // Emulate user.
+    const user = await createUser('seed1');
+
+    // Mock dummy pages for first possible scenario.
+    const pages: TestFlatPage[] = [
+      {
+        title: 'What is Lorem Ipsum?',
+        text:
+          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+      },
+      {
+        title: 'Why do we use it',
+        text:
+          'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+      },
+      {
+        title: 'Where does it come from?',
+        text:
+          'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+      },
+    ];
+
+    // Generate scenario.
+    const scenario = await createFlatScenario(pages, user);
+
+    // Publish pages
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.children[0].perspective.id,
+      user
+    );
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.children[2].perspective.id,
+      user
+    );
+
+    const result = await explore(
+      {
+        under: [
+          {
+            id: scenario.linkedThoughts,
+          },
+        ],
+        linksTo: [
+          {
+            id: 'textnodelinksto',
+          },
+        ],
+      },
+      user
+    );
+
+    expect(result.data.perspectiveIds.length).toBe(2);
+    done();
+  });
+
+  test('search by under, linksTo and text', async (done) => {
+    // Emulate user.
+    const user = await createUser('seed1');
+
+    // Mock dummy pages for first possible scenario.
+    const pages: TestFlatPage[] = [
+      {
+        title: 'What is Lorem Ipsum?',
+        text:
+          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+      },
+      {
+        title: 'Why do we use it',
+        text:
+          'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+      },
+      {
+        title: 'Where does it come from?',
+        text:
+          'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+      },
+    ];
+
+    // Generate scenario.
+    const scenario = await createFlatScenario(pages, user);
+
+    // Post pages
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.children[0].perspective.id,
+      user
+    );
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.children[1].perspective.id,
+      user
+    );
+
+    const result = await explore(
+      {
+        under: [
+          {
+            id: scenario.linkedThoughts,
+          },
+        ],
+        linksTo: [
+          {
+            id: 'textnodelinksto',
+          },
+        ],
+        text: {
+          value: 'long established',
+          levels: -1,
+        },
+      },
+      user
+    );
+
+    expect(result.data.perspectiveIds.length).toBe(1);
+    done();
+  });
+
+  test('search all', async (done) => {
+    // Emulate user.
+    const user = await createUser('seed1');
+
+    // Mock dummy pages for first possible scenario.
+    const pages: TestFlatPage[] = [
+      {
+        title: 'What is Lorem Ipsum?',
+        text:
+          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+      },
+      {
+        title: 'Why do we use it',
+        text:
+          'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+      },
+      {
+        title: 'Where does it come from?',
+        text:
+          'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+      },
+    ];
+
+    // Generate scenario.
+    const scenario = await createFlatScenario(pages, user);
+
+    // Post pages
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.children[0].perspective.id,
+      user
+    );
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.children[1].perspective.id,
+      user
+    );
+
+    const result = await explore({}, user);
+
+    expect(result.data.perspectiveIds.length).toBe(10);
+    done();
+  });
 });
