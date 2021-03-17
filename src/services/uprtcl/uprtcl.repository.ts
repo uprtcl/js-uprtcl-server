@@ -1036,12 +1036,6 @@ export class UprtclRepository {
     let query = ``;
     const { levels, entities } = getPerspectiveOptions;
 
-    if (levels !== 0 && levels !== -1) {
-      throw new Error(
-        `Levels can only be 0 (shallow get) or -1, fully recusvie`
-      );
-    }
-
     /**
      * We build the function depending on how the method is implemented.
      * For searching or for grabbing an specific perspective.
@@ -1060,10 +1054,6 @@ export class UprtclRepository {
         : 0;
       const under = searchOptions.under ? searchOptions.under : [];
       const linksTo = searchOptions.linksTo ? searchOptions.linksTo : [];
-
-      if (textLevels !== 0 && textLevels !== -1) {
-        throw new Error('textLevels can only be 0 or 1 for now');
-      }
 
       enum StartCase {
         all = 'all',
@@ -1224,6 +1214,12 @@ export class UprtclRepository {
       }
     `;
 
+    let recurse = false;
+
+    if(levels && levels > 0) {
+      recurse = true;
+    }
+
     query = query.concat(
       `\nelements as var(func: uid(filtered)) {
           head {
@@ -1231,18 +1227,30 @@ export class UprtclRepository {
           }
           datetemp as max(val(date))
         }
-        perspectives(func: uid(elements), orderdesc: val(datetemp) ${
-          searchOptions ? `,first: ${first}, offset: ${offset}` : ''
-        } ) ${searchOptions ? `@filter(uid(private) OR uid(public))` : ``} {
-            ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
-          }`
+         
+        ${ recurse ? `recurseQuery` : `perspectives` } (func: uid(elements), orderdesc: val(datetemp) ${
+          searchOptions ? ``: ''
+        } ) ${searchOptions ? `@filter(uid(private) OR uid(public))` : ``} 
+        ${ recurse ? `@recurse(depth: ${levels})` : `` } {
+          ${ 
+            recurse
+              ? `~ecosystem
+                 recurseIds as xid`
+              : `${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}`
+            }
+          }
+        ${ recurse
+            ? `perspectives(func: uid(recurseIds)) {
+              ${elementQuery}
+            }`
+            : '' }`
     );
     let dbResult = await this.db.client.newTxn().query(`query{${query}}`);
     let json = dbResult.getJson();
 
     const perspectives = json.perspectives;
     // initalize the returned result with empty values
-    const result: FetchResult = {
+    let result: FetchResult = {
       details: {},
       perspectiveIds: [],
       slice: {
@@ -1308,6 +1316,11 @@ export class UprtclRepository {
         }
       });
     });
+
+    // We avoid duplicate results
+    result.perspectiveIds = Array.from(new Set(result.perspectiveIds));
+    result.slice.perspectives = Array.from(new Set(result.slice.perspectives));
+    result.slice.entities = Array.from(new Set(result.slice.entities));
 
     return result;
   }
