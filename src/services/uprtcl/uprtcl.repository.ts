@@ -1229,7 +1229,7 @@ export class UprtclRepository {
         }
          
         ${ recurse ? `recurseQuery` : `perspectives` } (func: uid(elements), orderdesc: val(datetemp) ${
-          searchOptions ? ``: ''
+          searchOptions ? `,first: ${first}, offset: ${offset}` : ''
         } ) ${searchOptions ? `@filter(uid(private) OR uid(public))` : ``} 
         ${ recurse ? `@recurse(depth: ${levels})` : `` } {
           ${ 
