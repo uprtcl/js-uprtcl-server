@@ -1034,8 +1034,11 @@ export class UprtclRepository {
     searchOptions?: SearchOptions
   ): Promise<FetchResult> {
     let query = ``;
-    const { levels, entities } = getPerspectiveOptions;
+    const { levels, entities, details } = getPerspectiveOptions;
 
+    if(!details && entities) {
+      throw new Error("Entities can not be provided without details...")
+    }
     /**
      * We build the function depending on how the method is implemented.
      * For searching or for grabbing an specific perspective.
@@ -1177,7 +1180,7 @@ export class UprtclRepository {
      */
 
     /** The query uses ecosystem if levels === -1 and get the head and data json objects if entities === true */
-    const elementQuery = `
+    let elementQuery = `
       xid
       context {
         name
@@ -1190,18 +1193,6 @@ export class UprtclRepository {
       timextamp
       stored
       deleted
-      head {
-        xid
-        data {
-          xid
-          ${entities ? `jsonString` : ''}
-        }
-        ${entities ? COMMIT_PROPERTIES : ''}
-      }
-      delegate
-      delegateTo {
-        xid
-      }
       finDelegatedTo {
         canWrite @filter(eq(did, "${loggedUserId}")) {
           count(uid)
@@ -1214,6 +1205,22 @@ export class UprtclRepository {
       }
     `;
 
+    if(details) {
+      elementQuery = elementQuery.concat(
+        `\nhead {
+          xid
+          data {
+            xid
+            ${entities ? `jsonString` : ''}
+          }
+          ${entities ? COMMIT_PROPERTIES : ''}
+        }
+        delegate
+        delegateTo {
+          xid
+        }`);
+    }
+
     query = query.concat(`
       \nelements as var(func: uid(filtered)) {
         head {
@@ -1225,22 +1232,25 @@ export class UprtclRepository {
 
     if(levels && levels > 0) {
       query = query.concat(
-        `\nrecurseQuery (func: uid(elements), orderdesc: val(datetemp), 
-                      ${ searchOptions ? `first: ${first}, offset: ${offset}` : '' })
-                      @filter(uid(private) OR uid(public)) @recurse(depth: ${levels}) {
-                        ~ecosystem
-                        recurseIds as xid
+        `\ntopElements as var(func: uid(elements), orderdesc: val(datetemp) 
+                      ${ searchOptions ? `,first: ${first}, offset: ${offset}` : '' })
+                      ${ searchOptions ? `@filter(uid(private) OR uid(public))` : '' } @recurse(depth: ${levels}) {
+                        recurseIds as children
                       }
-        perspectives(func: uid(recurseIds)) {
+
+        perspectives(func: uid(topElements)) {
+          ${elementQuery}
+        }
+        recurseChildren(func: uid(recurseIds)) {
           ${elementQuery}
         }`
       );
     } else {
       query = query.concat(
-      `\nperspectives(func: uid(elements), orderdesc: val(datetemp) ${
-          searchOptions ? `,first: ${first}, offset: ${offset}` : ''}) 
-          @filter(uid(private) OR uid(public)) {
-            ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
+      `\nperspectives(func: uid(elements), orderdesc: val(datetemp) 
+          ${ searchOptions ? `,first: ${first}, offset: ${offset}` : ''}) 
+          ${ searchOptions ? `@filter(uid(private) OR uid(public))` : '' } {
+            ${levels === -1 ? `xid ecosystem {${elementQuery}}` : `${elementQuery}`}
           }`
       );
     }
@@ -1265,12 +1275,18 @@ export class UprtclRepository {
 
     // then loop over the dgraph results and fill the function output result
     perspectives.forEach((persp: any) => {
-      const all = levels === -1 ? persp.ecosystem : [persp];
+      let all = [];
+      if(levels && levels > 0) {
+        all = [persp].concat(json.recurseChildren);
+      } else {
+        all = levels === -1 ? persp.ecosystem : [persp];
+      }
+
+      result.perspectiveIds.push(persp.xid);
 
       all.forEach((element: any) => {
         if (element) {
           /** check access control, if user can't read, simply return undefined head  */
-          result.perspectiveIds.push(element.xid);
 
           const canRead = !element.finDelegatedTo.publicRead
             ? element.finDelegatedTo.canRead
@@ -1278,23 +1294,25 @@ export class UprtclRepository {
               : false
             : true;
 
-          const elementDetails = {
-            headId: canRead && !element.deleted ? element.head.xid : undefined,
-            guardianId: element.delegate ? element.delegateTo.xid : undefined,
-            canUpdate: !element.finDelegatedTo.publicWrite
-              ? element.finDelegatedTo.canWrite
-                ? element.finDelegatedTo.canWrite[0].count > 0
-                : false
-              : true,
-          };
+          if(details) {
+            const elementDetails = {
+              headId: canRead && !element.deleted ? element.head.xid : undefined,
+              guardianId: element.delegate ? element.delegateTo.xid : undefined,
+              canUpdate: !element.finDelegatedTo.publicWrite
+                ? element.finDelegatedTo.canWrite
+                  ? element.finDelegatedTo.canWrite[0].count > 0
+                  : false
+                : true,
+            };
 
-          if (element.xid === perspectiveId) {
-            result.details = elementDetails;
-          } else {
-            result.slice.perspectives.push({
-              id: element.xid,
-              details: elementDetails,
-            });
+            if (element.xid === perspectiveId) {
+              result.details = elementDetails;
+            } else {
+              result.slice.perspectives.push({
+                id: element.xid,
+                details: elementDetails,
+              });
+            }
           }
 
           if (entities) {
@@ -1317,7 +1335,7 @@ export class UprtclRepository {
       });
     });
 
-    // We avoid duplicate results
+    // We avoid duplicated results
     result.perspectiveIds = Array.from(new Set(result.perspectiveIds));
     result.slice.perspectives = Array.from(new Set(result.slice.perspectives));
     result.slice.entities = Array.from(new Set(result.slice.entities));
