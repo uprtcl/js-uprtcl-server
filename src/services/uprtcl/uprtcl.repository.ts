@@ -1214,37 +1214,37 @@ export class UprtclRepository {
       }
     `;
 
-    let recurse = false;
+    query = query.concat(`
+      \nelements as var(func: uid(filtered)) {
+        head {
+          date as timextamp
+        }
+        datetemp as max(val(date))
+      }
+    `);
 
     if(levels && levels > 0) {
-      recurse = true;
+      query = query.concat(
+        `\nrecurseQuery (func: uid(elements), orderdesc: val(datetemp), 
+                      ${ searchOptions ? `first: ${first}, offset: ${offset}` : '' })
+                      @filter(uid(private) OR uid(public)) @recurse(depth: ${levels}) {
+                        ~ecosystem
+                        recurseIds as xid
+                      }
+        perspectives(func: uid(recurseIds)) {
+          ${elementQuery}
+        }`
+      );
+    } else {
+      query = query.concat(
+      `\nperspectives(func: uid(elements), orderdesc: val(datetemp) ${
+          searchOptions ? `,first: ${first}, offset: ${offset}` : ''}) 
+          @filter(uid(private) OR uid(public)) {
+            ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
+          }`
+      );
     }
 
-    query = query.concat(
-      `\nelements as var(func: uid(filtered)) {
-          head {
-            date as timextamp
-          }
-          datetemp as max(val(date))
-        }
-         
-        ${ recurse ? `recurseQuery` : `perspectives` } (func: uid(elements), orderdesc: val(datetemp) ${
-          searchOptions ? `,first: ${first}, offset: ${offset}` : ''
-        } ) ${searchOptions ? `@filter(uid(private) OR uid(public))` : ``} 
-        ${ recurse ? `@recurse(depth: ${levels})` : `` } {
-          ${ 
-            recurse
-              ? `~ecosystem
-                 recurseIds as xid`
-              : `${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}`
-            }
-          }
-        ${ recurse
-            ? `perspectives(func: uid(recurseIds)) {
-              ${elementQuery}
-            }`
-            : '' }`
-    );
     let dbResult = await this.db.client.newTxn().query(`query{${query}}`);
     let json = dbResult.getJson();
 
