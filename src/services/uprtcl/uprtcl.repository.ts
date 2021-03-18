@@ -502,7 +502,10 @@ export class UprtclRepository {
     // If the current perspective we are seeing isn't headless, we proceed to update the ecosystem and its head.
     if (update.details !== undefined) {
       if (update.details.headId !== undefined) {
-        const { details, linkChanges, text } = update;
+        const { details, indexData } = update;
+
+        const linkChanges = indexData?.linkChanges;
+        const text = indexData?.text;
 
         const headId = details.headId;
         const addedLinksTo = linkChanges?.linksTo?.added;
