@@ -12,6 +12,7 @@ import {
   ParentAndChild,
   SearchOptions,
   SearchResult,
+  JoinElement
 } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
@@ -23,6 +24,15 @@ import { decodeData } from '../data/utils';
 
 const dgraph = require('dgraph-js');
 
+export enum Join {
+  inner = 'INNER_JOIN',
+  full = 'FULL_JOIN',
+}
+
+export enum SearchType {
+  linksTo = 'linksTo',
+  under = 'under'
+}
 export interface DgRef {
   [x: string]: string;
   uid: string;
@@ -1025,6 +1035,54 @@ export class UprtclRepository {
     };
   }
 
+  private underDgraphFilter(elements: JoinElement[], type: Join): string {
+    let filter = ``;
+    for(let i = 0; i < elements.length; i++) {
+      if(i === 0) {
+        filter = filter.concat(
+          `@filter(eq(xid, ${elements[0].id})`
+        );
+      }
+      filter = filter.concat(
+        ` ${type} eq(xid, ${elements[i].id})`
+      );
+    }
+    // We close the filter
+    filter = filter.concat(
+      `)`
+    );
+
+    return filter;
+  }
+
+  private linkstoDgraphFilter(elements: JoinElement[], type: Join): string {
+    let start = ``;
+    if(type === Join.inner) {
+      start = `linkElements as var(func: eq(dgraph.type, "Perspective")) @cascade {
+        numberOfLinks as count(linksTo) @filter(`;
+
+      for(let i = 0; i < elements.length; i++) {
+        if(i === 0) {
+          start = start.concat(
+            `eq(xid, ${elements[i].id}) `
+          )
+        }
+        start = start.concat(
+          `OR eq(xid, ${elements[i].id})`
+        )
+      }
+
+      start = start.concat(`)
+      search(func: uid(linkElements)) @filter(gt(val(numberOfLinks), ${elements.length}))`);
+    } else if(type === Join.full) {
+      start = `
+        search(func: eq(dgraph.type, "Perspective")) @cascade
+      `;
+    }
+
+    return start;
+  }
+
   /** A reusable function that can get a perspective or search perspectives while fetching the perspective ecosystem and
   its entities */
   private async fetchPerspectives(
@@ -1045,6 +1103,7 @@ export class UprtclRepository {
      */
 
     let startQuery = '';
+    let filter = '';
     let internalWrapper = '';
     let optionalWrapper = '';
 
@@ -1055,8 +1114,14 @@ export class UprtclRepository {
           ? searchOptions.text.levels
           : 0
         : 0;
-      const under = searchOptions.under ? searchOptions.under : [];
-      const linksTo = searchOptions.linksTo ? searchOptions.linksTo : [];
+      const under = searchOptions.under ? searchOptions.under : {
+        elements: [],
+        type: Join.inner
+      };
+      const linksTo = searchOptions.linksTo ? searchOptions.linksTo : {
+        elements: [],
+        type: Join.inner
+      };
 
       enum StartCase {
         all = 'all',
@@ -1066,9 +1131,9 @@ export class UprtclRepository {
       }
 
       const start: StartCase =
-        under.length > 0
+        under.elements && under.elements.length > 0 
           ? StartCase.under
-          : linksTo.length > 0
+          : linksTo.elements && linksTo.elements.length > 0 
           ? StartCase.linksTo
           : searchText !== ''
           ? StartCase.searchText
@@ -1084,33 +1149,42 @@ export class UprtclRepository {
           break;
 
         case StartCase.under:
-          startQuery = `search(func: eq(xid, ${under[0].id})) @cascade`;
-
-          if (linksTo.length > 0) {
-            // under and linksTo
-            if (searchText !== '') {
-              // under and linksTo and textSearch
-              if (textLevels === -1) {
-                // in ecosystem of each linkTo matched
-                // WARNING THIS IS SAMPLE CODE. How can it be fixed without changing its logic/spirit?
-                internalWrapper = `linkingTo as ecosystem @cascade {
-                  linksTo @filter(eq(xid, ${linksTo[0].id}))
-                }`;
-                optionalWrapper = `filtered as (func: uid(linkingTo)) @cascade {
-                  ecosystem @filter(anyoftext(text, "${searchText}"))
-                }`;
-              } else {
-                internalWrapper = `linkingTo as ecosystem @cascade {
-                  linksTo @filter(eq(xid, ${linksTo[0].id}))
-                }`;
-                optionalWrapper = `filtered as (func: uid(linkingTo) AND anyoftext(text, "${searchText}"))`;
-              }
-            } else {
-              // only under and linksTo
-              internalWrapper = `filtered as ecosystem {
-                linksTo @filter(eq(xid, ${linksTo[0].id}))
-              }`;
+          if(under.elements.length > 1) {
+            startQuery = `search(func: eq(dgraph.type, "Perspective")) @cascade`;
+            if(under.type === Join.full) {
+              filter = this.underDgraphFilter(under.elements, Join.full);
+            } else if(under.type === Join.inner) {
+              filter = this.underDgraphFilter(under.elements, Join.inner);
             }
+          } else {
+            startQuery = `search(func:eq(xid, ${under.elements[0].id})) @cascade`;
+          }
+          
+          if (linksTo.elements && linksTo.elements.length > 0) {
+            // // under and linksTo
+            // if (searchText !== '') {
+            //   // under and linksTo and textSearch
+            //   if (textLevels === -1) {
+            //     // in ecosystem of each linkTo matched
+            //     // WARNING THIS IS SAMPLE CODE. How can it be fixed without changing its logic/spirit?
+            //     internalWrapper = `linkingTo as ecosystem @cascade {
+            //       linksTo @filter(eq(xid, ${linksTo[0].id}))
+            //     }`;
+            //     optionalWrapper = `filtered as (func: uid(linkingTo)) @cascade {
+            //       ecosystem @filter(anyoftext(text, "${searchText}"))
+            //     }`;
+            //   } else {
+            //     internalWrapper = `linkingTo as ecosystem @cascade {
+            //       linksTo @filter(eq(xid, ${linksTo[0].id}))
+            //     }`;
+            //     optionalWrapper = `filtered as (func: uid(linkingTo) AND anyoftext(text, "${searchText}"))`;
+            //   }
+            // } else {
+            //   // only under and linksTo
+            //   internalWrapper = `filtered as ecosystem {
+            //     linksTo @filter(eq(xid, ${linksTo[0].id}))
+            //   }`;
+            // }
           } else {
             internalWrapper = 'filtered as ecosystem';
           }
@@ -1118,7 +1192,33 @@ export class UprtclRepository {
           break;
 
         case StartCase.linksTo:
-          startQuery = `search(func: eq(xid, ${linksTo[0].id}))`;
+          if(linksTo.elements.length > 1) {
+            if(linksTo.type === Join.full) {
+              startQuery = this.linkstoDgraphFilter(linksTo.elements, Join.full);
+
+              for(let i = 0; i < linksTo.elements.length; i++) {
+                if(i === 0) {
+                  internalWrapper = start.concat(
+                    `linksTo @filter(
+                      eq(xid, ${linksTo.elements[i]})
+                    `
+                  )
+                }
+                internalWrapper = internalWrapper.concat(
+                  `OR eq(xid, ${linksTo.elements[i].id})`
+                )
+              }
+              internalWrapper = internalWrapper.concat(`)
+                {
+                  xid
+                }
+              `);
+            } else if(linksTo.type === Join.inner) {
+              startQuery = this.linkstoDgraphFilter(linksTo.elements, Join.inner);
+            }
+          } else {
+            startQuery = `search(func:eq(xid, ${linksTo.elements[0].id}))`;
+          }
 
           if (searchText !== '') {
             // and text
@@ -1142,7 +1242,7 @@ export class UprtclRepository {
     }
 
     query = query.concat(`
-      ${startQuery} {
+      ${startQuery} ${filter} {
         ${internalWrapper}
       }
       ${optionalWrapper}`);
@@ -1372,7 +1472,8 @@ export class UprtclRepository {
     searchOptions: SearchOptions,
     getPerspectiveOptions: GetPerspectiveOptions = {
       levels: 0,
-      entities: true,
+      details: false,
+      entities: false,
     },
     loggedUserId: string | null
   ): Promise<SearchResult> {
