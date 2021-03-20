@@ -462,6 +462,8 @@ export class UprtclRepository {
 
       childrenRequest.setMutationsList([childrenMutation]);
 
+      console.log('[DGRAPH] updatePerspectives', { childrenUpsert });
+
       await this.db.callRequest(childrenRequest);
 
       // Consequently, we perform the ecosystem transaction | TRX #4
