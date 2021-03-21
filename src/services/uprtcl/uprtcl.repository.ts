@@ -11,8 +11,7 @@ import {
   Slice,
   ParentAndChild,
   SearchOptions,
-  SearchResult,
-  JoinElement
+  SearchResult
 } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
@@ -1035,54 +1034,6 @@ export class UprtclRepository {
     };
   }
 
-  private underDgraphFilter(elements: JoinElement[], type: Join): string {
-    let filter = ``;
-    for(let i = 0; i < elements.length; i++) {
-      if(i === 0) {
-        filter = filter.concat(
-          `@filter(eq(xid, ${elements[0].id})`
-        );
-      }
-      filter = filter.concat(
-        ` ${type} eq(xid, ${elements[i].id})`
-      );
-    }
-    // We close the filter
-    filter = filter.concat(
-      `)`
-    );
-
-    return filter;
-  }
-
-  private linkstoDgraphFilter(elements: JoinElement[], type: Join): string {
-    let start = ``;
-    if(type === Join.inner) {
-      start = `linkElements as var(func: eq(dgraph.type, "Perspective")) @cascade {
-        numberOfLinks as count(linksTo) @filter(`;
-
-      for(let i = 0; i < elements.length; i++) {
-        if(i === 0) {
-          start = start.concat(
-            `eq(xid, ${elements[i].id}) `
-          )
-        }
-        start = start.concat(
-          `OR eq(xid, ${elements[i].id})`
-        )
-      }
-
-      start = start.concat(`)
-      search(func: uid(linkElements)) @filter(gt(val(numberOfLinks), ${elements.length}))`);
-    } else if(type === Join.full) {
-      start = `
-        search(func: eq(dgraph.type, "Perspective")) @cascade
-      `;
-    }
-
-    return start;
-  }
-
   /** A reusable function that can get a perspective or search perspectives while fetching the perspective ecosystem and
   its entities */
   private async fetchPerspectives(
@@ -1151,40 +1102,56 @@ export class UprtclRepository {
         case StartCase.under:
           if(under.elements.length > 1) {
             startQuery = `search(func: eq(dgraph.type, "Perspective")) @cascade`;
+            const ids = under.elements.map(el => el.id);
             if(under.type === Join.full) {
-              filter = this.underDgraphFilter(under.elements, Join.full);
+              filter = `@filter(eq(xid, ${ids}))`;
             } else if(under.type === Join.inner) {
-              filter = this.underDgraphFilter(under.elements, Join.inner);
+              // TODO: implemente AND filtering
+              //filter = this.underDgraphFilter(under.elements, Join.inner);
             }
           } else {
             startQuery = `search(func:eq(xid, ${under.elements[0].id})) @cascade`;
           }
           
           if (linksTo.elements && linksTo.elements.length > 0) {
-            // // under and linksTo
-            // if (searchText !== '') {
-            //   // under and linksTo and textSearch
-            //   if (textLevels === -1) {
-            //     // in ecosystem of each linkTo matched
-            //     // WARNING THIS IS SAMPLE CODE. How can it be fixed without changing its logic/spirit?
-            //     internalWrapper = `linkingTo as ecosystem @cascade {
-            //       linksTo @filter(eq(xid, ${linksTo[0].id}))
-            //     }`;
-            //     optionalWrapper = `filtered as (func: uid(linkingTo)) @cascade {
-            //       ecosystem @filter(anyoftext(text, "${searchText}"))
-            //     }`;
-            //   } else {
-            //     internalWrapper = `linkingTo as ecosystem @cascade {
-            //       linksTo @filter(eq(xid, ${linksTo[0].id}))
-            //     }`;
-            //     optionalWrapper = `filtered as (func: uid(linkingTo) AND anyoftext(text, "${searchText}"))`;
-            //   }
-            // } else {
-            //   // only under and linksTo
-            //   internalWrapper = `filtered as ecosystem {
-            //     linksTo @filter(eq(xid, ${linksTo[0].id}))
-            //   }`;
-            // }
+            // under and linksTo
+
+            if(linksTo.elements.length > 1) {
+              const linksToIds = linksTo.elements.map(el => el.id);
+              if(linksTo.type === Join.full) {
+                internalWrapper = `linkingTo as ecosystem @cascade {
+                  linksTo @filter(eq(xid, ${linksToIds}))
+                }`
+              } else if(linksTo.type === Join.inner) {
+                internalWrapper = `linkedElements as ecosystem @cascade {
+                  numberOfLinks as count(linksTo) @filter(eq(xid, ${linksToIds}))
+                }`
+
+                optionalWrapper = `linkingTo as var(func: uid(linkedElements))
+                @filter(gt(val(numberOfLinks), ${linksToIds.length - 1}))`
+              }
+            } else {
+              internalWrapper = `linkingTo as ecosystem @cascade {
+                linksTo @filter(eq(xid, ${linksTo.elements[0].id}))
+              }`;
+            }
+
+            if (searchText !== '') {
+              // under and linksTo and textSearch
+              if (textLevels === -1) {
+                // in ecosystem of each linkTo matched
+                // WARNING THIS IS SAMPLE CODE. How can it be fixed without changing its logic/spirit?
+                optionalWrapper = optionalWrapper.concat(`\nfiltered as (func: uid(linkingTo)) @cascade {
+                  ecosystem @filter(anyoftext(text, "${searchText}"))
+                }`);
+              } else {
+                optionalWrapper = optionalWrapper.concat(`\nfiltered as (func: uid(linkingTo) AND anyoftext(text, "${searchText}"))`);
+              }
+            } else {
+              // only under and linksTo
+              internalWrapper = internalWrapper.replace('linkingTo', 'filtered');
+              optionalWrapper = optionalWrapper.replace('linkingTo', 'filtered');
+            }
           } else {
             internalWrapper = 'filtered as ecosystem';
           }
@@ -1193,28 +1160,15 @@ export class UprtclRepository {
 
         case StartCase.linksTo:
           if(linksTo.elements.length > 1) {
+            const ids = linksTo.elements.map(el => el.id);
             if(linksTo.type === Join.full) {
-              startQuery = this.linkstoDgraphFilter(linksTo.elements, Join.full);
-
-              for(let i = 0; i < linksTo.elements.length; i++) {
-                if(i === 0) {
-                  internalWrapper = start.concat(
-                    `linksTo @filter(
-                      eq(xid, ${linksTo.elements[i]})
-                    `
-                  )
-                }
-                internalWrapper = internalWrapper.concat(
-                  `OR eq(xid, ${linksTo.elements[i].id})`
-                )
-              }
-              internalWrapper = internalWrapper.concat(`)
-                {
-                  xid
-                }
-              `);
+              startQuery = `search(func: eq(dgraph.type, "Perspective")) @cascade`;
+              internalWrapper = `linksTo @filter(eq(xid, ${ids})) { xid }`
             } else if(linksTo.type === Join.inner) {
-              startQuery = this.linkstoDgraphFilter(linksTo.elements, Join.inner);
+              startQuery = `linkedElements as var(func: eq(dgraph.type, "Perspective")) @cascade {
+                  numberOfLinks as count(linksTo) @filter(eq(xid, ${ids})
+                }
+                search(func: uid(linkedElements)) @filter(gt(val(numberOfLinks), ${ids.length - 1}))`;
             }
           } else {
             startQuery = `search(func:eq(xid, ${linksTo.elements[0].id}))`;
@@ -1225,14 +1179,14 @@ export class UprtclRepository {
 
             if (textLevels === -1) {
               // in link
-              internalWrapper = `filtered as ~linksTo @cascade {
+              internalWrapper = internalWrapper.concat(`\nfiltered as ~linksTo @cascade {
                 ecosystem @filter(anyoftext(text, "${searchText}"))
-              }`;
+              }`);
             } else {
-              internalWrapper = `filtered as ~linksTo @filter(anyoftext(text, "${searchText}"))`;
+              internalWrapper = internalWrapper.concat(`\nfiltered as ~linksTo @filter(anyoftext(text, "${searchText}"))`);
             }
           } else {
-            internalWrapper = `filtered as ~linksTo`;
+            internalWrapper = internalWrapper.concat(`\nfiltered as ~linksTo`);
           }
 
           break;
