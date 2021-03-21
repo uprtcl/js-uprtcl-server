@@ -462,8 +462,9 @@ export class UprtclRepository {
 
       childrenRequest.setMutationsList([childrenMutation]);
 
-      console.log('[DGRAPH] updatePerspectives', { childrenUpsert });
-
+      console.log('[DGRAPH] updatePerspectives - childrenRequest', {
+        childrenUpsert,
+      });
       await this.db.callRequest(childrenRequest);
 
       // Consequently, we perform the ecosystem transaction | TRX #4
@@ -481,7 +482,11 @@ export class UprtclRepository {
 
       ecoRequest.setMutationsList([ecoMutation]);
 
-      await this.db.callRequest(ecoRequest);
+      console.log('[DGRAPH] updatePerspectives - ecoRequest', {
+        ecoUpsert,
+      });
+      const result = await this.db.callRequest(ecoRequest);
+      console.log('[DGRAPH] updatePerspectives - result', { result });
     }
   }
 
