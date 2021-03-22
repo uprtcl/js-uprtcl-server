@@ -1141,16 +1141,30 @@ export class UprtclRepository {
               if (textLevels === -1) {
                 // in ecosystem of each linkTo matched
                 // WARNING THIS IS SAMPLE CODE. How can it be fixed without changing its logic/spirit?
-                optionalWrapper = optionalWrapper.concat(`\nfiltered as (func: uid(linkingTo)) @cascade {
-                  ecosystem @filter(anyoftext(text, "${searchText}"))
-                }`);
+                optionalWrapper = optionalWrapper.concat(`
+                  \noptionalWrapper(func: uid(linkingTo)) @filter(anyoftext(text, "${searchText}")) {
+                    filtered as ecosystem
+                  }`);
               } else {
-                optionalWrapper = optionalWrapper.concat(`\nfiltered as (func: uid(linkingTo) AND anyoftext(text, "${searchText}"))`);
+                optionalWrapper = optionalWrapper.concat(`\nfiltered as var(func: uid(linkingTo)) @filter(anyoftext(text, "${searchText}"))`);
               }
             } else {
               // only under and linksTo
               internalWrapper = internalWrapper.replace('linkingTo', 'filtered');
               optionalWrapper = optionalWrapper.replace('linkingTo', 'filtered');
+            }
+            // Under and search
+          } else if(searchText !== '') {
+            if(textLevels === -1) {
+              internalWrapper = `
+                ecosystem @filter(anyoftext(text, "${searchText}")) {
+                  filtered as ecosystem
+                }
+              `;
+            } else {
+              internalWrapper = `
+                filtered as ecosystem @filter(anyoftext(text, "${searchText}"))
+              `;
             }
           } else {
             internalWrapper = 'filtered as ecosystem';
@@ -1188,10 +1202,7 @@ export class UprtclRepository {
                      }`
                    );
                 }
-              } else {
-
               }
-
             } else if(linksTo.type === Join.inner) {
               startQuery = `linkedElements as var(func: eq(dgraph.type, "Perspective")) @cascade {
                   numberOfLinks as count(linksTo) @filter(eq(xid, ${ids}))
