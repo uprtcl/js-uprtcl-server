@@ -85,7 +85,8 @@ export class UprtclService {
     if (!canUpdate)
       throw new Error('Anonymous user. Cant update a perspective');
 
-    await this.uprtclRepo.updatePerspectives(updates);
+    const result = await this.uprtclRepo.updatePerspectives(updates);
+    console.log('[UPRTCL-SERVICE] updatePerspectives', { result });
   }
 
   async deletePerspective(
