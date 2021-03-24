@@ -151,15 +151,17 @@ export const createHomeSpace = async (user: TestUser) => {
       details: {
         headId: commitWrapperNodes[0].id,
       },
-      linkChanges: {
-        children: {
-          added: [
-            perspectivesInitialNodes[1].perspective.id,
-            perspectivesInitialNodes[2].perspective.id,
-          ],
-          removed: [],
+      indexData: {
+        linkChanges: {
+          children: {
+            added: [
+              perspectivesInitialNodes[1].perspective.id,
+              perspectivesInitialNodes[2].perspective.id,
+            ],
+            removed: [],
+          },
         },
-      },
+      }
     },
     {
       perspectiveId: '',
@@ -247,12 +249,14 @@ export const createHomeSpace = async (user: TestUser) => {
       details: {
         headId: newBlogDataCommit[0].id,
       },
-      linkChanges: {
-        linksTo: {
-          added: ['bloglinksto'],
-          removed: [],
+      indexData: {
+        linkChanges: {
+          linksTo: {
+            added: ['bloglinksto'],
+            removed: [],
+          },
         },
-      },
+      }
     },
   ]);
 
@@ -295,12 +299,14 @@ export const createHomeSpace = async (user: TestUser) => {
       details: {
         headId: newPageDataToPrivateCommit[0].id,
       },
-      linkChanges: {
-        children: {
-          added: [perspectivesInitialNodes[0].perspective.id],
-          removed: [],
+      indexData: {
+        linkChanges: {
+          children: {
+            added: [perspectivesInitialNodes[0].perspective.id],
+            removed: [],
+          },
         },
-      },
+      }
     },
     // Set private as guardianId of the new page.
     {
@@ -352,12 +358,14 @@ export const createHomeSpace = async (user: TestUser) => {
       details: {
         headId: newTopElementCommit[0].id,
       },
-      linkChanges: {
-        children: {
-          added: [perspectivesWrapperNodes[0].perspective.id],
-          removed: [],
+      indexData: {
+        linkChanges: {
+          children: {
+            added: [perspectivesWrapperNodes[0].perspective.id],
+            removed: [],
+          },
         },
-      },
+      }
     },
   ]);
 
@@ -410,7 +418,9 @@ export const newTitle = async (
         headId: titleCommit[0].id,
         guardianId,
       },
-      text: title,
+      indexData: {
+        text: title
+      }
     },
   ]);
 
@@ -460,7 +470,9 @@ export const newText = async (
         headId: textCommit[0].id,
         guardianId,
       },
-      text,
+      indexData: {
+        text,
+      }
     },
   ]);
 
@@ -512,12 +524,14 @@ export const addNewElementToPerspective = async (
       details: {
         headId: dataCommit[0].id,
       },
-      linkChanges: {
-        children: {
-          added: [newElementId],
-          removed: [],
+      indexData: {
+        linkChanges: {
+          children: {
+            added: [newElementId],
+            removed: [],
+          },
         },
-      },
+      }
     },
   ]);
 };
@@ -563,12 +577,14 @@ export const postElementToBlog = async (
         details: {
           headId: newForkCommit[0].id,
         },
-        linkChanges: {
-          linksTo: {
-            added: ['textnodelinksto'],
-            removed: [],
+        indexData: {
+          linkChanges: {
+            linksTo: {
+              added: ['textnodelinksto'],
+              removed: [],
+            },
           },
-        },
+        }
       },
     ]);
 
@@ -610,11 +626,13 @@ export const postElementToBlog = async (
         details: {
           headId: updateCommit[0].id
         },
-        linkChanges: {
-          children: {
-            added: [forkedPerspective],
-            removed: [],
-          },
+        indexData: {
+          linkChanges: {
+            children: {
+              added: [forkedPerspective],
+              removed: [''],
+            },
+          }
         }
       }
     ]);

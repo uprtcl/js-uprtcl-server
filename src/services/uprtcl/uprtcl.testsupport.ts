@@ -82,7 +82,9 @@ export const forkPerspective = async (
           headId: forkCommit[0].id,
           guardianId: parentId
         },
-        text: officialData.text
+        indexData: {
+          text: officialData.text 
+        }
       }
     ],
   );
@@ -173,6 +175,7 @@ export const createPerspectives = async (
       const secured: Secured<Perspective> = {
         id: perspectiveId,
         object: securedObject,
+        casID: ""
       };
 
       update.perspectiveId = perspectiveId;
@@ -240,6 +243,7 @@ export const createCommit = async (
   const secured: Secured<Commit> = {
     id: commitId,
     object: securedObject,
+    casID: '',
   };
 
   const router = await createApp();
