@@ -1099,55 +1099,48 @@ export class UprtclRepository {
           break;
 
         case StartCase.under:
-          if(under.elements.length > 1) {
-            const ids = under.elements.map(el => el.id);
-            if(under.type === Join.full) {
-              startQuery = `search(func: eq(xid, ${ids})) @cascade`;
-            } else if(under.type === Join.inner) {
-              for(let i = 0; i < ids.length; i++) {
-                startQuery = startQuery.concat(
-                  `\nvar(func: eq(xid, ${ids[i]})) {
-                    eco${i} as ecosystem ${ i > 0 ? `@filter(uid(eco${i - 1}))` : '' }
+          const ids = under.elements.map(el => el.id);
+
+          if(under.type === Join.full) {
+            startQuery = `search(func: eq(xid, ${ids})) @cascade`;
+          } else if(under.type === Join.inner) {
+            for(let i = 0; i < ids.length; i++) {
+              startQuery = startQuery.concat(
+                `\nvar(func: eq(xid, ${ids[i]})) {
+                  eco${i} as ecosystem ${ i > 0 ? `@filter(uid(eco${i - 1}))` : '' }
+                }`
+              );
+            }
+            startQuery = startQuery.concat(
+              `\nsearch(func: uid(eco${ids.length - 1})) @filter(type(Perspective))`
+            );
+          } else {
+            throw new Error("Under operation type must be specified. INNER_JOIN or FULL_JOIN");
+          }
+          
+          if (linksTo.elements && linksTo.elements.length > 0) {    
+            // under and linksTo
+            const linksToIds = linksTo.elements.map(el => el.id);
+            if(linksTo.type === Join.full) {
+              startQuery = startQuery.concat(`@cascade`);
+              internalWrapper = `linkingTo as ecosystem @cascade {
+                linksTo @filter(eq(xid, ${linksToIds}))
+              }`
+            } else if(linksTo.type === Join.inner) {
+              internalWrapper = `link0 as ecosystem`
+
+              for(let i = 0; i < linksToIds.length; i++) {
+                optionalWrapper = optionalWrapper.concat(
+                  `\nvar(func: eq(xid, ${linksToIds[i]})) {
+                    link${i + 1} as ~linksTo @filter(uid(link${i}))
                   }`
                 );
               }
-              startQuery = startQuery.concat(
-                `\nsearch(func: uid(eco${ids.length - 1})) @filter(type(Perspective))`
+              optionalWrapper = optionalWrapper.concat(
+                `linkingTo as var(func: uid(link${linksToIds.length})) @filter(type(Perspective))`
               );
-            }
-          } else {
-            startQuery = `search(func:eq(xid, ${under.elements[0].id}))`;
-          }
-          
-          if (linksTo.elements && linksTo.elements.length > 0) {
-            // under and linksTo
-
-            if(linksTo.elements.length > 1) {
-              const linksToIds = linksTo.elements.map(el => el.id);
-              if(linksTo.type === Join.full) {
-                startQuery = startQuery.concat(`@cascade`);
-                internalWrapper = `linkingTo as ecosystem @cascade {
-                  linksTo @filter(eq(xid, ${linksToIds}))
-                }`
-              } else if(linksTo.type === Join.inner) {
-                internalWrapper = `link0 as ecosystem`
-
-                for(let i = 0; i < linksToIds.length; i++) {
-                  optionalWrapper = optionalWrapper.concat(
-                    `\nvar(func: eq(xid, ${linksToIds[i]})) {
-                      link${i + 1} as ~linksTo @filter(uid(link${i}))
-                    }`
-                  );
-                }
-                optionalWrapper = optionalWrapper.concat(
-                  `linkingTo as var(func: uid(link${linksToIds.length})) @filter(type(Perspective))`
-                );
-              }
             } else {
-              startQuery = startQuery.concat(`@cascade`);
-              internalWrapper = `linkingTo as ecosystem @cascade {
-                linksTo @filter(eq(xid, ${linksTo.elements[0].id}))
-              }`;
+              throw new Error("LinksTo operation type must be specified. INNER_JOIN or FULL_JOIN");
             }
 
             if (searchText !== '') {
@@ -1187,86 +1180,66 @@ export class UprtclRepository {
           break;
 
         case StartCase.linksTo:
-          // First we check if there is more than one element
-          if(linksTo.elements.length > 1) {
-            // More than one element
-            const ids = linksTo.elements.map(el => el.id);
-            // We first define the starting query according to each type
-            if(linksTo.type === Join.full) {
-              startQuery = `filtered as search(func: eq(dgraph.type, "Perspective")) @cascade`;
-              internalWrapper = `linksTo @filter(eq(xid, ${ids}))`
+          const linksToIds = linksTo.elements.map(el => el.id);
+          // We first define the starting query according to each type
+          if(linksTo.type === Join.full) {
+            startQuery = `filtered as search(func: eq(dgraph.type, "Perspective")) @cascade`;
+            internalWrapper = `linksTo @filter(eq(xid, ${linksToIds}))`
 
-              if(searchText !== '') {
-                if(textLevels === -1) {
+            if(searchText !== '') {
+              if(textLevels === -1) {
+                // We move the filtered variable to the internal wrapper instead.
+                startQuery = startQuery.replace('filtered as', '');
+                internalWrapper = internalWrapper.concat(
+                  `@cascade {
+                    ~linksTo  @filter(anyoftext(text, "${searchText}")) {
+                      filtered as ecosystem
+                    }
+                  }`
+                );
+              } else {
                   // We move the filtered variable to the internal wrapper instead.
                   startQuery = startQuery.replace('filtered as', '');
                   internalWrapper = internalWrapper.concat(
                     `@cascade {
-                      ~linksTo  @filter(anyoftext(text, "${searchText}")) {
-                        filtered as ecosystem
-                      }
+                      filtered as ~linksTo @filter(anyoftext(text, "${searchText}"))
                     }`
                   );
-                } else {
-                   // We move the filtered variable to the internal wrapper instead.
-                   startQuery = startQuery.replace('filtered as', '');
-                   internalWrapper = internalWrapper.concat(
-                     `@cascade {
-                       filtered as ~linksTo @filter(anyoftext(text, "${searchText}"))
-                     }`
-                   );
-                }
               }
-            } else if(linksTo.type === Join.inner) {
-              for(let i = 0; i < linksTo.elements.length; i++) {
+            }
+          } else if(linksTo.type === Join.inner) {
+            for(let i = 0; i < linksTo.elements.length; i++) {
+              startQuery = startQuery.concat(
+                `\nvar(func: eq(xid, ${linksToIds[i]})) {
+                  perspectives${i} as ~linksTo ${ i > 0 ? `@filter(uid(perspectives${i - 1}))` : '' }
+                }`
+              );
+            }
+
+            // We leave the filter open for more options
+            startQuery = startQuery.concat(
+              `\nfiltered as search(func: uid(perspectives${linksToIds .length - 1})) @filter(type(Perspective)`
+            );
+
+            if(searchText !== '') {
+              if(textLevels === -1) {
+                startQuery = startQuery.replace('filtered as', '');
                 startQuery = startQuery.concat(
-                  `\nvar(func: eq(xid, ${ids[i]})) {
-                    perspectives${i} as ~linksTo ${ i > 0 ? `@filter(uid(perspectives${i - 1}))` : '' }
+                  ` AND anyoftext(text, "${searchText}")) {
+                    filtered as ecosystem 
                   }`
                 );
-              }
-
-              // We leave the filter open for more options
-              startQuery = startQuery.concat(
-                `\nfiltered as search(func: uid(perspectives${ids.length - 1})) @filter(type(Perspective)`
-              );
-
-              if(searchText !== '') {
-                if(textLevels === -1) {
-                  startQuery = startQuery.replace('filtered as', '');
-                  startQuery = startQuery.concat(
-                    ` AND anyoftext(text, "${searchText}")) {
-                      filtered as ecosystem 
-                    }`
-                  );
-                } else {
-                  startQuery = startQuery.concat(
-                    `AND anyoftext(text, "${searchText}"))`
-                  );
-                }
               } else {
-                // We close the filter if no more options are needed.
-                startQuery = startQuery.concat(')');
-              }
-            }
-          } else {
-            // Only one element
-            startQuery = `search(func:eq(xid, ${linksTo.elements[0].id}))`;
-
-            if (searchText !== '') {
-              // and text
-  
-              if (textLevels === -1) {
-                // in link
-                internalWrapper = internalWrapper.concat(`\n ~linksTo @filter(anyoftext(text, "${searchText}")) {
-                  filtered as ecosystem 
-                }`);
-              } else {
-                internalWrapper = internalWrapper.concat(`\nfiltered as ~linksTo @filter(anyoftext(text, "${searchText}"))`);
+                startQuery = startQuery.concat(
+                  `AND anyoftext(text, "${searchText}"))`
+                );
               }
             } else {
-              internalWrapper = internalWrapper.concat(`\nfiltered as ~linksTo`);
+              // We close the filter if no more options are needed.
+              startQuery = startQuery.concat(')');
             }
+          } else {
+            throw new Error("LinksTo operation type must be specified. INNER_JOIN or FULL_JOIN");
           }
           break;
       }
