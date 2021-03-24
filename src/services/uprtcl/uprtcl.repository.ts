@@ -117,6 +117,7 @@ const assembleCommit = (dcommit: DgCommit): Secured<Commit> => {
         type: dcommit.proof_type,
       },
     },
+    casID: '',
   };
 };
 
@@ -142,6 +143,7 @@ const assemblePerspective = (dperspective: DgPerspective) => {
         type: dperspective.proof_type,
       },
     },
+    casID: '',
   };
   return securedPerspective;
 };
@@ -469,6 +471,9 @@ export class UprtclRepository {
 
       childrenRequest.setMutationsList([childrenMutation]);
 
+      console.log('[DGRAPH] updatePerspectives - childrenRequest', {
+        childrenUpsert,
+      });
       await this.db.callRequest(childrenRequest);
 
       // Consequently, we perform the ecosystem transaction | TRX #4
@@ -486,7 +491,11 @@ export class UprtclRepository {
 
       ecoRequest.setMutationsList([ecoMutation]);
 
-      await this.db.callRequest(ecoRequest);
+      console.log('[DGRAPH] updatePerspectives - ecoRequest', {
+        ecoUpsert,
+      });
+      const result = await this.db.callRequest(ecoRequest);
+      console.log('[DGRAPH] updatePerspectives - result', { result });
     }
   }
 
@@ -509,7 +518,10 @@ export class UprtclRepository {
     // If the current perspective we are seeing isn't headless, we proceed to update the ecosystem and its head.
     if (update.details !== undefined) {
       if (update.details.headId !== undefined) {
-        const { details, linkChanges, text } = update;
+        const { details, indexData } = update;
+
+        const linkChanges = indexData?.linkChanges;
+        const text = indexData?.text;
 
         const headId = details.headId;
         const addedLinksTo = linkChanges?.linksTo?.added;
@@ -698,6 +710,7 @@ export class UprtclRepository {
       enitites.push({
         id,
         object: securedCommit.object,
+        casID: '',
       });
     }
 
@@ -1173,6 +1186,8 @@ export class UprtclRepository {
                 filtered as ecosystem @filter(anyoftext(text, "${searchText}"))
               `;
             }
+          } else if(searchText != '') {
+            internalWrapper = `filtered as ecosystem @filter(anyoftext(text, "${searchText}"))`;
           } else {
             internalWrapper = 'filtered as ecosystem';
           }
@@ -1428,6 +1443,7 @@ export class UprtclRepository {
             const data: Entity<any> = {
               id: element.head.data.xid,
               object: decodeData(element.head.data.jsonString),
+              casID: '',
             };
 
             result.slice.entities.push(commit, data);

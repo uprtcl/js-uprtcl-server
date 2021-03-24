@@ -6,22 +6,29 @@ import { ipldService } from '../ipld/ipldService';
 import { localCidConfig } from '../ipld';
 
 export const createData = async (
-  data: Object,
+  data: Object[],
   jwt: string
-): Promise<string> => {
-  const dataId = await ipldService.generateCidOrdered(data, localCidConfig);
-  const hashedData: Entity<Object> = {
-    id: dataId,
-    object: data,
-  };
+): Promise<Entity<Object>[]> => {
+  const hashedPromises = data.map(async (obj) => {
+    const dataId = await ipldService.generateCidOrdered(obj, localCidConfig);
+    const hashedData: Entity<Object> = {
+      id: dataId,
+      object: obj,
+      casID: ''
+    };
+    return hashedData;
+  });
+
+  const hashedDatas = await Promise.all(hashedPromises);
+
   const router = await createApp();
   const post = await request(router)
     .post('/uprtcl/1/data')
-    .send({ datas: [hashedData] })
+    .send({ datas: hashedDatas })
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   expect(post.status).toEqual(200);
-  return dataId;
+  return hashedDatas;
 };
 
 export const getData = async (

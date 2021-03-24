@@ -64,7 +64,7 @@ export class DataController {
               message: '',
               entities: Array.prototype.concat(
                 [],
-                [resultDatas, resultCommits]
+                resultDatas.concat(resultCommits)
               ),
             };
             res.status(200).send(result);

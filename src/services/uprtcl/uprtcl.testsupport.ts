@@ -13,11 +13,20 @@ import {
   Perspective,
   Secured,
   PerspectiveDetails,
+  PerspectiveGetResult,
   Commit,
-  Update
+  Update,
+  NewPerspective,
+  SearchOptions,
 } from '@uprtcl/evees';
+import { FetchResult } from './uprtcl.repository';
+import { addNewElementToPerspective } from './uprtcl.mock.helper';
 
-const db = new DGraphService('localhost', '9080', '');
+const db = new DGraphService(
+  process.env.DGRAPH_HOST as string, 
+  process.env.DGRAPH_PORT as string, 
+  ''
+);
 
 interface PerspectiveData {
   persp: string;
@@ -27,42 +36,72 @@ interface PerspectiveData {
 export const forkPerspective = async (
   perspectiveId: string,
   user: TestUser,
-  parent?: PerspectiveData
-): Promise<any> => {
-  const timestamp = Math.floor(100000 + Math.random() * 900000);
+  parentId?: string,
+  topElement?: string,
+): Promise<string> => {
+  const officialPerspective = await getPerspectiveDetails(perspectiveId, user);  
+  let officialData = officialPerspective.data.slice?.entities[1].object;
+  const officialHead = officialPerspective.data.slice?.entities[0].object.payload;
+  
+  if(officialData.pages) {
+    officialData.pages = [];
+  } else if(officialData.links) {
+    officialData.links = [];
+  }
 
-  const persp = await getPerspective(perspectiveId, user.jwt);
-  const {
-    data: {
-      object: {
-        payload: { creatorId, context },
-      },
-    },
-  } = persp;
-
-  const forkedPersp = await createAndInitPerspective(
-    '',
-    false,
-    user,
-    timestamp,
-    context
+  const forkData = await createData(
+    [officialData],
+    user.jwt
   );
 
-  if (parent) {
-    await addChildToPerspective(
-      forkedPersp.persp,
-      parent.persp,
-      parent.commit,
-      false,
-      user
-    );
+  const forkCommit = await createData(
+    [
+      {
+        proof: {
+          signature: '',
+          proof: '',
+        },
+        payload: {
+          creatorsIds: [],
+          dataId: forkData[0].id,
+          message: '',
+          timestamp: Date.now(),
+          parentsIds: officialHead.parentsIds,
+        },
+      }
+    ],
+    user.jwt
+  );
+
+  const forkedPerspective = await createPerspectives(
+    user,
+    [
+      {
+        perspectiveId: '',
+        details: {
+          headId: forkCommit[0].id,
+          guardianId: parentId
+        },
+        indexData: {
+          text: officialData.text 
+        }
+      }
+    ],
+  );
+
+  await sendPerspectiveBatch(forkedPerspective, user);
+
+  if (parentId) {
+    await addNewElementToPerspective(parentId, forkedPerspective[0].perspective.id, user);
+  } else {
+    topElement = forkedPerspective[0].perspective.id;
   }
 
   const children = (
     await getPerspectiveRelatives(perspectiveId, 'children')
   ).map(async (child) => {
     try {
-      return await forkPerspective(child, user, forkedPersp);
+      return await forkPerspective(child, user, forkedPerspective[0].perspective.id);
     } catch {
       return;
     }
@@ -70,7 +109,7 @@ export const forkPerspective = async (
 
   await Promise.all(children);
 
-  return parent ? parent.persp : forkedPersp.persp;
+  return topElement || '';
 };
 
 export const addChildToPerspective = async (
@@ -80,85 +119,74 @@ export const addChildToPerspective = async (
   pages: boolean,
   user: TestUser
 ): Promise<void> => {
-  const commitChild = await addPagesOrLinks(
-    [childId],
-    pages,
-    [parentCommit],
-    user
-  );
-
-  await updatePerspective(
-    user.jwt,
-    parentId,
-    {
-      headId: commitChild
-    }
-  );
+  // const commitChild = await addPagesOrLinks(
+  //   [childId],
+  //   pages,
+  //   [parentCommit],
+  //   user
+  // );
+  // await updatePerspective(user.jwt, parentId, {
+  //   headId: commitChild,
+  // });
 };
 
-export const createAndInitPerspective = async (
-  content: string,
-  pages: boolean,
+// export const createAndInitPerspective = async (
+//   content: string,
+//   pages: boolean,
+//   user: TestUser,
+//   timestamp: number,
+//   context: string
+// ): Promise<PerspectiveData> => {
+//   const commit = await createCommitAndData(content, pages, user);
+
+//   return {
+//     persp: await createPerspective(user, timestamp, context, user.jwt, commit),
+//     commit: commit,
+//   };
+// };
+
+export const createPerspectives = async (
   user: TestUser,
-  timestamp: number,
-  context: string
-): Promise<PerspectiveData> => {
-  const commit = await createCommitAndData(content, pages, user);
+  updates: Update[]
+): Promise<NewPerspective[]> => {
+  const perspectives = await Promise.all(
+    updates.map(async (update, i) => {
+      const perspective: Perspective = {
+        remote: LOCAL_EVEES_REMOTE,
+        path: LOCAL_EVEES_PATH,
+        creatorId: user.userId.toLowerCase(),
+        timestamp: Date.now(),
+        context: `${i}`,
+      };
 
-  return {
-    persp: await createPerspective(user, timestamp, context, user.jwt, commit),
-    commit: commit,
-  };
-};
-
-export const createPerspective = async (
-  user: TestUser,
-  timestamp: number,
-  context: string,
-  headId?: string,
-  parentId?: string
-): Promise<string> => {
-  const perspective: Perspective = {
-    remote: LOCAL_EVEES_REMOTE,
-    path: LOCAL_EVEES_PATH,
-    creatorId: user.userId.toLowerCase(),
-    timestamp: timestamp,
-    context: context,
-  };
-
-  const securedObject = {
-    payload: perspective,
-    proof: {
-      signature: '',
-      type: '',
-    },
-  };
-
-  const perspectiveId = await ipldService.generateCidOrdered(
-    securedObject,
-    localCidConfig
-  );
-
-  const secured: Secured<Perspective> = {
-    id: perspectiveId,
-    object: securedObject,
-  };
-  const router = await createApp();
-  const post = await request(router)
-    .post('/uprtcl/1/persp')
-    .send({
-      perspectives: [
-        {
-          perspective: secured,
-          details: { headId: headId },
-          parentId: parentId,
+      const securedObject = {
+        payload: perspective,
+        proof: {
+          signature: '',
+          type: '',
         },
-      ],
-    })
-    .set('Authorization', user.jwt ? `Bearer ${user.jwt}` : '');
+      };
 
-  expect(post.status).toEqual(200);
-  return perspectiveId;
+      const perspectiveId = await ipldService.generateCidOrdered(
+        securedObject,
+        localCidConfig
+      );
+
+      const secured: Secured<Perspective> = {
+        id: perspectiveId,
+        object: securedObject,
+        casID: ""
+      };
+
+      update.perspectiveId = perspectiveId;
+
+      return {
+        perspective: secured,
+        update: update,
+      };
+    })
+  );
+  return perspectives;
 };
 
 export const updatePerspective = async (
@@ -171,12 +199,14 @@ export const updatePerspective = async (
   const put = await request(router)
     .put(`/uprtcl/1/persp/update`)
     .send({
-      updates: (perspectiveId) ? [
-        {
-          id: perspectiveId,
-          details
-        }
-      ] : updatesBatch
+      updates: perspectiveId
+        ? [
+            {
+              id: perspectiveId,
+              details,
+            },
+          ]
+        : updatesBatch,
     })
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
   return JSON.parse(put.text);
@@ -213,6 +243,7 @@ export const createCommit = async (
   const secured: Secured<Commit> = {
     id: commitId,
     object: securedObject,
+    casID: '',
   };
 
   const router = await createApp();
@@ -245,60 +276,52 @@ export const getIndependentPerspectives = async (
   return JSON.parse(get.text);
 };
 
-export const addPagesOrLinks = async (
-  addedContent: Array<string>,
-  pages: boolean,
-  parents: Array<string>,
-  user: TestUser
-): Promise<string> => {
-  const timestamp = Math.round(Math.random() * 100000);
+// export const addPagesOrLinks = async (
+//   addedContent: Array<string>,
+//   pages: boolean,
+//   parents: Array<string>,
+//   user: TestUser
+// ): Promise<string> => {
+//   const timestamp = Math.round(Math.random() * 100000);
 
-  let data = {};
+//   let data = {};
 
-  if (pages) {
-    data = { title: '', type: DocNodeType.title, pages: addedContent };
-  } else {
-    data = { text: '', type: DocNodeType.paragraph, links: addedContent };
-  }
+//   if (pages) {
+//     data = { title: '', type: DocNodeType.title, pages: addedContent };
+//   } else {
+//     data = { text: '', type: DocNodeType.paragraph, links: addedContent };
+//   }
 
-  const dataId = await createData(data, user.jwt);
-  let commitId = await createCommit(
-    [user.userId.toLowerCase()],
-    timestamp,
-    'sample message',
-    parents,
-    dataId,
-    user.jwt
-  );
-  return commitId;
-};
+//   const dataId = await createData(data, user.jwt);
+//   let commitId = await createCommit(
+//     [user.userId.toLowerCase()],
+//     timestamp,
+//     'sample message',
+//     parents,
+//     dataId,
+//     user.jwt
+//   );
+//   return commitId;
+// };
 
-export const createCommitAndData = async (
-  content: string,
-  page: boolean,
-  user: TestUser
-): Promise<string> => {
-  const timestamp = Math.round(Math.random() * 100000);
+// export const createCommitAndData = async (
+//   user: TestUser,
+//   data: object[]
+// ): Promise<string> => {
+//   const timestamp = Math.round(Math.random() * 100000);
 
-  let data = {};
-
-  if (page) {
-    data = { title: content, type: DocNodeType.title, pages: [] };
-  } else {
-    data = { text: content, type: DocNodeType.paragraph, links: [] };
-  }
-
-  const dataId = await createData(data, user.jwt);
-  let commitId = await createCommit(
-    [user.userId.toLowerCase()],
-    timestamp,
-    'sample message',
-    [],
-    dataId,
-    user.jwt
-  );
-  return commitId;
-};
+//   const dataResults = await createData(data, user.jwt);
+//   // let commitId = await createCommit(
+//   //   [user.userId.toLowerCase()],
+//   //   timestamp,
+//   //   'sample message',
+//   //   [],
+//   //   dataId,
+//   //   user.jwt
+//   // );
+//   console.log(dataResults);
+//   return '';
+// };
 
 export const getPerspective = async (
   perspectiveId: string,
@@ -314,12 +337,17 @@ export const getPerspective = async (
 
 export const getPerspectiveDetails = async (
   perspectiveId: string,
-  jwt: string
-): Promise<GetResult<PerspectiveDetails>> => {
+  user: TestUser
+): Promise<GetResult<PerspectiveGetResult>> => {
   const router = await createApp();
   const get = await request(router)
-    .get(`/uprtcl/1/persp/${perspectiveId}/details`)
-    .set('Authorization', jwt ? `Bearer ${jwt}` : '');
+    .put(`/uprtcl/1/persp/${perspectiveId}`)
+    .send({
+      userId: user.userId,
+      levels: 0,
+      entities: true,
+    })
+    .set('Authorization', user.jwt ? `Bearer ${user.jwt}` : '');
   return JSON.parse(get.text);
 };
 
@@ -360,7 +388,10 @@ export const findPerspectives = async (
   return JSON.parse(get.text);
 };
 
-export const sendPerspectiveBatch = async (perspectives: Object[], user: TestUser) : Promise<void> => {
+export const sendPerspectiveBatch = async (
+  perspectives: Object[],
+  user: TestUser
+): Promise<void> => {
   const router = await createApp();
   const post = await request(router)
     .post('/uprtcl/1/persp')
@@ -368,19 +399,24 @@ export const sendPerspectiveBatch = async (perspectives: Object[], user: TestUse
     .set('Authorization', user.jwt ? `Bearer ${user.jwt}` : '');
 
   expect(post.status).toEqual(200);
-}
+};
 
-export const sendDataBatch = async (datas: Object[], user: TestUser) : Promise<void> => {
+export const sendDataBatch = async (
+  datas: Object[],
+  user: TestUser
+): Promise<void> => {
   const router = await createApp();
   const post = await request(router)
     .post('/uprtcl/1/data')
-    .send({datas:datas})
+    .send({ datas: datas })
     .set('Authorization', user.jwt ? `Bearer ${user.jwt}` : '');
 
   expect(post.status).toEqual(200);
-}
+};
 
-export const getEcosystem = async(perspectiveId: string) : Promise<string[]> => {
+export const getEcosystem = async (
+  perspectiveId: string
+): Promise<string[]> => {
   await db.ready();
 
   // This is a temporal way of fetching the ecosystem of each perspective.
@@ -394,7 +430,19 @@ export const getEcosystem = async(perspectiveId: string) : Promise<string[]> => 
 
   const result = await db.client.newTxn().query(query);
   const ecosystems = result.getJson().perspective[0].ecosystem;
-  const ids = ecosystems.map((ecosystem:any) => ecosystem.xid);
+  const ids = ecosystems.map((ecosystem: any) => ecosystem.xid);
 
   return !ids || ids.length == 0 ? [] : ids;
+};
+
+export const explore = async (
+  searchOptions: SearchOptions,
+  user?: TestUser
+): Promise<GetResult<FetchResult>> => {
+  const router = await createApp();
+  const get = await request(router)
+    .put(`/uprtcl/1/explore`)
+    .send({ searchOptions })
+    .set('Authorization', user ? (user.jwt ? `Bearer ${user.jwt}` : '') : '');
+  return JSON.parse(get.text);
 };
