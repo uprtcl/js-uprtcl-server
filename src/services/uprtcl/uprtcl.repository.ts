@@ -1054,7 +1054,6 @@ export class UprtclRepository {
      */
 
     let startQuery = '';
-    let filter = '';
     let internalWrapper = '';
     let optionalWrapper = '';
 
@@ -1101,16 +1100,23 @@ export class UprtclRepository {
 
         case StartCase.under:
           if(under.elements.length > 1) {
-            startQuery = `search(func: eq(dgraph.type, "Perspective")) @cascade`;
             const ids = under.elements.map(el => el.id);
             if(under.type === Join.full) {
-              filter = `@filter(eq(xid, ${ids}))`;
+              startQuery = `search(func: eq(xid, ${ids})) @cascade`;
             } else if(under.type === Join.inner) {
-              // TODO: implement AND filtering
-              //filter = this.underDgraphFilter(under.elements, Join.inner);
+              for(let i = 0; i < ids.length; i++) {
+                startQuery = startQuery.concat(
+                  `\nvar(func: eq(xid, ${ids[i]})) {
+                    eco${i} as ecosystem ${ i > 0 ? `@filter(uid(eco${i - 1}))` : '' }
+                  }`
+                );
+              }
+              startQuery = startQuery.concat(
+                `\nsearch(func: uid(eco${ids.length - 1})) @filter(type(Perspective))`
+              );
             }
           } else {
-            startQuery = `search(func:eq(xid, ${under.elements[0].id})) @cascade`;
+            startQuery = `search(func:eq(xid, ${under.elements[0].id}))`;
           }
           
           if (linksTo.elements && linksTo.elements.length > 0) {
@@ -1119,18 +1125,26 @@ export class UprtclRepository {
             if(linksTo.elements.length > 1) {
               const linksToIds = linksTo.elements.map(el => el.id);
               if(linksTo.type === Join.full) {
+                startQuery = startQuery.concat(`@cascade`);
                 internalWrapper = `linkingTo as ecosystem @cascade {
                   linksTo @filter(eq(xid, ${linksToIds}))
                 }`
               } else if(linksTo.type === Join.inner) {
-                internalWrapper = `linkedElements as ecosystem @cascade {
-                  numberOfLinks as count(linksTo) @filter(eq(xid, ${linksToIds}))
-                }`
+                internalWrapper = `link0 as ecosystem`
 
-                optionalWrapper = `linkingTo as var(func: uid(linkedElements))
-                @filter(gt(val(numberOfLinks), ${linksToIds.length - 1}))`
+                for(let i = 0; i < linksToIds.length; i++) {
+                  optionalWrapper = optionalWrapper.concat(
+                    `\nvar(func: eq(xid, ${linksToIds[i]})) {
+                      link${i + 1} as ~linksTo @filter(uid(link${i}))
+                    }`
+                  );
+                }
+                optionalWrapper = optionalWrapper.concat(
+                  `linkingTo as var(func: uid(link${linksToIds.length})) @filter(type(Perspective))`
+                );
               }
             } else {
+              startQuery = startQuery.concat(`@cascade`);
               internalWrapper = `linkingTo as ecosystem @cascade {
                 linksTo @filter(eq(xid, ${linksTo.elements[0].id}))
               }`;
@@ -1173,7 +1187,7 @@ export class UprtclRepository {
           break;
 
         case StartCase.linksTo:
-          // First we check there is more than one element
+          // First we check if there is more than one element
           if(linksTo.elements.length > 1) {
             // More than one element
             const ids = linksTo.elements.map(el => el.id);
@@ -1204,28 +1218,35 @@ export class UprtclRepository {
                 }
               }
             } else if(linksTo.type === Join.inner) {
-              startQuery = `linkedElements as var(func: eq(dgraph.type, "Perspective")) @cascade {
-                  numberOfLinks as count(linksTo) @filter(eq(xid, ${ids}))
-                }
-                filtered as search(func: uid(linkedElements))`;
+              for(let i = 0; i < linksTo.elements.length; i++) {
+                startQuery = startQuery.concat(
+                  `\nvar(func: eq(xid, ${ids[i]})) {
+                    perspectives${i} as ~linksTo ${ i > 0 ? `@filter(uid(perspectives${i - 1}))` : '' }
+                  }`
+                );
+              }
+
+              // We leave the filter open for more options
+              startQuery = startQuery.concat(
+                `\nfiltered as search(func: uid(perspectives${ids.length - 1})) @filter(type(Perspective)`
+              );
 
               if(searchText !== '') {
                 if(textLevels === -1) {
                   startQuery = startQuery.replace('filtered as', '');
                   startQuery = startQuery.concat(
-                    `@filter(gt(val(numberOfLinks), ${ids.length - 1}) AND anyoftext(text, "${searchText}")) @cascade {
+                    ` AND anyoftext(text, "${searchText}")) {
                       filtered as ecosystem 
                     }`
                   );
                 } else {
                   startQuery = startQuery.concat(
-                    `@filter(gt(val(numberOfLinks), ${ids.length - 1}) AND anyoftext(text, "${searchText}"))`
+                    `AND anyoftext(text, "${searchText}"))`
                   );
                 }
               } else {
-                startQuery = startQuery.concat(
-                  `@filter(gt(val(numberOfLinks), ${ids.length - 1}))`
-                );
+                // We close the filter if no more options are needed.
+                startQuery = startQuery.concat(')');
               }
             }
           } else {
@@ -1254,7 +1275,7 @@ export class UprtclRepository {
     }
 
     query = query.concat(`
-      ${startQuery} ${filter} ${ internalWrapper !== '' ? `{
+      ${startQuery} ${ internalWrapper !== '' ? `{
           ${internalWrapper}
         }` : ''
       }
