@@ -44,7 +44,7 @@ import {
 import { HttpSupertest } from '@uprtcl/http-provider';
 import { EveesHttp, HttpStore } from '@uprtcl/evees-http';
 import { DocumentsModule, TextType, TextNode } from '@uprtcl/documents';
-import { head } from 'request-promise';
+import { Join } from './uprtcl.repository';
 
 const httpCidConfig: any = {
   version: 1,
@@ -879,11 +879,14 @@ describe('routes', async () => {
 
     const result = await explore(
       {
-        under: [
-          {
-            id: scenario.privateId,
-          },
-        ],
+        under: {
+          type: Join.inner,
+          elements: [
+            {
+              id: scenario.privateId,
+            }
+          ]
+        }
       },
       user
     );
@@ -932,11 +935,14 @@ describe('routes', async () => {
 
     const result = await explore(
       {
-        linksTo: [
-          {
-            id: 'textnodelinksto',
-          },
-        ],
+        linksTo: {
+          type: Join.full,
+          elements: [
+            {
+              id: 'textnodelinksto',
+            },
+          ],
+        }
       },
       user
     );
@@ -985,11 +991,14 @@ describe('routes', async () => {
 
     const levelZeroResult = await explore(
       {
-        linksTo: [
-          {
-            id: 'textnodelinksto',
-          },
-        ],
+        linksTo: {
+          type: Join.full,
+          elements: [
+            {
+              id: 'textnodelinksto',
+            },
+          ],
+        },
         text: {
           value: 'Lorem',
           levels: 0,
@@ -1042,11 +1051,14 @@ describe('routes', async () => {
 
     const result = await explore(
       {
-        under: [
-          {
-            id: scenario.privateId,
-          },
-        ],
+        under: {
+          type: Join.full,
+          elements: [
+            {
+              id: scenario.privateId,
+            },
+          ],
+        },
         text: {
           value: 'long established',
           levels: 0,
@@ -1099,16 +1111,22 @@ describe('routes', async () => {
 
     const result = await explore(
       {
-        under: [
-          {
-            id: scenario.linkedThoughts,
-          },
-        ],
-        linksTo: [
-          {
-            id: 'textnodelinksto',
-          },
-        ],
+        under: {
+          type: Join.full,
+          elements: [
+            {
+              id: scenario.linkedThoughts,
+            },
+          ],
+        },
+        linksTo: {
+          type: Join.full,
+          elements: [
+            {
+              id: 'textnodelinksto',
+            },
+          ],
+        }
       },
       user
     );
@@ -1157,16 +1175,22 @@ describe('routes', async () => {
 
     const result = await explore(
       {
-        under: [
-          {
-            id: scenario.linkedThoughts,
-          },
-        ],
-        linksTo: [
-          {
-            id: 'textnodelinksto',
-          },
-        ],
+        under: {
+          type: Join.full,
+          elements: [
+            {
+              id: scenario.linkedThoughts,
+            },
+          ],
+        },
+        linksTo: {
+          type: Join.full,
+          elements: [
+            {
+              id: 'textnodelinksto',
+            },
+          ],
+        },
         text: {
           value: 'long established',
           levels: -1,
