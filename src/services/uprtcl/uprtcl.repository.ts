@@ -1055,6 +1055,39 @@ export class UprtclRepository {
       );
     }
 
+    if (searchOptions && searchOptions.forks) {
+      if (!searchOptions.under) {
+        throw new Error(
+          'forks currently support a single mandatory "under" property'
+        );
+      }
+
+      if (loggedUserId == null) {
+        throw new Error('forks currently supports for logged user');
+      }
+
+      const ecosystem =
+        searchOptions.under[0].levels === undefined
+          ? true
+          : searchOptions.under[0].levels === -1;
+
+      // TODO: Combine the search for independent forks with this search query ! :)
+      const perspectiveIds = await this.getOtherIndpPerspectives(
+        searchOptions.under[0].id,
+        ecosystem,
+        loggedUserId
+      );
+
+      return {
+        perspectiveIds,
+        details: {},
+        slice: {
+          entities: [],
+          perspectives: [],
+        },
+      };
+    }
+
     /**
      * We build the function depending on how the method is implemented.
      * For searching or for grabbing an specific perspective.
