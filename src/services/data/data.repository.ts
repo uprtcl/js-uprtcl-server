@@ -47,6 +47,7 @@ export class DataRepository {
       entities.push({
         id,
         object: data,
+        casID: ''
       });
     }
 
@@ -103,6 +104,7 @@ export class DataRepository {
     return {
       id: dataId,
       object: data,
+      casID: ''
     };
   }
 }

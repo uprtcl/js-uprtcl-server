@@ -142,6 +142,7 @@ export const createPerspective = async (
   const secured: Secured<Perspective> = {
     id: perspectiveId,
     object: securedObject,
+    casID: ''
   };
   const router = await createApp();
   const post = await request(router)
@@ -213,6 +214,7 @@ export const createCommit = async (
   const secured: Secured<Commit> = {
     id: commitId,
     object: securedObject,
+    casID: ''
   };
 
   const router = await createApp();

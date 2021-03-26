@@ -108,6 +108,7 @@ const assembleCommit = (dcommit: DgCommit): Secured<Commit> => {
         type: dcommit.proof_type,
       },
     },
+    casID: ''
   };
 };
 
@@ -133,6 +134,7 @@ const assemblePerspective = (dperspective: DgPerspective) => {
         type: dperspective.proof_type,
       },
     },
+    casID: ''
   };
   return securedPerspective;
 };
@@ -689,6 +691,7 @@ export class UprtclRepository {
       enitites.push({
         id,
         object: securedCommit.object,
+        casID: ''
       });
     }
 
@@ -1321,6 +1324,7 @@ export class UprtclRepository {
             const data: Entity<any> = {
               id: element.head.data.xid,
               object: decodeData(element.head.data.jsonString),
+              casID: ''
             };
 
             result.slice.entities.push(commit, data);
