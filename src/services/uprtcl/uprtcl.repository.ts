@@ -1165,7 +1165,13 @@ export class UprtclRepository {
               }`;
             }
           } else {
-            internalWrapper = 'filtered as ecosystem';
+            if (searchOptions.forks) {
+              // under and forks. No linksTo no text....
+              // filtered should be the indepdenentPerspectives
+              getIndPerspecteUpsert();
+            } else {
+              internalWrapper = 'filtered as ecosystem';
+            }
           }
 
           break;
