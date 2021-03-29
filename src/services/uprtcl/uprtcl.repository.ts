@@ -509,11 +509,10 @@ export class UprtclRepository {
     // If the current perspective we are seeing isn't headless, we proceed to update the ecosystem and its head.
     if (update.details !== undefined) {
       if (update.details.headId !== undefined) {
-        const { details, indexData } = update;
+        const { details } = update;
 
-        const linkChanges = indexData?.linkChanges;
-        const text = indexData?.text;
-
+        const linkChanges = update.indexData?.linkChanges;
+        const text = update.indexData?.text;
         const headId = details.headId;
         const addedLinksTo = linkChanges?.linksTo?.added;
         const removedLinksTo = linkChanges?.linksTo?.removed;
@@ -1047,14 +1046,11 @@ export class UprtclRepository {
     searchOptions?: SearchOptions
   ): Promise<FetchResult> {
     let query = ``;
-    const { levels, entities } = getPerspectiveOptions;
+    const { levels, entities, details } = getPerspectiveOptions;
 
-    if (levels !== 0 && levels !== -1) {
-      throw new Error(
-        `Levels can only be 0 (shallow get) or -1, fully recusvie`
-      );
+    if (!details && entities) {
+      throw new Error('Entities can not be provided without details...');
     }
-
     /**
      * We build the function depending on how the method is implemented.
      * For searching or for grabbing an specific perspective.
@@ -1073,10 +1069,6 @@ export class UprtclRepository {
         : 0;
       const under = searchOptions.under ? searchOptions.under : [];
       const linksTo = searchOptions.linksTo ? searchOptions.linksTo : [];
-
-      if (textLevels !== 0 && textLevels !== -1) {
-        throw new Error('textLevels can only be 0 or 1 for now');
-      }
 
       enum StartCase {
         all = 'all',
@@ -1200,7 +1192,7 @@ export class UprtclRepository {
      */
 
     /** The query uses ecosystem if levels === -1 and get the head and data json objects if entities === true */
-    const elementQuery = `
+    let elementQuery = `
       xid
       context {
         name
@@ -1213,18 +1205,6 @@ export class UprtclRepository {
       timextamp
       stored
       deleted
-      head {
-        xid
-        data {
-          xid
-          ${entities ? `jsonString` : ''}
-        }
-        ${entities ? COMMIT_PROPERTIES : ''}
-      }
-      delegate
-      delegateTo {
-        xid
-      }
       finDelegatedTo {
         canWrite @filter(eq(did, "${loggedUserId}")) {
           count(uid)
@@ -1237,25 +1217,75 @@ export class UprtclRepository {
       }
     `;
 
-    query = query.concat(
-      `\nelements as var(func: uid(filtered)) {
-          head {
-            date as timextamp
+    if (details) {
+      elementQuery = elementQuery.concat(
+        `\nhead {
+          xid
+          data {
+            xid
+            ${entities ? `jsonString` : ''}
           }
-          datetemp as max(val(date))
+          ${entities ? COMMIT_PROPERTIES : ''}
         }
-        perspectives(func: uid(elements), orderdesc: val(datetemp) ${
-          searchOptions ? `,first: ${first}, offset: ${offset}` : ''
-        } ) ${searchOptions ? `@filter(uid(private) OR uid(public))` : ``} {
-            ${levels === -1 ? `ecosystem {${elementQuery}}` : `${elementQuery}`}
+        delegate
+        delegateTo {
+          xid
+        }`
+      );
+    }
+
+    query = query.concat(`
+      \nelements as var(func: uid(filtered)) {
+        head {
+          date as timextamp
+        }
+        datetemp as max(val(date))
+      }
+    `);
+
+    if (levels && levels > 0) {
+      query = query.concat(
+        `\ntopElements as var(func: uid(elements), orderdesc: val(datetemp) 
+                      ${
+                        searchOptions
+                          ? `,first: ${first}, offset: ${offset}`
+                          : ''
+                      })
+                      ${
+                        searchOptions
+                          ? `@filter(uid(private) OR uid(public))`
+                          : ''
+                      } @recurse(depth: ${levels}) {
+                        recurseIds as children
+                      }
+
+        perspectives(func: uid(topElements)) {
+          ${elementQuery}
+        }
+        recurseChildren(func: uid(recurseIds)) {
+          ${elementQuery}
+        }`
+      );
+    } else {
+      query = query.concat(
+        `\nperspectives(func: uid(elements), orderdesc: val(datetemp) 
+          ${searchOptions ? `,first: ${first}, offset: ${offset}` : ''}) 
+          ${searchOptions ? `@filter(uid(private) OR uid(public))` : ''} {
+            ${
+              levels === -1
+                ? `xid ecosystem {${elementQuery}}`
+                : `${elementQuery}`
+            }
           }`
-    );
+      );
+    }
+
     let dbResult = await this.db.client.newTxn().query(`query{${query}}`);
     let json = dbResult.getJson();
 
     const perspectives = json.perspectives;
     // initalize the returned result with empty values
-    const result: FetchResult = {
+    let result: FetchResult = {
       details: {},
       perspectiveIds: [],
       slice: {
@@ -1270,12 +1300,18 @@ export class UprtclRepository {
 
     // then loop over the dgraph results and fill the function output result
     perspectives.forEach((persp: any) => {
-      const all = levels === -1 ? persp.ecosystem : [persp];
+      let all = [];
+      if (levels && levels > 0) {
+        all = [persp].concat(json.recurseChildren);
+      } else {
+        all = levels === -1 ? persp.ecosystem : [persp];
+      }
+
+      result.perspectiveIds.push(persp.xid);
 
       all.forEach((element: any) => {
         if (element) {
           /** check access control, if user can't read, simply return undefined head  */
-          result.perspectiveIds.push(element.xid);
 
           const canRead = !element.finDelegatedTo.publicRead
             ? element.finDelegatedTo.canRead
@@ -1283,23 +1319,26 @@ export class UprtclRepository {
               : false
             : true;
 
-          const elementDetails = {
-            headId: canRead && !element.deleted ? element.head.xid : undefined,
-            guardianId: element.delegate ? element.delegateTo.xid : undefined,
-            canUpdate: !element.finDelegatedTo.publicWrite
-              ? element.finDelegatedTo.canWrite
-                ? element.finDelegatedTo.canWrite[0].count > 0
-                : false
-              : true,
-          };
+          if (details) {
+            const elementDetails = {
+              headId:
+                canRead && !element.deleted ? element.head.xid : undefined,
+              guardianId: element.delegate ? element.delegateTo.xid : undefined,
+              canUpdate: !element.finDelegatedTo.publicWrite
+                ? element.finDelegatedTo.canWrite
+                  ? element.finDelegatedTo.canWrite[0].count > 0
+                  : false
+                : true,
+            };
 
-          if (element.xid === perspectiveId) {
-            result.details = elementDetails;
-          } else {
-            result.slice.perspectives.push({
-              id: element.xid,
-              details: elementDetails,
-            });
+            if (element.xid === perspectiveId) {
+              result.details = elementDetails;
+            } else {
+              result.slice.perspectives.push({
+                id: element.xid,
+                details: elementDetails,
+              });
+            }
           }
 
           if (entities) {
@@ -1322,6 +1361,11 @@ export class UprtclRepository {
         }
       });
     });
+
+    // We avoid duplicated results
+    result.perspectiveIds = Array.from(new Set(result.perspectiveIds));
+    result.slice.perspectives = Array.from(new Set(result.slice.perspectives));
+    result.slice.entities = Array.from(new Set(result.slice.entities));
 
     return result;
   }
