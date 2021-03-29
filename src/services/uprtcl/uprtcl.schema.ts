@@ -64,7 +64,7 @@ timextamp: int .
 message: string .
 head: uid .
 name: string @index(exact) .
-context: uid .
+context: uid @reverse .
 perspectives: [uid] @reverse .
 parents: [uid] .
 signature: string .

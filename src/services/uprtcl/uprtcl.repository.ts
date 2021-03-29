@@ -731,14 +731,12 @@ export class UprtclRepository {
     return enitites;
   }
 
-  async getOtherIndpPerspectives(
+  getOtherIndpPerspectivesUpsert(
     perspectiveId: string,
     ecosystem: boolean,
-    loggedUserId: string
-  ): Promise<Array<string>> {
-    // TODO: Update based on context being a Node and not a string
-    await this.db.ready();
-
+    loggedUserId: string | null
+  ) {
+    // TODO: Check permissions to properly return a response.
     let query = ``;
 
     if (ecosystem) {
@@ -749,78 +747,66 @@ export class UprtclRepository {
         }
       `;
 
-      // Look for independent perspectives for every element of an ecosystem, in this case
-      // the perspective ecosystem
-      query = query.concat(`\nrefPersp(func: uid(eco)) {
-        targetCon as context
-        parents: ~children {
-          refParent as context
+      // Get the objective context for a given ecosystem.
+      query = query.concat(`\nperspectiveContext(func: uid(eco)) {
+        context {
+          targetCon as uid
         }
       }`);
     } else {
-      // Otherwise, only look for independent perspective for the indicated persp.
-      query = `refPersp(func: eq(xid, ${perspectiveId})) { 
-        targetCon as context
-        parents: ~children {
-          refParent as context
+      // Otherwise, get the objective context for a given perspective.
+      query = `perspectiveContext(func: eq(xid, ${perspectiveId})) { 
+        context {
+          targetCon as uid
         }
       }`;
     }
 
-    // Verify permissions on the perspectives found
-    query = query.concat(`\niPublicRead as var(func: eq(context, val(targetCon)))
-    @cascade {
-      xid
-      accessConfig {
-        permissions @filter(eq(publicRead, true)) {
-          publicRead
-        }
-      }
-    }`);
-
-    query = query.concat(`\n iCanRead as var(func: eq(context, val(targetCon)))
-    @cascade {
-      xid
-      accessConfig {
-        permissions {
-          canRead @filter(eq(did, "${loggedUserId.toLowerCase()}")) {
-            did
+    // Verify independent perspectives criteria for children perspectives
+    query = query.concat(`\ncontextRef(func: uid(targetCon)) {
+       perspectivesOfContext: ~context {
+          childPerspective as uid
+          xid
+          ~children {
+            context @filter(not(uid(targetCon)))
           }
         }
+    }`);
+
+    // Verify independent perspectives criteria with orphan perspectives as reference.
+    query = query.concat(`\norphanContextRef(func: uid(targetCon)) {
+      perspectivesOfContext: ~context @filter(not(uid(childPerspective))) {
+        xid
       }
     }`);
 
-    // Verify indepent perspectives criteria with orphan perspective as reference.
-    query = query.concat(`\norphanRef(func: eq(context, val(targetCon))) 
-    @filter(gt(count(~children), 0) AND (uid(iPublicRead) OR uid(iCanRead)) AND not(val(refParent)))
-    @cascade {
-      xid
-    }`);
+    return query;
+  }
 
-    // Verify independent perspectives criteria without parents.
-    query = query.concat(`\nnoParent(func: eq(context, val(targetCon)))
-    @filter(eq(count(~children), 0) AND (uid(iPublicRead) OR uid(iCanRead)))
-    {
-      xid
-    }`);
-
-    // Verify independent perspectives criteria with parents.
-    query = query.concat(`\niPersp(func: eq(context, val(targetCon))) 
-    @filter(gt(count(~children), 0) AND (uid(iPublicRead) OR uid(iCanRead)) AND val(refParent))
-    @cascade {
-      xid
-      ~children @filter(not(eq(context, val(refParent) ) ) ) {
-        context
-      }
-    }`);
+  async getOtherIndpPerspectives(
+    perspectiveId: string,
+    ecosystem: boolean,
+    loggedUserId: string | null
+  ): Promise<Array<string>> {
+    const query = this.getOtherIndpPerspectivesUpsert(
+      perspectiveId,
+      ecosystem,
+      loggedUserId
+    )
+    
+    await this.db.ready();
 
     let result = (
       await this.db.client.newTxn().query(`query{${query}}`)
     ).getJson();
 
-    return result.noParent
+    return result.contextRef[0].perspectivesOfContext
       .map((p: any) => p.xid)
-      .concat(result.iPersp.map((p: any) => p.xid));
+      .concat(
+        (result.orphanContextRef.length > 0) 
+        ? result.orphanContextRef[0].perspectivesOfContext.map((p: any) => p.xid) 
+        : []
+      );
   }
 
   async getPerspectiveRelatives(
