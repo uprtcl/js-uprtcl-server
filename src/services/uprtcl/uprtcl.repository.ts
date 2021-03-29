@@ -1008,6 +1008,9 @@ export class UprtclRepository {
     loggedUserId: string | null,
     getPerspectiveOptions: GetPerspectiveOptions = {}
   ): Promise<PerspectiveGetResult> {
+    /** getPerspective is about getting the details */
+    getPerspectiveOptions.details = true;
+
     const exploreResult = await this.fetchPerspectives(
       loggedUserId,
       getPerspectiveOptions,
