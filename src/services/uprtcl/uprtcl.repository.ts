@@ -11,7 +11,7 @@ import {
   Slice,
   ParentAndChild,
   SearchOptions,
-  SearchResult,
+  SearchResult
 } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
@@ -23,6 +23,15 @@ import { decodeData } from '../data/utils';
 
 const dgraph = require('dgraph-js');
 
+export enum Join {
+  inner = 'INNER_JOIN',
+  full = 'FULL_JOIN',
+}
+
+export enum SearchType {
+  linksTo = 'linksTo',
+  under = 'under'
+}
 export interface DgRef {
   [x: string]: string;
   uid: string;
@@ -1070,8 +1079,14 @@ export class UprtclRepository {
           ? searchOptions.text.levels
           : 0
         : 0;
-      const under = searchOptions.under ? searchOptions.under : [];
-      const linksTo = searchOptions.linksTo ? searchOptions.linksTo : [];
+      const under = searchOptions.under ? searchOptions.under : {
+        elements: [],
+        type: Join.inner
+      };
+      const linksTo = searchOptions.linksTo ? searchOptions.linksTo : {
+        elements: [],
+        type: Join.inner
+      };
 
       enum StartCase {
         all = 'all',
@@ -1081,9 +1096,9 @@ export class UprtclRepository {
       }
 
       const start: StartCase =
-        under.length > 0
+        under.elements && under.elements.length > 0 
           ? StartCase.under
-          : linksTo.length > 0
+          : linksTo.elements && linksTo.elements.length > 0 
           ? StartCase.linksTo
           : searchText !== ''
           ? StartCase.searchText
@@ -1099,33 +1114,82 @@ export class UprtclRepository {
           break;
 
         case StartCase.under:
-          startQuery = `search(func: eq(xid, ${under[0].id})) @cascade`;
+          const ids = under.elements.map(el => el.id);
 
-          if (linksTo.length > 0) {
+          if(under.type === Join.full) {
+            startQuery = `search(func: eq(xid, ${ids})) @cascade`;
+          } else if(under.type === Join.inner) {
+            for(let i = 0; i < ids.length; i++) {
+              startQuery = startQuery.concat(
+                `\nvar(func: eq(xid, ${ids[i]})) {
+                  eco${i} as ecosystem ${ i > 0 ? `@filter(uid(eco${i - 1}))` : '' }
+                }`
+              );
+            }
+            startQuery = startQuery.concat(
+              `\nsearch(func: uid(eco${ids.length - 1})) @filter(type(Perspective))`
+            );
+          } else {
+            throw new Error("Under operation type must be specified. INNER_JOIN or FULL_JOIN");
+          }
+          
+          if (linksTo.elements && linksTo.elements.length > 0) {    
             // under and linksTo
+            const linksToIds = linksTo.elements.map(el => el.id);
+            if(linksTo.type === Join.full) {
+              startQuery = startQuery.concat(`@cascade`);
+              internalWrapper = `linkingTo as ecosystem @cascade {
+                linksTo @filter(eq(xid, ${linksToIds}))
+              }`
+            } else if(linksTo.type === Join.inner) {
+              internalWrapper = `link0 as ecosystem`
+
+              for(let i = 0; i < linksToIds.length; i++) {
+                optionalWrapper = optionalWrapper.concat(
+                  `\nvar(func: eq(xid, ${linksToIds[i]})) {
+                    link${i + 1} as ~linksTo @filter(uid(link${i}))
+                  }`
+                );
+              }
+              optionalWrapper = optionalWrapper.concat(
+                `linkingTo as var(func: uid(link${linksToIds.length})) @filter(type(Perspective))`
+              );
+            } else {
+              throw new Error("LinksTo operation type must be specified. INNER_JOIN or FULL_JOIN");
+            }
+
             if (searchText !== '') {
               // under and linksTo and textSearch
               if (textLevels === -1) {
                 // in ecosystem of each linkTo matched
                 // WARNING THIS IS SAMPLE CODE. How can it be fixed without changing its logic/spirit?
-                internalWrapper = `linkingTo as ecosystem @cascade {
-                  linksTo @filter(eq(xid, ${linksTo[0].id}))
-                }`;
-                optionalWrapper = `filtered as (func: uid(linkingTo)) @cascade {
-                  ecosystem @filter(anyoftext(text, "${searchText}"))
-                }`;
+                optionalWrapper = optionalWrapper.concat(`
+                  \noptionalWrapper(func: uid(linkingTo)) @filter(anyoftext(text, "${searchText}")) {
+                    filtered as ecosystem
+                  }`);
               } else {
-                internalWrapper = `linkingTo as ecosystem @cascade {
-                  linksTo @filter(eq(xid, ${linksTo[0].id}))
-                }`;
-                optionalWrapper = `filtered as (func: uid(linkingTo) AND anyoftext(text, "${searchText}"))`;
+                optionalWrapper = optionalWrapper.concat(`\nfiltered as var(func: uid(linkingTo)) @filter(anyoftext(text, "${searchText}"))`);
               }
             } else {
               // only under and linksTo
-              internalWrapper = `filtered as ecosystem {
-                linksTo @filter(eq(xid, ${linksTo[0].id}))
-              }`;
+              internalWrapper = internalWrapper.replace('linkingTo', 'filtered');
+              optionalWrapper = optionalWrapper.replace('linkingTo', 'filtered');
             }
+            // Under and search
+          } else if(searchText !== '') {
+            if(textLevels === -1) {
+              internalWrapper = `
+                ecosystem @filter(anyoftext(text, "${searchText}")) {
+                  filtered as ecosystem
+                }
+              `;
+            } else {
+              internalWrapper = `
+                filtered as ecosystem @filter(anyoftext(text, "${searchText}"))
+              `;
+            }
+          } else if(searchText != '') {
+            internalWrapper = `filtered as ecosystem @filter(anyoftext(text, "${searchText}"))`;
           } else {
             internalWrapper = 'filtered as ecosystem';
           }
@@ -1133,23 +1197,67 @@ export class UprtclRepository {
           break;
 
         case StartCase.linksTo:
-          startQuery = `search(func: eq(xid, ${linksTo[0].id}))`;
+          const linksToIds = linksTo.elements.map(el => el.id);
+          // We first define the starting query according to each type
+          if(linksTo.type === Join.full) {
+            startQuery = `filtered as search(func: eq(dgraph.type, "Perspective")) @cascade`;
+            internalWrapper = `linksTo @filter(eq(xid, ${linksToIds}))`
 
-          if (searchText !== '') {
-            // and text
+            if(searchText !== '') {
+              if(textLevels === -1) {
+                // We move the filtered variable to the internal wrapper instead.
+                startQuery = startQuery.replace('filtered as', '');
+                internalWrapper = internalWrapper.concat(
+                  `@cascade {
+                    ~linksTo  @filter(anyoftext(text, "${searchText}")) {
+                      filtered as ecosystem
+                    }
+                  }`
+                );
+              } else {
+                  // We move the filtered variable to the internal wrapper instead.
+                  startQuery = startQuery.replace('filtered as', '');
+                  internalWrapper = internalWrapper.concat(
+                    `@cascade {
+                      filtered as ~linksTo @filter(anyoftext(text, "${searchText}"))
+                    }`
+                  );
+              }
+            }
+          } else if(linksTo.type === Join.inner) {
+            for(let i = 0; i < linksTo.elements.length; i++) {
+              startQuery = startQuery.concat(
+                `\nvar(func: eq(xid, ${linksToIds[i]})) {
+                  perspectives${i} as ~linksTo ${ i > 0 ? `@filter(uid(perspectives${i - 1}))` : '' }
+                }`
+              );
+            }
 
-            if (textLevels === -1) {
-              // in link
-              internalWrapper = `filtered as ~linksTo @cascade {
-                ecosystem @filter(anyoftext(text, "${searchText}"))
-              }`;
+            // We leave the filter open for more options
+            startQuery = startQuery.concat(
+              `\nfiltered as search(func: uid(perspectives${linksToIds .length - 1})) @filter(type(Perspective)`
+            );
+
+            if(searchText !== '') {
+              if(textLevels === -1) {
+                startQuery = startQuery.replace('filtered as', '');
+                startQuery = startQuery.concat(
+                  ` AND anyoftext(text, "${searchText}")) {
+                    filtered as ecosystem 
+                  }`
+                );
+              } else {
+                startQuery = startQuery.concat(
+                  `AND anyoftext(text, "${searchText}"))`
+                );
+              }
             } else {
-              internalWrapper = `filtered as ~linksTo @filter(anyoftext(text, "${searchText}"))`;
+              // We close the filter if no more options are needed.
+              startQuery = startQuery.concat(')');
             }
           } else {
-            internalWrapper = `filtered as ~linksTo`;
+            throw new Error("LinksTo operation type must be specified. INNER_JOIN or FULL_JOIN");
           }
-
           break;
       }
     } else {
@@ -1157,8 +1265,9 @@ export class UprtclRepository {
     }
 
     query = query.concat(`
-      ${startQuery} {
-        ${internalWrapper}
+      ${startQuery} ${ internalWrapper !== '' ? `{
+          ${internalWrapper}
+        }` : ''
       }
       ${optionalWrapper}`);
 
@@ -1402,7 +1511,8 @@ export class UprtclRepository {
     searchOptions: SearchOptions,
     getPerspectiveOptions: GetPerspectiveOptions = {
       levels: 0,
-      entities: true,
+      details: false,
+      entities: false,
     },
     loggedUserId: string | null
   ): Promise<SearchResult> {
