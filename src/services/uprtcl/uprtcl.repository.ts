@@ -792,8 +792,8 @@ export class UprtclRepository {
       perspectiveId,
       ecosystem,
       loggedUserId
-    )
-    
+    );
+
     await this.db.ready();
 
     let result = (
@@ -803,9 +803,11 @@ export class UprtclRepository {
     return result.contextRef[0].perspectivesOfContext
       .map((p: any) => p.xid)
       .concat(
-        (result.orphanContextRef.length > 0) 
-        ? result.orphanContextRef[0].perspectivesOfContext.map((p: any) => p.xid) 
-        : []
+        result.orphanContextRef.length > 0
+          ? result.orphanContextRef[0].perspectivesOfContext.map(
+              (p: any) => p.xid
+            )
+          : []
       );
   }
 
@@ -1049,6 +1051,43 @@ export class UprtclRepository {
     if (!details && entities) {
       throw new Error('Entities can not be provided without details...');
     }
+
+    /** -------------------------------------------------------------------------
+     * TEMPORARY PATCH TO GET INDEPENDENT PERSPECTIVES WHEN FORKS IS PROVIDED
+     * -------------------------------------------------------------------------- */
+    if (searchOptions && searchOptions.forks) {
+      if (!searchOptions.under) {
+        throw new Error(
+          'forks currently support a single mandatory "under" property'
+        );
+      }
+
+      if (loggedUserId == null) {
+        throw new Error('forks currently supports for logged user');
+      }
+
+      const ecosystem =
+        searchOptions.under.levels === undefined
+          ? true
+          : searchOptions.under.levels === -1;
+
+      // TODO: Combine the search for independent forks with this search query ! :)
+      const perspectiveIds = await this.getOtherIndpPerspectives(
+        searchOptions.under.elements[0].id,
+        ecosystem,
+        loggedUserId
+      );
+
+      return {
+        perspectiveIds,
+        details: {},
+        slice: {
+          entities: [],
+          perspectives: [],
+        },
+      };
+    }
+
     /**
      * We build the function depending on how the method is implemented.
      * For searching or for grabbing an specific perspective.
@@ -1206,7 +1245,13 @@ export class UprtclRepository {
           } else if (searchText != '') {
             internalWrapper = `filtered as ecosystem @filter(anyoftext(text, "${searchText}"))`;
           } else {
-            internalWrapper = 'filtered as ecosystem';
+            if (searchOptions.forks) {
+              // under and forks. No linksTo no text....
+              // filtered should be the indepdenentPerspectives
+              // TODO: use this.getIndPerspecteUpsert();
+            } else {
+              internalWrapper = 'filtered as ecosystem';
+            }
           }
 
           break;

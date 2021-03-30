@@ -884,9 +884,9 @@ describe('routes', async () => {
           elements: [
             {
               id: scenario.privateId,
-            }
-          ]
-        }
+            },
+          ],
+        },
       },
       user
     );
@@ -942,7 +942,7 @@ describe('routes', async () => {
               id: 'textnodelinksto',
             },
           ],
-        }
+        },
       },
       user
     );
@@ -1126,7 +1126,7 @@ describe('routes', async () => {
               id: 'textnodelinksto',
             },
           ],
-        }
+        },
       },
       user
     );
