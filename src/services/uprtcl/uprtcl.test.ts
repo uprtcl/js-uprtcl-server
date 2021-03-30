@@ -26,7 +26,7 @@ import {
 import {
   createHomeSpace,
   newTitle,
-  addNewElementToPerspective,
+  addNewElementsToPerspective,
   newText,
   createHerarchichalScenario,
   TestFlatPage,
@@ -53,7 +53,7 @@ const httpCidConfig: any = {
   base: 'base58btc',
 };
 
-describe('routes', async () => {
+describe('routes', () => {
   // expect.extend({ toBeValidCid });
   // test('CRUD private perspectives', async (done) => {
   //   const name = 'test';
@@ -545,128 +545,145 @@ describe('routes', async () => {
   //   expect(children).toEqual([page1Perspective, page3Perspective]);
   //   done();
   // });
-  // test('independent perspectives', async (done) => {
-  //   const user1 = await createUser('seed1');
-  //   const perspectiveAcontext = 'perspective.A.context';
-  //   const perspectiveA1context = 'perspective.A1.context';
-  //   const perspectiveA2context = 'perspective.A2.context';
-  //   const perspectiveBcontext = 'perspective.B.context';
-  //   // Branch A
-  //   const A = await createAndInitPerspective(
-  //     'base space A',
-  //     true,
-  //     user1,
-  //     Date.now(),
-  //     perspectiveAcontext
-  //   );
-  //   const PA1 = await createAndInitPerspective(
-  //     'page A 1',
-  //     false,
-  //     user1,
-  //     Date.now(),
-  //     perspectiveA1context
-  //   );
-  //   await addChildToPerspective(PA1.persp, A.persp, A.commit, false, user1);
-  //   const LA2 = await createAndInitPerspective(
-  //     'link A 2',
-  //     false,
-  //     user1,
-  //     Date.now(),
-  //     perspectiveA2context
-  //   );
-  //   await addChildToPerspective(LA2.persp, PA1.persp, PA1.commit, false, user1);
-  //   // End of branch A
-  //   //-----------------------//
-  //   // Branch B
-  //   // Create perspectiveB
-  //   const B = await createAndInitPerspective(
-  //     'base space B',
-  //     true,
-  //     user1,
-  //     141214,
-  //     perspectiveBcontext
-  //   );
-  //   const PB1 = await forkPerspective(PA1.persp, user1);
-  //   await addChildToPerspective(PB1, B.persp, B.commit, false, user1);
-  //   const LB2 = (await getPerspectiveRelatives(PB1, 'children'))[0];
-  //   const LC = await forkPerspective(LB2, user1);
-  //   const independentPerspectives = (
-  //     await getIndependentPerspectives(PA1.persp, user1.jwt)
-  //   ).data;
-  //   expect(independentPerspectives[0]).toEqual(PB1);
-  //   const independentPerspectivesEco = (
-  //     await getIndependentPerspectives(PA1.persp, user1.jwt, true)
-  //   ).data;
-  //   expect(independentPerspectivesEco[1]).toEqual(PB1);
-  //   expect(independentPerspectivesEco[0]).toEqual(LC);
-  //   done();
-  // });
-  test.only('batch create', async (done) => {
-    // Emulate the user
+  test.only('independent perspectives', async (done) => {
+    const user1 = await createUser('seed1');
 
-    const user = await createUser('seed1');
-    // const homeSpace = await createHomeSpace(user);
+    const perspectiveAcontext = 'perspective.A.context';
+    const perspectiveA1context = 'perspective.A1.context';
+    const perspectiveA2context = 'perspective.A2.context';
+    const perspectiveBcontext = 'perspective.B.context';
 
-    const httpConnection = await new HttpSupertest(
-      process.env.HOST as string,
-      user
+    const pagesBranchA: TestFlatPage[] = [
+      {
+        title: {
+          value: 'Page A',
+          context: perspectiveAcontext,
+        },
+        text: [
+          {
+            value: 'Should be page A',
+            context: perspectiveA1context,
+          },
+          {
+            value: 'link A 2',
+            context: perspectiveA2context
+          }
+        ]
+      },
+    ];
+
+    const branchA = await createFlatScenario(pagesBranchA, user1);
+    // End of branch A
+
+    //-----------------------//
+    // Branch B
+    // Create perspectiveB
+
+    const pagesBranchB: TestFlatPage[] = [
+      {
+        title: {
+          value: 'Page B',
+          context: perspectiveBcontext,
+        },
+        text: [
+          {
+            value: 'Should be page B'
+          }
+        ]
+      },
+    ];
+
+    const branchB = await createFlatScenario(pagesBranchB, user1);
+    // We fork Page A, which will become in PB1
+    const PB1 = await forkPerspective(branchA.children[0].perspective.id, user1);
+
+    // First link of Page B will be Page A
+    await addNewElementsToPerspective(
+      branchB.children[0].perspective.id,
+      [PB1],
+      user1
     );
 
-    const httpStore = new HttpStore(httpConnection, httpCidConfig);
-    const httpEvees = new EveesHttp(httpConnection, httpStore.casID);
+    const LB2 = (await getPerspectiveRelatives(PB1, 'children'))[0];
+    const LC = await forkPerspective(LB2, user1);
+    const independentPerspectives = (
+      await getIndependentPerspectives(branchA.children[0].perspective.id, user1.jwt)
+    ).data;
 
-    const remotes = [httpEvees];
-    const modules = new Map<string, EveesContentModule>();
-    modules.set(DocumentsModule.id, new DocumentsModule());
+    expect(independentPerspectives[0]).toEqual(PB1);
+    const independentPerspectivesEco = (
+      await getIndependentPerspectives(branchA.children[0].perspective.id, user1.jwt, true)
+    ).data;
+    expect(independentPerspectivesEco).toEqual(expect.arrayContaining([PB1, LC]));
+    done();
+  });
 
-    const evees = eveesConstructorHelper(remotes, [httpStore], modules);
+  test('batch create', async (done) => {
+    // Emulate the user
 
-    const appElementsInit: AppElement = {
-      path: '/',
-      getInitData: (children?: AppElement[]) => {
-        if (children)
-          return { links: children.map((child) => child.perspective?.id) };
-      },
-      children: [
-        {
-          path: '/privateSection',
-          getInitData: (children?: AppElement[]) => {
-            if (children)
-              return {
-                text: 'Private',
-                type: TextType.Title,
-                links: children.map((child) => child.perspective?.id),
-              };
-          },
-          children: [
-            {
-              path: '/firstPage',
-              optional: true,
-              getInitData: () => {
-                return {
-                  text: '',
-                  type: TextType.Title,
-                  links: [],
-                };
-              },
-            },
-          ],
-        },
-        {
-          path: '/blogSection',
-          getInitData: () => {
-            return {
-              text: 'Blog',
-              type: TextType.Title,
-              links: [],
-            };
-          },
-        },
-      ],
-    };
+    // const user = await createUser('seed1');
+    // // const homeSpace = await createHomeSpace(user);
 
-    const elements = new AppElements(evees, appElementsInit);
-    await elements.check();
+    // const httpConnection = await new HttpSupertest(
+    //   process.env.HOST as string,
+    //   user
+    // );
+
+    // const httpStore = new HttpStore(httpConnection, httpCidConfig);
+    // const httpEvees = new EveesHttp(httpConnection, httpStore.casID);
+
+    // const remotes = [httpEvees];
+    // const modules = new Map<string, EveesContentModule>();
+    // modules.set(DocumentsModule.id, new DocumentsModule());
+
+    // const evees = eveesConstructorHelper(remotes, [httpStore], modules);
+
+    // const appElementsInit: AppElement = {
+    //   path: '/',
+    //   getInitData: (children?: AppElement[]) => {
+    //     if (children)
+    //       return { links: children.map((child) => child.perspective?.id) };
+    //   },
+    //   children: [
+    //     {
+    //       path: '/privateSection',
+    //       getInitData: (children?: AppElement[]) => {
+    //         if (children)
+    //           return {
+    //             text: 'Private',
+    //             type: TextType.Title,
+    //             links: children.map((child) => child.perspective?.id),
+    //           };
+    //       },
+    //       children: [
+    //         {
+    //           path: '/firstPage',
+    //           optional: true,
+    //           getInitData: () => {
+    //             return {
+    //               text: '',
+    //               type: TextType.Title,
+    //               links: [],
+    //             };
+    //           },
+    //         },
+    //       ],
+    //     },
+    //     {
+    //       path: '/blogSection',
+    //       getInitData: () => {
+    //         return {
+    //           text: 'Blog',
+    //           type: TextType.Title,
+    //           links: [],
+    //         };
+    //       },
+    //     },
+    //   ],
+    // };
+
+    // const elements = new AppElements(evees, appElementsInit);
+    // await elements.check();
 
     // // Create scenario A
 
@@ -796,19 +813,37 @@ describe('routes', async () => {
     // Mock dummy pages for first possible scenario.
     const pages: TestFlatPage[] = [
       {
-        title: 'What is Lorem Ipsum?',
-        text:
-          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+        title: {
+          value: 'What is Lorem Ipsum?',
+        },
+        text: [
+          {
+            value:
+              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+          },
+        ],
       },
       {
-        title: 'Why do we use it',
-        text:
-          'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+        title: {
+          value: 'Why do we use it',
+        },
+        text: [
+          {
+            value:
+              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+          },
+        ],
       },
       {
-        title: 'Where does it come from?',
-        text:
-          'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+        title: {
+          value: 'Where does it come from?',
+        },
+        text: [
+          {
+            value:
+              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+          },
+        ],
       },
     ];
 
@@ -858,19 +893,37 @@ describe('routes', async () => {
     // Mock dummy pages for first possible scenario.
     const pages: TestFlatPage[] = [
       {
-        title: 'What is Lorem Ipsum?',
-        text:
-          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+        title: {
+          value: 'What is Lorem Ipsum?',
+        },
+        text: [
+          {
+            value:
+              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+          },
+        ],
       },
       {
-        title: 'Why do we use it',
-        text:
-          'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+        title: {
+          value: 'Why do we use it',
+        },
+        text: [
+          {
+            value:
+              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+          },
+        ],
       },
       {
-        title: 'Where does it come from?',
-        text:
-          'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+        title: {
+          value: 'Where does it come from?',
+        },
+        text: [
+          {
+            value:
+              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+          },
+        ],
       },
     ];
 
@@ -884,9 +937,9 @@ describe('routes', async () => {
           elements: [
             {
               id: scenario.privateId,
-            }
-          ]
-        }
+            },
+          ],
+        },
       },
       user
     );
@@ -902,19 +955,37 @@ describe('routes', async () => {
     // Mock dummy pages for first possible scenario.
     const pages: TestFlatPage[] = [
       {
-        title: 'What is Lorem Ipsum?',
-        text:
-          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+        title: {
+          value: 'What is Lorem Ipsum?',
+        },
+        text: [
+          {
+            value:
+              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+          },
+        ],
       },
       {
-        title: 'Why do we use it',
-        text:
-          'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+        title: {
+          value: 'Why do we use it',
+        },
+        text: [
+          {
+            value:
+              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+          },
+        ],
       },
       {
-        title: 'Where does it come from?',
-        text:
-          'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+        title: {
+          value: 'Where does it come from?',
+        },
+        text: [
+          {
+            value:
+              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+          },
+        ],
       },
     ];
 
@@ -942,7 +1013,7 @@ describe('routes', async () => {
               id: 'textnodelinksto',
             },
           ],
-        }
+        },
       },
       user
     );
@@ -958,19 +1029,37 @@ describe('routes', async () => {
     // Mock dummy pages for first possible scenario.
     const pages: TestFlatPage[] = [
       {
-        title: 'What is Lorem Ipsum?',
-        text:
-          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+        title: {
+          value: 'What is Lorem Ipsum?',
+        },
+        text: [
+          {
+            value:
+              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+          },
+        ],
       },
       {
-        title: 'Why do we use it',
-        text:
-          'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+        title: {
+          value: 'Why do we use it',
+        },
+        text: [
+          {
+            value:
+              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+          },
+        ],
       },
       {
-        title: 'Where does it come from?',
-        text:
-          'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+        title: {
+          value: 'Where does it come from?',
+        },
+        text: [
+          {
+            value:
+              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+          },
+        ],
       },
     ];
 
@@ -1018,19 +1107,37 @@ describe('routes', async () => {
     // Mock dummy pages for first possible scenario.
     const pages: TestFlatPage[] = [
       {
-        title: 'What is Lorem Ipsum?',
-        text:
-          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+        title: {
+          value: 'What is Lorem Ipsum?',
+        },
+        text: [
+          {
+            value:
+              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+          },
+        ],
       },
       {
-        title: 'Why do we use it',
-        text:
-          'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+        title: {
+          value: 'Why do we use it',
+        },
+        text: [
+          {
+            value:
+              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+          },
+        ],
       },
       {
-        title: 'Where does it come from?',
-        text:
-          'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+        title: {
+          value: 'Where does it come from?',
+        },
+        text: [
+          {
+            value:
+              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+          },
+        ],
       },
     ];
 
@@ -1078,19 +1185,37 @@ describe('routes', async () => {
     // Mock dummy pages for first possible scenario.
     const pages: TestFlatPage[] = [
       {
-        title: 'What is Lorem Ipsum?',
-        text:
-          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+        title: {
+          value: 'What is Lorem Ipsum?',
+        },
+        text: [
+          {
+            value:
+              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+          },
+        ],
       },
       {
-        title: 'Why do we use it',
-        text:
-          'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+        title: {
+          value: 'Why do we use it',
+        },
+        text: [
+          {
+            value:
+              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+          },
+        ],
       },
       {
-        title: 'Where does it come from?',
-        text:
-          'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+        title: {
+          value: 'Where does it come from?',
+        },
+        text: [
+          {
+            value:
+              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+          },
+        ],
       },
     ];
 
@@ -1126,7 +1251,7 @@ describe('routes', async () => {
               id: 'textnodelinksto',
             },
           ],
-        }
+        },
       },
       user
     );
@@ -1142,19 +1267,37 @@ describe('routes', async () => {
     // Mock dummy pages for first possible scenario.
     const pages: TestFlatPage[] = [
       {
-        title: 'What is Lorem Ipsum?',
-        text:
-          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+        title: {
+          value: 'What is Lorem Ipsum?',
+        },
+        text: [
+          {
+            value:
+              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+          },
+        ],
       },
       {
-        title: 'Why do we use it',
-        text:
-          'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+        title: {
+          value: 'Why do we use it',
+        },
+        text: [
+          {
+            value:
+              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+          },
+        ],
       },
       {
-        title: 'Where does it come from?',
-        text:
-          'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+        title: {
+          value: 'Where does it come from?',
+        },
+        text: [
+          {
+            value:
+              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+          },
+        ],
       },
     ];
 
@@ -1210,19 +1353,37 @@ describe('routes', async () => {
     // Mock dummy pages for first possible scenario.
     const pages: TestFlatPage[] = [
       {
-        title: 'What is Lorem Ipsum?',
-        text:
-          'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+        title: {
+          value: 'What is Lorem Ipsum?',
+        },
+        text: [
+          {
+            value:
+              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+          },
+        ],
       },
       {
-        title: 'Why do we use it',
-        text:
-          'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+        title: {
+          value: 'Why do we use it',
+        },
+        text: [
+          {
+            value:
+              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+          },
+        ],
       },
       {
-        title: 'Where does it come from?',
-        text:
-          'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+        title: {
+          value: 'Where does it come from?',
+        },
+        text: [
+          {
+            value:
+              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+          },
+        ],
       },
     ];
 
