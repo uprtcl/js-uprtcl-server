@@ -748,36 +748,35 @@ export class UprtclRepository {
       `;
 
       // Get the objective context for a given ecosystem.
-      query = query.concat(`\nperspectiveContext(func: uid(eco)) {
+      query = query.concat(`\nperspectiveContext as var(func: uid(eco)) {
         context {
           targetCon as uid
         }
       }`);
     } else {
       // Otherwise, get the objective context for a given perspective.
-      query = `perspectiveContext(func: eq(xid, ${perspectiveId})) { 
+      query = `perspectiveContext as var(func: eq(xid, ${perspectiveId})) { 
         context {
           targetCon as uid
         }
       }`;
     }
 
-    // Verify independent perspectives criteria for children perspectives
     query = query.concat(`\ncontextRef(func: uid(targetCon)) {
-       perspectivesOfContext: ~context {
-          childPerspective as uid
+       perspectivesOfContext: ~context @filter(
+         not(uid(perspectiveContext))
+         AND
+         (
+           eq(publicRead, true)
+           OR
+           gt(count(canRead), 0)
+         )
+        ) {
           xid
           ~children {
             context @filter(not(uid(targetCon)))
           }
         }
-    }`);
-
-    // Verify independent perspectives criteria with orphan perspectives as reference.
-    query = query.concat(`\norphanContextRef(func: uid(targetCon)) {
-      perspectivesOfContext: ~context @filter(not(uid(childPerspective))) {
-        xid
-      }
     }`);
 
     return query;
@@ -800,13 +799,13 @@ export class UprtclRepository {
       await this.db.client.newTxn().query(`query{${query}}`)
     ).getJson();
 
-    return result.contextRef[0].perspectivesOfContext
-      .map((p: any) => p.xid)
-      .concat(
-        (result.orphanContextRef.length > 0) 
-        ? result.orphanContextRef[0].perspectivesOfContext.map((p: any) => p.xid) 
-        : []
-      );
+    const contextRefIds = result.contextRef.map((ref: any) => {
+      return ref.perspectivesOfContext.map((persp: any) => {
+        return persp.xid
+      })
+    });
+    
+    return [].concat(...contextRefIds);
   }
 
   async getPerspectiveRelatives(
