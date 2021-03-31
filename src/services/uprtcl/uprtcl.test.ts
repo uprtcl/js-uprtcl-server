@@ -545,7 +545,7 @@ describe('routes', () => {
   //   expect(children).toEqual([page1Perspective, page3Perspective]);
   //   done();
   // });
-  test.only('independent perspectives', async (done) => {
+  test('independent perspectives', async (done) => {
     const user1 = await createUser('seed1');
 
     const perspectiveAcontext = 'perspective.A.context';
@@ -566,9 +566,9 @@ describe('routes', () => {
           },
           {
             value: 'link A 2',
-            context: perspectiveA2context
-          }
-        ]
+            context: perspectiveA2context,
+          },
+        ],
       },
     ];
 
@@ -587,9 +587,9 @@ describe('routes', () => {
         },
         text: [
           {
-            value: 'Should be page B'
-          }
-        ]
+            value: 'Should be page B',
+          },
+        ],
       },
     ];
 
@@ -607,7 +607,10 @@ describe('routes', () => {
     const LB2 = (await getPerspectiveRelatives(PB1, 'children'))[0];
     const LC = await forkPerspective(LB2, user1);
     const independentPerspectives = (
-      await getIndependentPerspectives(branchA.pages[0].perspective.id, user1.jwt)
+      await getIndependentPerspectives(
+        branchA.pages[0].perspective.id,
+        user1.jwt
+      )
     ).data;
 
     // Get independent perspectives of first Page A link
@@ -619,9 +622,15 @@ describe('routes', () => {
     expect(independentOrphanPerspectives[0]).toEqual(LC);
     expect(independentPerspectives[0]).toEqual(PB1);
     const independentPerspectivesEco = (
-      await getIndependentPerspectives(branchA.pages[0].perspective.id, user1.jwt, true)
+      await getIndependentPerspectives(
+        branchA.pages[0].perspective.id,
+        user1.jwt,
+        true
+      )
     ).data;
-    expect(independentPerspectivesEco).toEqual(expect.arrayContaining([PB1, LC]));
+    expect(independentPerspectivesEco).toEqual(
+      expect.arrayContaining([PB1, LC])
+    );
 
     // Check perspectives with same context in parent.
     const otherIndPerspectives = (
@@ -1358,6 +1367,14 @@ describe('routes', () => {
     );
 
     expect(result.data.perspectiveIds.length).toBe(1);
+    done();
+  });
+
+  test('search forks within a perspective children (under level = 0)', async (done) => {
+    done();
+  });
+
+  test('search forks within a perspective ecosystem (under level = -1)', async (done) => {
     done();
   });
 
