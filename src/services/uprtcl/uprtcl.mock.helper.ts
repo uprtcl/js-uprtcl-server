@@ -410,6 +410,7 @@ export const createHomeSpace = async (user: TestUser) => {
     linkedThoughts: perspectivesWrapperNodes[1],
     blog: perspectivesInitialNodes[1],
     private: perspectivesInitialNodes[2],
+    forks: perspectivesInitialNodes[3]
   };
 };
 
@@ -1150,6 +1151,7 @@ export const createFlatScenario = async (
     linkedThoughts: homeSpace.linkedThoughts.perspective.id,
     blogId: homeSpace.blog.perspective.id,
     privateId: homeSpace.private.perspective.id,
+    forksId: homeSpace.forks.perspective.id,
     pages: createdPages,
     links: createdLinks,
   };
