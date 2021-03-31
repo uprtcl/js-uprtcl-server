@@ -775,7 +775,7 @@ export class UprtclRepository {
 
     // Verify indepent perspectives criteria with parents
     query = query.concat(`\nnormalRef(func: uid(targetCon)) {
-       perspectivesOfContext: ~context @filter(
+       normalPersps: ~context @filter(
          not(uid(perspectiveRef))
         ) @cascade {
           normalIds: xid
@@ -787,7 +787,7 @@ export class UprtclRepository {
 
     // Verify indepent perspectives criteria without parents
     query = query.concat(`\norphanRef(func: uid(targetCon)) {
-      perspectivesOfContext: ~context @filter(
+      orphanPersps: ~context @filter(
         not(uid(perspectiveRef))
         AND
         eq(count(~children), 0)
@@ -817,13 +817,13 @@ export class UprtclRepository {
     ).getJson();
 
     const normalRefIds = result.normalRef.map((ref: any) => {
-      return ref.perspectivesOfContext.map((persp: any) => {
+      return ref.normalPersps.map((persp: any) => {
         return persp.normalIds;
       });
     });
 
     const orphanRefIds = result.orphanRef.map((ref: any) => {
-      return ref.perspectivesOfContext.map((persp: any) => {
+      return ref.orphanPersps.map((persp: any) => {
         return persp.orphanIds;
       });
     });
@@ -1241,21 +1241,27 @@ export class UprtclRepository {
               loggedUserId
             );
 
-            // if(searchOptions.under?.levels === 0) {
-            //   independentUpsert = independentUpsert.replace('eco as ecosystem', 'eco as children');
-            // }
+            if (searchOptions.under?.levels === 0) {
+              independentUpsert = independentUpsert.replace(
+                'eco as ecosystem',
+                'eco as children'
+              );
+            }
 
-            independentUpsert = independentUpsert.replace('normalIds: xid', 'normalIds as uid');
-            independentUpsert = independentUpsert.replace('orphanIds: xid', 'orphanIds as uid');
-
-            optionalWrapper = optionalWrapper.concat(
-              independentUpsert
+            independentUpsert = independentUpsert.replace(
+              'normalPersps:',
+              'normalPersps as '
+            );
+            independentUpsert = independentUpsert.replace(
+              'orphanPersps:',
+              'orphanPersps as '
             );
 
-            optionalWrapper = optionalWrapper.concat(
-              `\nfiltered as var(func: type(Perspective)) @filter(uid(normalIds) OR uid(orphanIds))`
-            );
+            optionalWrapper = optionalWrapper.concat(independentUpsert);
 
+            optionalWrapper = optionalWrapper.concat(
+              `\nfiltered as var(func: uid(normalPersps, orphanPersps))`
+            );
           } else {
             internalWrapper = 'filtered as ecosystem';
           }
