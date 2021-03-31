@@ -747,38 +747,54 @@ export class UprtclRepository {
         }
       `;
 
-      // Get the objective context for a given ecosystem.
-      query = query.concat(`\nperspectiveContext(func: uid(eco)) {
+      // Look for independent perspectives for every element of an ecosystem, in this case
+      // the perspective ecosystem
+      query = query.concat(`\nperspectiveRef as var(func: uid(eco)) {
         context {
           targetCon as uid
         }
+        ~children {
+          context {
+            parentContext as uid
+          }
+        }
       }`);
     } else {
-      // Otherwise, get the objective context for a given perspective.
-      query = `perspectiveContext(func: eq(xid, ${perspectiveId})) { 
+      // Otherwise, only look for independent perspective for the indicated persp.
+      query = `perspectiveRef as var(func: eq(xid, ${perspectiveId})) { 
         context {
           targetCon as uid
+        }
+        parents: ~children {
+          context {
+            parentContext as uid
+          }
         }
       }`;
     }
 
-    // Verify independent perspectives criteria for children perspectives
-    query = query.concat(`\ncontextRef(func: uid(targetCon)) {
-       perspectivesOfContext: ~context {
-          childPerspective as uid
+    // Verify indepent perspectives criteria with parents
+    query = query.concat(`\nnormalRef(func: uid(targetCon)) {
+       perspectivesOfContext: ~context @filter(
+         not(uid(perspectiveRef))
+        ) @cascade {
           xid
           ~children {
-            context @filter(not(uid(targetCon)))
+            context @filter(not(uid(parentContext)))
           }
         }
     }`);
 
-    // Verify independent perspectives criteria with orphan perspectives as reference.
-    query = query.concat(`\norphanContextRef(func: uid(targetCon)) {
-      perspectivesOfContext: ~context @filter(not(uid(childPerspective))) {
-        xid
-      }
-    }`);
+    // Verify indepent perspectives criteria without parents
+    query = query.concat(`\norphanRef(func: uid(targetCon)) {
+      perspectivesOfContext: ~context @filter(
+        not(uid(perspectiveRef))
+        AND
+        eq(count(~children), 0)
+       ) @cascade {
+         xid
+       }
+   }`);
 
     return query;
   }
@@ -800,15 +816,19 @@ export class UprtclRepository {
       await this.db.client.newTxn().query(`query{${query}}`)
     ).getJson();
 
-    return result.contextRef[0].perspectivesOfContext
-      .map((p: any) => p.xid)
-      .concat(
-        result.orphanContextRef.length > 0
-          ? result.orphanContextRef[0].perspectivesOfContext.map(
-              (p: any) => p.xid
-            )
-          : []
-      );
+    const normalRefIds = result.normalRef.map((ref: any) => {
+      return ref.perspectivesOfContext.map((persp: any) => {
+        return persp.xid;
+      });
+    });
+
+    const orphanRefIds = result.orphanRef.map((ref: any) => {
+      return ref.perspectivesOfContext.map((persp: any) => {
+        return persp.xid;
+      });
+    });
+
+    return [].concat(...normalRefIds).concat([].concat(...orphanRefIds));
   }
 
   async getPerspectiveRelatives(
@@ -1048,6 +1068,14 @@ export class UprtclRepository {
     let query = ``;
     const { levels, entities, details } = getPerspectiveOptions;
 
+    if (searchOptions && searchOptions.forks) {
+      if (!searchOptions.under || searchOptions.linksTo) {
+        throw new Error(
+          'forks currently support a single mandatory "under" property'
+        );
+      }
+    }
+
     if (!details && entities) {
       throw new Error('Entities can not be provided without details...');
     }
@@ -1242,8 +1270,8 @@ export class UprtclRepository {
                 filtered as ecosystem @filter(anyoftext(text, "${searchText}"))
               `;
             }
-          } else if (searchText != '') {
-            internalWrapper = `filtered as ecosystem @filter(anyoftext(text, "${searchText}"))`;
+          } else if (searchOptions.forks) {
+            // if only searchOptions and fork
           } else {
             if (searchOptions.forks) {
               // under and forks. No linksTo no text....
