@@ -66,6 +66,10 @@ export const createHomeSpace = async (user: TestUser) => {
         title: 'Private',
         pages: [],
       },
+      {
+        title: 'Forks',
+        pages: []
+      }
     ],
     user.jwt
   );
@@ -120,6 +124,7 @@ export const createHomeSpace = async (user: TestUser) => {
         sections: [
           perspectivesInitialNodes[1].perspective.id,
           perspectivesInitialNodes[2].perspective.id,
+          perspectivesInitialNodes[3].perspective.id
         ],
       },
       // Top element of the tree (Home space)
@@ -164,6 +169,7 @@ export const createHomeSpace = async (user: TestUser) => {
             added: [
               perspectivesInitialNodes[1].perspective.id,
               perspectivesInitialNodes[2].perspective.id,
+              perspectivesInitialNodes[3].perspective.id
             ],
             removed: [],
           },
@@ -187,7 +193,7 @@ export const createHomeSpace = async (user: TestUser) => {
    * the guardianId based on a hierarchical logic.
    * */
 
-  // We set the guardian Id for Untitle page.
+  // We set the guardian Id for Untitled page.
   perspectivesInitialNodes[0].update.details.guardianId =
     perspectivesInitialNodes[2].perspective.id;
   // We set the guardian Id for Blog entity
@@ -196,6 +202,9 @@ export const createHomeSpace = async (user: TestUser) => {
   // We set the guardian Id for Private entity
   perspectivesInitialNodes[2].update.details.guardianId =
     perspectivesWrapperNodes[0].perspective.id;
+  // We set the guardian Id for Forks entity
+  perspectivesInitialNodes[3].update.details.guardianId =
+  perspectivesWrapperNodes[0].perspective.id;
   // We set the guardian Id for sections enitity
   perspectivesWrapperNodes[0].update.details.guardianId =
     perspectivesWrapperNodes[1].perspective.id;
