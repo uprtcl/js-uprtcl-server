@@ -747,8 +747,8 @@ export class UprtclRepository {
         }
       `;
 
-    // Look for independent perspectives for every element of an ecosystem, in this case
-    // the perspective ecosystem
+      // Look for independent perspectives for every element of an ecosystem, in this case
+      // the perspective ecosystem
       query = query.concat(`\nperspectiveRef as var(func: uid(eco)) {
         context {
           targetCon as uid
@@ -760,7 +760,7 @@ export class UprtclRepository {
         }
       }`);
     } else {
-     // Otherwise, only look for independent perspective for the indicated persp.
+      // Otherwise, only look for independent perspective for the indicated persp.
       query = `perspectiveRef as var(func: eq(xid, ${perspectiveId})) { 
         context {
           targetCon as uid
@@ -773,26 +773,26 @@ export class UprtclRepository {
       }`;
     }
 
-     // Verify indepent perspectives criteria with parents
+    // Verify indepent perspectives criteria with parents
     query = query.concat(`\nnormalRef(func: uid(targetCon)) {
        perspectivesOfContext: ~context @filter(
          not(uid(perspectiveRef))
         ) @cascade {
-          xid
+          normalIds: xid
           ~children {
             context @filter(not(uid(parentContext)))
           }
         }
     }`);
 
-     // Verify indepent perspectives criteria without parents
-     query = query.concat(`\norphanRef(func: uid(targetCon)) {
+    // Verify indepent perspectives criteria without parents
+    query = query.concat(`\norphanRef(func: uid(targetCon)) {
       perspectivesOfContext: ~context @filter(
         not(uid(perspectiveRef))
         AND
         eq(count(~children), 0)
        ) @cascade {
-         xid
+         orphanIds: xid
        }
    }`);
 
@@ -818,13 +818,13 @@ export class UprtclRepository {
 
     const normalRefIds = result.normalRef.map((ref: any) => {
       return ref.perspectivesOfContext.map((persp: any) => {
-        return persp.xid;
+        return persp.normalIds;
       });
     });
 
     const orphanRefIds = result.orphanRef.map((ref: any) => {
       return ref.perspectivesOfContext.map((persp: any) => {
-        return persp.xid;
+        return persp.orphanIds;
       });
     });
 
@@ -1233,8 +1233,29 @@ export class UprtclRepository {
                 filtered as ecosystem @filter(anyoftext(text, "${searchText}"))
               `;
             }
-          } else if (searchOptions.forks) {
-            // if only searchOptions and fork
+          } else if (searchOptions.forks?.include) {
+            // if only under and fork
+            let independentUpsert = await this.getOtherIndpPerspectivesUpsert(
+              ids[0],
+              true,
+              loggedUserId
+            );
+
+            // if(searchOptions.under?.levels === 0) {
+            //   independentUpsert = independentUpsert.replace('eco as ecosystem', 'eco as children');
+            // }
+
+            independentUpsert = independentUpsert.replace('normalIds: xid', 'normalIds as uid');
+            independentUpsert = independentUpsert.replace('orphanIds: xid', 'orphanIds as uid');
+
+            optionalWrapper = optionalWrapper.concat(
+              independentUpsert
+            );
+
+            optionalWrapper = optionalWrapper.concat(
+              `\nfiltered as var(func: type(Perspective)) @filter(uid(normalIds) OR uid(orphanIds))`
+            );
+
           } else {
             internalWrapper = 'filtered as ecosystem';
           }
