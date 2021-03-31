@@ -595,11 +595,11 @@ describe('routes', () => {
 
     const branchB = await createFlatScenario(pagesBranchB, user1);
     // We fork Page A, which will become in PB1
-    const PB1 = await forkPerspective(branchA.children[0].perspective.id, user1);
+    const PB1 = await forkPerspective(branchA.pages[0].perspective.id, user1);
 
-    // First link of Page B will be Page A
+    // Second link of Page B will be Page A
     await addNewElementsToPerspective(
-      branchB.children[0].perspective.id,
+      branchB.pages[0].perspective.id,
       [PB1],
       user1
     );
@@ -607,14 +607,29 @@ describe('routes', () => {
     const LB2 = (await getPerspectiveRelatives(PB1, 'children'))[0];
     const LC = await forkPerspective(LB2, user1);
     const independentPerspectives = (
-      await getIndependentPerspectives(branchA.children[0].perspective.id, user1.jwt)
+      await getIndependentPerspectives(branchA.pages[0].perspective.id, user1.jwt)
     ).data;
 
+    // Get independent perspectives of first Page A link
+    const independentOrphanPerspectives = (
+      await getIndependentPerspectives(LB2, user1.jwt)
+    ).data;
+
+    // Check orphan perspectives.
+    expect(independentOrphanPerspectives[0]).toEqual(LC);
     expect(independentPerspectives[0]).toEqual(PB1);
     const independentPerspectivesEco = (
-      await getIndependentPerspectives(branchA.children[0].perspective.id, user1.jwt, true)
+      await getIndependentPerspectives(branchA.pages[0].perspective.id, user1.jwt, true)
     ).data;
     expect(independentPerspectivesEco).toEqual(expect.arrayContaining([PB1, LC]));
+
+    // Check perspectives with same context in parent.
+    const otherIndPerspectives = (
+      await getIndependentPerspectives(branchA.links[0], user1.jwt)
+    ).data;
+
+    expect(otherIndPerspectives).toHaveLength(0);
+
     done();
   });
 
@@ -864,12 +879,12 @@ describe('routes', () => {
     // Publish pages
     await postElementToBlog(
       flatScenario.blogId,
-      flatScenario.children[0].perspective.id,
+      flatScenario.pages[0].perspective.id,
       user
     );
     await postElementToBlog(
       flatScenario.blogId,
-      flatScenario.children[2].perspective.id,
+      flatScenario.pages[2].perspective.id,
       user
     );
 
@@ -995,12 +1010,12 @@ describe('routes', () => {
     // Publish pages
     await postElementToBlog(
       scenario.blogId,
-      scenario.children[0].perspective.id,
+      scenario.pages[0].perspective.id,
       user
     );
     await postElementToBlog(
       scenario.blogId,
-      scenario.children[2].perspective.id,
+      scenario.pages[2].perspective.id,
       user
     );
 
@@ -1069,12 +1084,12 @@ describe('routes', () => {
     // Publish pages
     await postElementToBlog(
       scenario.blogId,
-      scenario.children[0].perspective.id,
+      scenario.pages[0].perspective.id,
       user
     );
     await postElementToBlog(
       scenario.blogId,
-      scenario.children[2].perspective.id,
+      scenario.pages[2].perspective.id,
       user
     );
 
@@ -1147,12 +1162,12 @@ describe('routes', () => {
     // Publish pages
     await postElementToBlog(
       scenario.blogId,
-      scenario.children[0].perspective.id,
+      scenario.pages[0].perspective.id,
       user
     );
     await postElementToBlog(
       scenario.blogId,
-      scenario.children[2].perspective.id,
+      scenario.pages[2].perspective.id,
       user
     );
 
@@ -1225,12 +1240,12 @@ describe('routes', () => {
     // Publish pages
     await postElementToBlog(
       scenario.blogId,
-      scenario.children[0].perspective.id,
+      scenario.pages[0].perspective.id,
       user
     );
     await postElementToBlog(
       scenario.blogId,
-      scenario.children[2].perspective.id,
+      scenario.pages[2].perspective.id,
       user
     );
 
@@ -1307,12 +1322,12 @@ describe('routes', () => {
     // Post pages
     await postElementToBlog(
       scenario.blogId,
-      scenario.children[0].perspective.id,
+      scenario.pages[0].perspective.id,
       user
     );
     await postElementToBlog(
       scenario.blogId,
-      scenario.children[1].perspective.id,
+      scenario.pages[1].perspective.id,
       user
     );
 
@@ -1393,12 +1408,12 @@ describe('routes', () => {
     // Post pages
     await postElementToBlog(
       scenario.blogId,
-      scenario.children[0].perspective.id,
+      scenario.pages[0].perspective.id,
       user
     );
     await postElementToBlog(
       scenario.blogId,
-      scenario.children[1].perspective.id,
+      scenario.pages[1].perspective.id,
       user
     );
 

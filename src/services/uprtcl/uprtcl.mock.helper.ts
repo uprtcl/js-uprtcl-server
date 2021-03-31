@@ -449,7 +449,7 @@ export const newTitle = async (
       indexData: {
         text: title.value,
       },
-      context: title.context
+      context: title.context,
     },
   ]);
 
@@ -462,18 +462,19 @@ export const newText = async (
   guardianId: string,
   user: TestUser
 ) => {
-
   const textDatas = await createData(
     text.map((content) => {
       return {
         text: content.value,
         type: 'Paragraph',
         links: [],
-      }
-    }), user.jwt);
-  
+      };
+    }),
+    user.jwt
+  );
+
   const textCommits = await createData(
-    textDatas.map(data => {
+    textDatas.map((data) => {
       return {
         proof: {
           signature: '',
@@ -486,10 +487,13 @@ export const newText = async (
           timestamp: Date.now(),
           parentsIds: [],
         },
-      }
-    }), user.jwt);
+      };
+    }),
+    user.jwt
+  );
 
-  const textPerspectives = await createPerspectives(user, 
+  const textPerspectives = await createPerspectives(
+    user,
     textCommits.map((commit, i) => {
       return {
         perspectiveId: '',
@@ -501,7 +505,7 @@ export const newText = async (
           text: text[i].value,
         },
         context: text[i].context,
-        }
+      };
     })
   );
 
@@ -1101,6 +1105,7 @@ export const createFlatScenario = async (
 ) => {
   const homeSpace = await createHomeSpace(user);
   let createdPages = [];
+  let createdLinks: string[] = [];
 
   for (let i = 0; i < pages.length; i++) {
     const title = await newTitle(
@@ -1124,6 +1129,11 @@ export const createFlatScenario = async (
     );
 
     const textIds = pageContent.map((page) => page.perspective.id);
+
+    textIds.map((text) => {
+      createdLinks.push(text);
+    });
+
     await addNewElementsToPerspective(title.perspective.id, textIds, user);
   }
 
@@ -1131,6 +1141,7 @@ export const createFlatScenario = async (
     linkedThoughts: homeSpace.linkedThoughts.perspective.id,
     blogId: homeSpace.blog.perspective.id,
     privateId: homeSpace.private.perspective.id,
-    children: createdPages,
+    pages: createdPages,
+    links: createdLinks,
   };
 };

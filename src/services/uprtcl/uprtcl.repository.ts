@@ -747,37 +747,54 @@ export class UprtclRepository {
         }
       `;
 
-      // Get the objective context for a given ecosystem.
-      query = query.concat(`\nperspectiveContext as var(func: uid(eco)) {
+    // Look for independent perspectives for every element of an ecosystem, in this case
+    // the perspective ecosystem
+      query = query.concat(`\nperspectiveRef as var(func: uid(eco)) {
         context {
           targetCon as uid
         }
+        ~children {
+          context {
+            parentContext as uid
+          }
+        }
       }`);
     } else {
-      // Otherwise, get the objective context for a given perspective.
-      query = `perspectiveContext as var(func: eq(xid, ${perspectiveId})) { 
+     // Otherwise, only look for independent perspective for the indicated persp.
+      query = `perspectiveRef as var(func: eq(xid, ${perspectiveId})) { 
         context {
           targetCon as uid
+        }
+        parents: ~children {
+          context {
+            parentContext as uid
+          }
         }
       }`;
     }
 
-    query = query.concat(`\ncontextRef(func: uid(targetCon)) {
+     // Verify indepent perspectives criteria with parents
+    query = query.concat(`\nnormalRef(func: uid(targetCon)) {
        perspectivesOfContext: ~context @filter(
-         not(uid(perspectiveContext))
-         AND
-         (
-           eq(publicRead, true)
-           OR
-           gt(count(canRead), 0)
-         )
-        ) {
+         not(uid(perspectiveRef))
+        ) @cascade {
           xid
           ~children {
-            context @filter(not(uid(targetCon)))
+            context @filter(not(uid(parentContext)))
           }
         }
     }`);
+
+     // Verify indepent perspectives criteria without parents
+     query = query.concat(`\norphanRef(func: uid(targetCon)) {
+      perspectivesOfContext: ~context @filter(
+        not(uid(perspectiveRef))
+        AND
+        eq(count(~children), 0)
+       ) @cascade {
+         xid
+       }
+   }`);
 
     return query;
   }
@@ -791,21 +808,27 @@ export class UprtclRepository {
       perspectiveId,
       ecosystem,
       loggedUserId
-    )
-    
+    );
+
     await this.db.ready();
 
     let result = (
       await this.db.client.newTxn().query(`query{${query}}`)
     ).getJson();
 
-    const contextRefIds = result.contextRef.map((ref: any) => {
+    const normalRefIds = result.normalRef.map((ref: any) => {
       return ref.perspectivesOfContext.map((persp: any) => {
-        return persp.xid
-      })
+        return persp.xid;
+      });
     });
-    
-    return [].concat(...contextRefIds);
+
+    const orphanRefIds = result.orphanRef.map((ref: any) => {
+      return ref.perspectivesOfContext.map((persp: any) => {
+        return persp.xid;
+      });
+    });
+
+    return [].concat(...normalRefIds).concat([].concat(...orphanRefIds));
   }
 
   async getPerspectiveRelatives(
@@ -1045,6 +1068,14 @@ export class UprtclRepository {
     let query = ``;
     const { levels, entities, details } = getPerspectiveOptions;
 
+    if (searchOptions && searchOptions.forks) {
+      if (!searchOptions.under || searchOptions.linksTo) {
+        throw new Error(
+          'forks currently support a single mandatory "under" property'
+        );
+      }
+    }
+
     if (!details && entities) {
       throw new Error('Entities can not be provided without details...');
     }
@@ -1202,8 +1233,8 @@ export class UprtclRepository {
                 filtered as ecosystem @filter(anyoftext(text, "${searchText}"))
               `;
             }
-          } else if (searchText != '') {
-            internalWrapper = `filtered as ecosystem @filter(anyoftext(text, "${searchText}"))`;
+          } else if (searchOptions.forks) {
+            // if only searchOptions and fork
           } else {
             internalWrapper = 'filtered as ecosystem';
           }
