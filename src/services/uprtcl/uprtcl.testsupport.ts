@@ -33,12 +33,12 @@ interface PerspectiveData {
   commit: string;
 }
 export interface UpdateTest extends Update {
-  context?: string
+  context?: string;
 }
 
 export const forkPerspective = async (
   perspectiveId: string,
-  user: TestUser,
+  user: TestUser
 ): Promise<string> => {
   const officialPerspective = await getPerspectiveDetails(perspectiveId, user);
   let officialData = officialPerspective.data.slice?.entities[1].object;
@@ -78,12 +78,12 @@ export const forkPerspective = async (
     {
       perspectiveId: '',
       details: {
-        headId: forkCommit[0].id
+        headId: forkCommit[0].id,
       },
       indexData: {
         text: officialData.text,
       },
-      context: perspectiveContext[0]
+      context: perspectiveContext[0],
     },
   ]);
 
@@ -93,16 +93,21 @@ export const forkPerspective = async (
 
   const relatives = await getPerspectiveRelatives(perspectiveId, 'children');
 
-  if(relatives.length > 0) {
+  if (relatives.length > 0) {
     const children = await forkChildren(relatives, topElement, user);
 
-    const updatedData = await createData([
-      {
-        text: `${officialData.title ? officialData.title : officialData.text}`,
-        type: `${officialData.title ? `title` : `text`}`,
-        [`${officialData.pages ? `pages` : `links`}`]: children
-      }
-    ], user.jwt);
+    const updatedData = await createData(
+      [
+        {
+          text: `${
+            officialData.title ? officialData.title : officialData.text
+          }`,
+          type: `${officialData.title ? `title` : `text`}`,
+          [`${officialData.pages ? `pages` : `links`}`]: children,
+        },
+      ],
+      user.jwt
+    );
 
     const commitUpdates = await createData(
       [
@@ -118,8 +123,9 @@ export const forkPerspective = async (
             timestamp: Date.now(),
             parentsIds: [],
           },
-        }
-      ], user.jwt
+        },
+      ],
+      user.jwt
     );
     // Update top element children
     await updatePerspective(user.jwt, undefined, undefined, [
@@ -143,30 +149,36 @@ export const forkPerspective = async (
   return topElement;
 };
 
-const forkChildren = async(
+const forkChildren = async (
   children: string[],
   guardianId: string,
   user: TestUser
 ): Promise<string[]> => {
-  const officalPerspectives = await Promise.all(children.map(async child => {
-    return {
-      data: (await getPerspectiveDetails(child, user)).data
-    }
-  }));
-  let officialDatas = officalPerspectives.map(persp => persp.data.slice?.entities[1].object);
-  const officialHeads = officalPerspectives.map(persp => persp.data.slice?.entities[0].object.payload);
+  const officalPerspectives = await Promise.all(
+    children.map(async (child) => {
+      return {
+        data: (await getPerspectiveDetails(child, user)).data,
+      };
+    })
+  );
+  let officialDatas = officalPerspectives.map(
+    (persp) => persp.data.slice?.entities[1].object
+  );
+  const officialHeads = officalPerspectives.map(
+    (persp) => persp.data.slice?.entities[0].object.payload
+  );
 
   // Reset links or pages
-  officialDatas.map(data => {
-    if(data.pages) {
+  officialDatas.map((data) => {
+    if (data.pages) {
       data.pages = [];
-    } else if(data.links){
+    } else if (data.links) {
       data.links = [];
     }
   });
 
   const forkedDatas = await createData(officialDatas, user.jwt);
-  
+
   const forkedCommits = await createData(
     forkedDatas.map((data, i) => {
       return {
@@ -181,14 +193,15 @@ const forkChildren = async(
           timestamp: Date.now(),
           parentsIds: officialHeads[i].parentsIds,
         },
-      }
+      };
     }),
     user.jwt
   );
 
   const perspectivesContext = await getPerspectivesContext(children);
 
-  const forkedPerspectives = await createPerspectives(user, 
+  const forkedPerspectives = await createPerspectives(
+    user,
     forkedCommits.map((commit, i) => {
       return {
         perspectiveId: '',
@@ -199,17 +212,19 @@ const forkChildren = async(
         indexData: {
           text: officialDatas[i].text,
         },
-        context: perspectivesContext[i]
-      }
+        context: perspectivesContext[i],
+      };
     })
   );
-  
+
   await sendPerspectiveBatch(forkedPerspectives, user);
 
-  return forkedPerspectives.map(persp => persp.perspective.id);;
-}
+  return forkedPerspectives.map((persp) => persp.perspective.id);
+};
 
-const getPerspectivesContext = async (perspectivesIds: string[]): Promise<string[]> => {
+const getPerspectivesContext = async (
+  perspectivesIds: string[]
+): Promise<string[]> => {
   await db.ready();
   // This is a temporal way of getting perspectives context.
   const query = `query{
@@ -224,7 +239,7 @@ const getPerspectivesContext = async (perspectivesIds: string[]): Promise<string
   const perspectives = result.getJson().perspectives;
   const contexts = perspectives.map((persp: any) => persp.context.name);
   return !contexts || contexts.length == 0 ? [] : contexts;
-}
+};
 
 export const addChildToPerspective = async (
   childId: string,
@@ -379,8 +394,8 @@ export const getPerspectiveRelatives = async (
 
 export const getIndependentPerspectives = async (
   perspectiveId: string,
-  jwt: string,
-  eco?: boolean
+  eco?: boolean,
+  jwt?: string
 ): Promise<GetResult<String[]>> => {
   const router = await createApp();
   const get = await request(router)
