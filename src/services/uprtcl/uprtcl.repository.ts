@@ -732,7 +732,7 @@ export class UprtclRepository {
   }
 
   getOtherIndpPerspectivesUpsert(
-    perspectiveId: string,
+    perspectiveId: string[],
     ecosystem: boolean,
     loggedUserId: string | null
   ) {
@@ -805,7 +805,7 @@ export class UprtclRepository {
     loggedUserId: string | null
   ): Promise<Array<string>> {
     const query = this.getOtherIndpPerspectivesUpsert(
-      perspectiveId,
+      [perspectiveId],
       ecosystem,
       loggedUserId
     );
@@ -1236,7 +1236,7 @@ export class UprtclRepository {
           } else if (searchOptions.forks?.include) {
             // if only under and fork
             let independentUpsert = await this.getOtherIndpPerspectivesUpsert(
-              ids[0],
+              ids,
               true,
               loggedUserId
             );
