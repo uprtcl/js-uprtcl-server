@@ -734,7 +734,7 @@ export class UprtclRepository {
   getOtherIndpPerspectivesUpsert(
     perspectiveId: string[],
     ecosystem: boolean,
-    loggedUserId: string | null
+    loggedUserId?: string
   ) {
     // TODO: Check permissions to properly return a response.
     let query = ``;
@@ -775,10 +775,9 @@ export class UprtclRepository {
 
     // Verify indepent perspectives criteria with parents
     query = query.concat(`\nnormalRef(func: uid(targetCon)) {
-       normalPersps: ~context @filter(
+       normalPersps as ~context @filter(
          not(uid(perspectiveRef))
         ) @cascade {
-          normalIds: xid
           ~children {
             context @filter(not(uid(parentContext)))
           }
@@ -787,22 +786,46 @@ export class UprtclRepository {
 
     // Verify indepent perspectives criteria without parents
     query = query.concat(`\norphanRef(func: uid(targetCon)) {
-      orphanPersps: ~context @filter(
+      orphanPersps as ~context @filter(
         not(uid(perspectiveRef))
         AND
         eq(count(~children), 0)
-       ) @cascade {
-         orphanIds: xid
-       }
+       )
    }`);
 
+    // Add access control layer before delivering perspectives
+
+    // Collect result first
+    query = query.concat(
+      `\nindPersp as var(func: uid(normalPersps, orphanPersps))`
+    );
+
+    if (loggedUserId) {
+      query = query.concat(
+        `\npublicAccess as var(func: uid(indPersp)) @filter(eq(publicRead, true))`
+      );
+      query = query.concat(`\npublicRead(func: uid(publicAccess)) {
+        xid
+      }`);
+      // If loggedUserId is provided, return accessible perspectives
+      // to this user as well.
+      query = query.concat(`\nuserRead(func: uid(indPersp)) @filter(not(uid(publicAccess))) @cascade {
+        xid
+        canRead @filter(eq(did, "${loggedUserId}"))
+      }`);
+    } else {
+      // Return only those perspectives publicly accessible.
+      query = query.concat(`\npublicRead(func: uid(indPersp)) @filter(eq(publicRead, true)) {
+        xid
+      }`);
+    }
     return query;
   }
 
   async getOtherIndpPerspectives(
     perspectiveId: string,
     ecosystem: boolean,
-    loggedUserId: string | null
+    loggedUserId: string
   ): Promise<Array<string>> {
     const query = this.getOtherIndpPerspectivesUpsert(
       [perspectiveId],
@@ -816,19 +839,22 @@ export class UprtclRepository {
       await this.db.client.newTxn().query(`query{${query}}`)
     ).getJson();
 
-    const normalRefIds = result.normalRef.map((ref: any) => {
-      return ref.normalPersps.map((persp: any) => {
-        return persp.normalIds;
-      });
-    });
+    let publicRead = [];
+    let userRead = [];
 
-    const orphanRefIds = result.orphanRef.map((ref: any) => {
-      return ref.orphanPersps.map((persp: any) => {
-        return persp.orphanIds;
+    if (result.userRead) {
+      userRead = result.userRead.map((persp: any) => {
+        return persp.xid;
       });
-    });
+    }
 
-    return [].concat(...normalRefIds).concat([].concat(...orphanRefIds));
+    if (result.publicRead) {
+      publicRead = result.publicRead.map((persp: any) => {
+        return persp.xid;
+      });
+    }
+
+    return [].concat(...userRead).concat([].concat(...publicRead));
   }
 
   async getPerspectiveRelatives(
@@ -1238,7 +1264,7 @@ export class UprtclRepository {
             let independentUpsert = await this.getOtherIndpPerspectivesUpsert(
               ids,
               true,
-              loggedUserId
+              loggedUserId !== null ? loggedUserId : undefined
             );
 
             if (searchOptions.under?.levels === 0) {
@@ -1248,20 +1274,29 @@ export class UprtclRepository {
               );
             }
 
-            independentUpsert = independentUpsert.replace(
-              'normalPersps:',
-              'normalPersps as '
-            );
-            independentUpsert = independentUpsert.replace(
-              'orphanPersps:',
-              'orphanPersps as '
-            );
-
-            optionalWrapper = optionalWrapper.concat(independentUpsert);
-
-            optionalWrapper = optionalWrapper.concat(
-              `\nfiltered as var(func: uid(normalPersps, orphanPersps))`
-            );
+            if (loggedUserId !== null) {
+              independentUpsert = independentUpsert.replace(
+                'publicRead(',
+                'publicRead as var ('
+              );
+              independentUpsert = independentUpsert.replace(
+                'userRead(',
+                'userRead as var ('
+              );
+              optionalWrapper = optionalWrapper.concat(independentUpsert);
+              optionalWrapper = optionalWrapper.concat(
+                `\nfiltered as var(func: uid(publicRead, userRead))`
+              );
+            } else {
+              independentUpsert = independentUpsert.replace(
+                'publicRead(',
+                'publicRead as var ('
+              );
+              optionalWrapper = optionalWrapper.concat(independentUpsert);
+              optionalWrapper = optionalWrapper.concat(
+                `\nfiltered as var(func: uid(publicRead))`
+              );
+            }
           } else {
             internalWrapper = 'filtered as ecosystem';
           }
