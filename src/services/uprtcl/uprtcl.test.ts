@@ -606,16 +606,18 @@ describe('routes', () => {
 
     const LB2 = (await getPerspectiveRelatives(PB1, 'children'))[0];
     const LC = await forkPerspective(LB2, user1);
+
     const independentPerspectives = (
       await getIndependentPerspectives(
         branchA.pages[0].perspective.id,
+        false,
         user1.jwt
       )
     ).data;
 
     // Get independent perspectives of first Page A link
     const independentOrphanPerspectives = (
-      await getIndependentPerspectives(LB2, user1.jwt)
+      await getIndependentPerspectives(LB2, false, user1.jwt)
     ).data;
 
     // Check orphan perspectives.
@@ -624,8 +626,8 @@ describe('routes', () => {
     const independentPerspectivesEco = (
       await getIndependentPerspectives(
         branchA.pages[0].perspective.id,
-        user1.jwt,
-        true
+        true,
+        user1.jwt
       )
     ).data;
     expect(independentPerspectivesEco).toEqual(
@@ -634,7 +636,7 @@ describe('routes', () => {
 
     // Check perspectives with same context in parent.
     const otherIndPerspectives = (
-      await getIndependentPerspectives(branchA.links[0], user1.jwt)
+      await getIndependentPerspectives(branchA.links[0], false, user1.jwt)
     ).data;
 
     expect(otherIndPerspectives).toHaveLength(0);
@@ -1499,7 +1501,8 @@ describe('routes', () => {
      * workspaces themselves and their elements.
      * */
 
-    const user = await createUser('seed1');
+    const userA = await createUser('seed1');
+    const userB = await createUser('seed2');
 
     const privatePageA: TestFlatPage[] = [
       {
@@ -1516,22 +1519,22 @@ describe('routes', () => {
       },
     ];
 
-    const workSpaceA = await createFlatScenario(privatePageA, user);
+    const workSpaceA = await createFlatScenario(privatePageA, userA);
 
     const privatePageForkA = await forkPerspective(
       workSpaceA.pages[0].perspective.id,
-      user
+      userA
     );
 
     await addNewElementsToPerspective(
       workSpaceA.forksId,
       [privatePageForkA],
-      user
+      userA
     );
 
-    const textForkA = await forkPerspective(workSpaceA.links[0], user);
+    const textForkA = await forkPerspective(workSpaceA.links[0], userA);
 
-    await addNewElementsToPerspective(workSpaceA.forksId, [textForkA], user);
+    await addNewElementsToPerspective(workSpaceA.forksId, [textForkA], userA);
 
     const privatePageB: TestFlatPage[] = [
       {
@@ -1548,22 +1551,37 @@ describe('routes', () => {
       },
     ];
 
-    const workSpaceB = await createFlatScenario(privatePageB, user);
+    const workSpaceB = await createFlatScenario(privatePageB, userB);
 
     const privatePageForkB = await forkPerspective(
       workSpaceB.pages[0].perspective.id,
-      user
+      userB
     );
 
     await addNewElementsToPerspective(
       workSpaceB.forksId,
       [privatePageForkB],
-      user
+      userB
     );
 
-    const textForkB = await forkPerspective(workSpaceB.links[0], user);
+    const textForkB = await forkPerspective(workSpaceB.links[0], userB);
 
-    await addNewElementsToPerspective(workSpaceB.forksId, [textForkB], user);
+    await addNewElementsToPerspective(workSpaceB.forksId, [textForkB], userB);
+
+    // Set pages to public access to be able to explore freely.
+    await setPublicPermission(
+      privatePageForkA,
+      PermissionType.Read,
+      true,
+      userA.jwt
+    );
+
+    await setPublicPermission(
+      privatePageForkB,
+      PermissionType.Read,
+      true,
+      userB.jwt
+    );
 
     const result = await explore({
       forks: {
@@ -1585,9 +1603,38 @@ describe('routes', () => {
     });
 
     // Results with level 0
-    console.log(result);
-    console.log(privatePageForkA, privatePageForkB);
+    expect(result.data.perspectiveIds[0]).toEqual(privatePageForkB);
+    expect(result.data.perspectiveIds[1]).toEqual(privatePageForkA);
 
+    // Set texts to public access to be able to explore freely.
+    await setPublicPermission(textForkA, PermissionType.Read, true, userA.jwt);
+
+    await setPublicPermission(textForkB, PermissionType.Read, true, userB.jwt);
+
+    const resultEcosystem = await explore({
+      forks: {
+        include: true,
+        independent: false,
+      },
+      under: {
+        type: Join.full,
+        levels: -1,
+        elements: [
+          {
+            id: workSpaceA.privateId,
+          },
+          {
+            id: workSpaceB.privateId,
+          },
+        ],
+      },
+    });
+
+    // Results with level -1
+    expect(resultEcosystem.data.perspectiveIds[0]).toEqual(textForkB);
+    expect(resultEcosystem.data.perspectiveIds[1]).toEqual(privatePageForkB);
+    expect(resultEcosystem.data.perspectiveIds[2]).toEqual(textForkA);
+    expect(resultEcosystem.data.perspectiveIds[3]).toEqual(privatePageForkA);
     done();
   });
 
