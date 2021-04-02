@@ -1269,8 +1269,16 @@ export class UprtclRepository {
 
             if (searchOptions.under?.levels === 0) {
               independentUpsert = independentUpsert.replace(
+                'persp',
+                'persp as var'
+              );
+              independentUpsert = independentUpsert.replace(
                 'eco as ecosystem',
                 'eco as children'
+              );
+              independentUpsert = independentUpsert.replace(
+                'uid(eco)',
+                'uid(persp, eco)'
               );
             }
 
