@@ -1372,7 +1372,7 @@ describe('routes', () => {
     done();
   });
 
-  test('search forks within a perspective children (under level = 0)', async (done) => {
+  test.only('search forks within a perspective children (under level = 0)', async (done) => {
     const user = await createUser('seed1');
 
     const privatePage: TestFlatPage[] = [
@@ -1428,6 +1428,30 @@ describe('routes', () => {
 
     expect(result.data.perspectiveIds.length).toEqual(1);
     expect(result.data.perspectiveIds[0]).toEqual(privatePageFork);
+
+    const selfResult = await explore(
+      {
+        forks: {
+          include: true,
+          independent: false,
+        },
+        under: {
+          type: Join.full,
+          levels: 0,
+          elements: [
+            {
+              id: workSpace.pages[0].perspective.id,
+            },
+          ],
+        },
+      },
+      user
+    );
+
+    // Should expect itself and its inmediate relatives.
+    expect(selfResult.data.perspectiveIds.length).toEqual(2);
+    expect(selfResult.data.perspectiveIds[0]).toEqual(textFork);
+    expect(selfResult.data.perspectiveIds[1]).toEqual(privatePageFork);
 
     done();
   });
@@ -1493,7 +1517,7 @@ describe('routes', () => {
     done();
   });
 
-  test.only('search forks within the ecosystem or children of many perspectives (level 0 and level -1 | multiple under elements)', async (done) => {
+  test('search forks within the ecosystem or children of many perspectives (level 0 and level -1 | multiple under elements)', async (done) => {
     /**
      * We create 2 workspaces and will look
      * for forks under these 2 private workspaces.
