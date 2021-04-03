@@ -850,8 +850,8 @@ describe('routes', async () => {
     expect(privateResult.data.perspectiveIds.length).toBe(3);
 
     // Publish pages
-    await postElementToBlog(scenario.blogId, scenario.pages[0], user);
-    await postElementToBlog(scenario.blogId, scenario.pages[2], user);
+    await postElementToBlog(scenario.blogId, scenario.pages[0].id, user);
+    await postElementToBlog(scenario.blogId, scenario.pages[2].id, user);
 
     const generalResult = await explore(
       {
@@ -866,29 +866,10 @@ describe('routes', async () => {
     done();
   });
 
-  test('search under', async (done) => {
-    const result = await explore(
-      {
-        under: {
-          type: Join.inner,
-          elements: [
-            {
-              id: scenario.privateId,
-            },
-          ],
-        },
-      },
-      user
-    );
-
-    expect(result.data.perspectiveIds.length).toBe(8);
-    done();
-  });
-
   test('search by linksTo', async (done) => {
     // Publish pages
-    await postElementToBlog(scenario.blogId, scenario.pages[0], user);
-    await postElementToBlog(scenario.blogId, scenario.pages[2], user);
+    await postElementToBlog(scenario.blogId, scenario.pages[0].id, user);
+    await postElementToBlog(scenario.blogId, scenario.pages[2].id, user);
 
     const result = await explore(
       {
@@ -910,8 +891,8 @@ describe('routes', async () => {
 
   test('search by text and linksTo', async (done) => {
     // Publish pages
-    await postElementToBlog(scenario.blogId, scenario.pages[0], user);
-    await postElementToBlog(scenario.blogId, scenario.pages[2], user);
+    await postElementToBlog(scenario.blogId, scenario.pages[0].id, user);
+    await postElementToBlog(scenario.blogId, scenario.pages[2].id, user);
 
     const levelZeroResult = await explore(
       {
@@ -935,10 +916,29 @@ describe('routes', async () => {
     done();
   });
 
-  test('seacrh by text and under', async (done) => {
+  test('search under', async (done) => {
+    const result = await explore(
+      {
+        under: {
+          type: Join.inner,
+          elements: [
+            {
+              id: scenario.privateId,
+            },
+          ],
+        },
+      },
+      user
+    );
+
+    expect(result.data.perspectiveIds.length).toBe(8);
+    done();
+  });
+
+  test('seacrh by under and text', async (done) => {
     // Publish pages
-    await postElementToBlog(scenario.blogId, scenario.pages[0], user);
-    await postElementToBlog(scenario.blogId, scenario.pages[2], user);
+    await postElementToBlog(scenario.blogId, scenario.pages[0].id, user);
+    await postElementToBlog(scenario.blogId, scenario.pages[2].id, user);
 
     const result = await explore(
       {
@@ -964,8 +964,8 @@ describe('routes', async () => {
 
   test('search by under and linksTo', async (done) => {
     // Publish pages
-    await postElementToBlog(scenario.blogId, scenario.pages[0], user);
-    await postElementToBlog(scenario.blogId, scenario.pages[2], user);
+    await postElementToBlog(scenario.blogId, scenario.pages[0].id, user);
+    await postElementToBlog(scenario.blogId, scenario.pages[2].id, user);
 
     const result = await explore(
       {
@@ -995,8 +995,8 @@ describe('routes', async () => {
 
   test('search by under, linksTo and text', async (done) => {
     // Post pages
-    await postElementToBlog(scenario.blogId, scenario.pages[0], user);
-    await postElementToBlog(scenario.blogId, scenario.pages[1], user);
+    await postElementToBlog(scenario.blogId, scenario.pages[0].id, user);
+    await postElementToBlog(scenario.blogId, scenario.pages[1].id, user);
 
     const result = await explore(
       {
@@ -1017,14 +1017,148 @@ describe('routes', async () => {
           ],
         },
         text: {
-          value: 'long established',
+          value: 'Why do we use it',
           levels: -1,
         },
       },
       user
     );
 
-    expect(result.data.perspectiveIds.length).toBe(1);
+    expect(result.data.perspectiveIds.length).toBe(2);
+    done();
+  });
+
+  test('search above', async (done) => {
+    const result = await explore(
+      {
+        above: {
+          type: Join.inner,
+          elements: [
+            {
+              id: scenario.pages[2].links[0],
+            },
+          ],
+        },
+      },
+      user
+    );
+
+    expect(result.data.perspectiveIds.length).toBe(5);
+
+    // Expects for its inmediate parent page
+    expect(result.data.perspectiveIds[0]).toEqual(scenario.pages[2].id);
+    // Excepts for itself
+    expect(result.data.perspectiveIds[1]).toEqual(scenario.pages[2].links[0]);
+    // Expects for private
+    expect(result.data.perspectiveIds[2]).toEqual(scenario.privateId);
+    // Expects for linkedThoughts
+    expect(result.data.perspectiveIds[3]).toEqual(scenario.linkedThoughts);
+    // At the very last it expects for sections nodes.
+    done();
+  });
+
+  test('seacrh by above and text', async (done) => {
+    const result = await explore(
+      {
+        above: {
+          type: Join.full,
+          elements: [
+            {
+              id: scenario.pages[1].links[0],
+            },
+          ],
+        },
+        text: {
+          value: 'Why do we use it',
+          levels: 0,
+        },
+      },
+      user
+    );
+
+    expect(result.data.perspectiveIds[0]).toEqual(scenario.pages[1].id);
+    done();
+  });
+
+  test('search by above and linksTo', async (done) => {
+    // Post pages
+    const postedPage1 = await postElementToBlog(
+      scenario.blogId,
+      scenario.pages[0].id,
+      user
+    );
+
+    const page1relatives = await getPerspectiveRelatives(
+      postedPage1,
+      'children'
+    );
+
+    const result = await explore(
+      {
+        above: {
+          type: Join.full,
+          elements: [
+            {
+              id: page1relatives[0],
+            },
+          ],
+        },
+        linksTo: {
+          type: Join.full,
+          elements: [
+            {
+              id: 'textnodelinksto',
+            },
+          ],
+        },
+      },
+      user
+    );
+
+    expect(result.data.perspectiveIds[0]).toEqual(postedPage1);
+    done();
+  });
+
+  test('search by above, linksTo and text', async (done) => {
+    // Post pages
+    const postedPage1 = await postElementToBlog(
+      scenario.blogId,
+      scenario.pages[1].id,
+      user
+    );
+
+    const page1relatives = await getPerspectiveRelatives(
+      postedPage1,
+      'children'
+    );
+
+    const result = await explore(
+      {
+        above: {
+          type: Join.full,
+          elements: [
+            {
+              id: page1relatives[0],
+            },
+          ],
+        },
+        linksTo: {
+          type: Join.full,
+          elements: [
+            {
+              id: 'textnodelinksto',
+            },
+          ],
+        },
+        text: {
+          value: 'Why do we use it',
+          levels: -1,
+        },
+      },
+      user
+    );
+
+    expect(result.data.perspectiveIds.length).toBe(4);
     done();
   });
 

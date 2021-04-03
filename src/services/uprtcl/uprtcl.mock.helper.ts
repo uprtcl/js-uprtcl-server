@@ -25,13 +25,16 @@ export interface TestFlatPage {
   text: Content[];
 }
 
+export interface Page {
+  id: string;
+  links: string[];
+}
 export interface FlatScenario {
   linkedThoughts: string;
   privateId: string;
   blogId: string;
   forksId: string;
-  pages: string[];
-  links: string[];
+  pages: Page[];
 }
 
 /**
@@ -692,6 +695,8 @@ export const postElementToBlog = async (
       },
     },
   ]);
+
+  return forkedPerspective;
 };
 
 export const createHerarchichalScenario = (user: string) => {
@@ -1122,8 +1127,7 @@ export const createFlatScenario = async (
   user: TestUser
 ): Promise<FlatScenario> => {
   const homeSpace = await createHomeSpace(user);
-  let createdPages = [];
-  let createdLinks: string[] = [];
+  let createdPages: Page[] = [];
 
   for (let i = 0; i < pages.length; i++) {
     const title = await newTitle(
@@ -1132,7 +1136,10 @@ export const createFlatScenario = async (
       user
     );
 
-    createdPages.push(title.perspective.id);
+    createdPages.push({
+      id: title.perspective.id,
+      links: [],
+    });
 
     await addNewElementsToPerspective(
       homeSpace.private.perspective.id,
@@ -1149,7 +1156,7 @@ export const createFlatScenario = async (
     const textIds = pageContent.map((page) => page.perspective.id);
 
     textIds.map((text) => {
-      createdLinks.push(text);
+      createdPages[i].links.push(text);
     });
 
     await addNewElementsToPerspective(title.perspective.id, textIds, user);
@@ -1161,6 +1168,5 @@ export const createFlatScenario = async (
     privateId: homeSpace.private.perspective.id,
     forksId: homeSpace.forks.perspective.id,
     pages: createdPages,
-    links: createdLinks,
   };
 };
