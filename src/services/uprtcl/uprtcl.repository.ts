@@ -1171,12 +1171,17 @@ export class UprtclRepository {
       const start: StartCase = underCase
         ? StartCase.under
         : linksToCase
-        ? StartCase.linksTo
-        : aboveCase
         ? StartCase.above
         : searchText !== ''
+        ? StartCase.linksTo
+        : aboveCase
         ? StartCase.searchText
         : StartCase.all;
+
+      const text: Text = {
+        value: searchText,
+        levels: textLevels,
+      };
 
       switch (start) {
         case StartCase.all:
@@ -1184,6 +1189,25 @@ export class UprtclRepository {
           break;
 
         case StartCase.above:
+          const ecoSearchA = this.ecosystemSearchUpsert(
+            above,
+            linksTo,
+            SearchType.above,
+            searchOptions.forks ? true : false,
+            text,
+            {
+              startQuery,
+              internalWrapper,
+              optionalWrapper,
+            }
+          );
+
+          startQuery = ecoSearchA.startQuery;
+
+          internalWrapper = ecoSearchA.internalWrapper;
+
+          optionalWrapper = ecoSearchA.optionalWrapper;
+
           break;
 
         case StartCase.searchText:
@@ -1191,10 +1215,6 @@ export class UprtclRepository {
           break;
 
         case StartCase.under:
-          const text: Text = {
-            value: searchText,
-            levels: textLevels,
-          };
           const ecoSearch = this.ecosystemSearchUpsert(
             under,
             linksTo,
@@ -1586,8 +1606,7 @@ export class UprtclRepository {
       // under and linksTo
       const linksToIds = linksTo.elements.map((el) => el.id);
       if (linksTo.type === Join.full) {
-        startQuery = startQuery.concat(`@cascade`);
-        internalWrapper = `linkingTo as ecosystem @cascade {
+        internalWrapper = `linkingTo as ecosystem {
           linksTo @filter(eq(xid, ${linksToIds}))
         }`;
       } else if (linksTo.type === Join.inner) {
