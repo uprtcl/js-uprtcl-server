@@ -58,6 +58,18 @@ const httpCidConfig: any = {
 describe('routes', async () => {
   let user: TestUser, pages: TestFlatPage[], scenario: FlatScenario;
 
+  // Fork and independent perspectives scenario
+  let perspectiveAcontext: string,
+    perspectiveA1context: string,
+    perspectiveA2context: string,
+    perspectiveBcontext: string,
+    pagesBranchA: TestFlatPage[],
+    pagesBranchB: TestFlatPage[],
+    privatePage: TestFlatPage[],
+    branchA: FlatScenario,
+    branchB: FlatScenario,
+    workSpace: FlatScenario;
+
   beforeAll(async () => {
     // Emulate user.
     user = await createUser('seed1');
@@ -101,6 +113,71 @@ describe('routes', async () => {
 
     // Generate scenario.
     scenario = await createFlatScenario(pages, user);
+
+    // Fork scenario
+    perspectiveAcontext = 'perspective.A.context';
+    perspectiveA1context = 'perspective.A1.context';
+    perspectiveA2context = 'perspective.A2.context';
+    perspectiveBcontext = 'perspective.B.context';
+
+    pagesBranchA = [
+      {
+        title: {
+          value: 'Page A',
+          context: perspectiveAcontext,
+        },
+        text: [
+          {
+            value: 'Should be page A',
+            context: perspectiveA1context,
+          },
+          {
+            value: 'link A 2',
+            context: perspectiveA2context,
+          },
+        ],
+      },
+    ];
+
+    branchA = await createFlatScenario(pagesBranchA, user);
+    // End of branch A
+
+    //-----------------------//
+    // Branch B
+    // Create perspectiveB
+
+    pagesBranchB = [
+      {
+        title: {
+          value: 'Page B',
+          context: perspectiveBcontext,
+        },
+        text: [
+          {
+            value: 'Should be page B',
+          },
+        ],
+      },
+    ];
+
+    branchB = await createFlatScenario(pagesBranchB, user);
+
+    privatePage = [
+      {
+        title: {
+          value: 'This is a private page',
+          context: 'firstpagecontext',
+        },
+        text: [
+          {
+            value: 'It will be forked',
+            context: 'forkedtext',
+          },
+        ],
+      },
+    ];
+
+    workSpace = await createFlatScenario(privatePage, user);
   });
   // expect.extend({ toBeValidCid });
   // test('CRUD private perspectives', async (done) => {
@@ -593,62 +670,49 @@ describe('routes', async () => {
   //   expect(children).toEqual([page1Perspective, page3Perspective]);
   //   done();
   // });
-  // test('independent perspectives', async (done) => {
-  //   const user1 = await createUser('seed1');
-  //   const perspectiveAcontext = 'perspective.A.context';
-  //   const perspectiveA1context = 'perspective.A1.context';
-  //   const perspectiveA2context = 'perspective.A2.context';
-  //   const perspectiveBcontext = 'perspective.B.context';
-  //   // Branch A
-  //   const A = await createAndInitPerspective(
-  //     'base space A',
-  //     true,
-  //     user1,
-  //     Date.now(),
-  //     perspectiveAcontext
-  //   );
-  //   const PA1 = await createAndInitPerspective(
-  //     'page A 1',
-  //     false,
-  //     user1,
-  //     Date.now(),
-  //     perspectiveA1context
-  //   );
-  //   await addChildToPerspective(PA1.persp, A.persp, A.commit, false, user1);
-  //   const LA2 = await createAndInitPerspective(
-  //     'link A 2',
-  //     false,
-  //     user1,
-  //     Date.now(),
-  //     perspectiveA2context
-  //   );
-  //   await addChildToPerspective(LA2.persp, PA1.persp, PA1.commit, false, user1);
-  //   // End of branch A
-  //   //-----------------------//
-  //   // Branch B
-  //   // Create perspectiveB
-  //   const B = await createAndInitPerspective(
-  //     'base space B',
-  //     true,
-  //     user1,
-  //     141214,
-  //     perspectiveBcontext
-  //   );
-  //   const PB1 = await forkPerspective(PA1.persp, user1);
-  //   await addChildToPerspective(PB1, B.persp, B.commit, false, user1);
-  //   const LB2 = (await getPerspectiveRelatives(PB1, 'children'))[0];
-  //   const LC = await forkPerspective(LB2, user1);
-  //   const independentPerspectives = (
-  //     await getIndependentPerspectives(PA1.persp, user1.jwt)
-  //   ).data;
-  //   expect(independentPerspectives[0]).toEqual(PB1);
-  //   const independentPerspectivesEco = (
-  //     await getIndependentPerspectives(PA1.persp, user1.jwt, true)
-  //   ).data;
-  //   expect(independentPerspectivesEco[1]).toEqual(PB1);
-  //   expect(independentPerspectivesEco[0]).toEqual(LC);
-  //   done();
-  // });
+  test('independent perspectives', async (done) => {
+    // We fork Page A, which will become in PB1
+    const PB1 = await forkPerspective(branchA.pages[0].id, user);
+
+    // Second link of Page B will be Page A
+    await addNewElementsToPerspective(branchB.pages[0].id, [PB1], user);
+
+    const LB2 = (await getPerspectiveRelatives(PB1, 'children'))[0];
+    const LC = await forkPerspective(LB2, user);
+
+    const independentPerspectives = (
+      await getIndependentPerspectives(branchA.pages[0].id, false, user.jwt)
+    ).data;
+
+    // Get independent perspectives of first Page A link
+    const independentOrphanPerspectives = (
+      await getIndependentPerspectives(LB2, false, user.jwt)
+    ).data;
+
+    // Check orphan perspectives.
+    expect(independentOrphanPerspectives[0]).toEqual(LC);
+    expect(independentPerspectives[0]).toEqual(PB1);
+    const independentPerspectivesEco = (
+      await getIndependentPerspectives(branchA.pages[0].id, true, user.jwt)
+    ).data;
+    expect(independentPerspectivesEco).toEqual(
+      expect.arrayContaining([PB1, LC])
+    );
+
+    // Check perspectives with same context in parent.
+    const otherIndPerspectives = (
+      await getIndependentPerspectives(
+        branchA.pages[0].links[0],
+        false,
+        user.jwt
+      )
+    ).data;
+
+    expect(otherIndPerspectives).toHaveLength(0);
+
+    done();
+  });
+
   test('batch create', async (done) => {
     // Emulate the user
 
@@ -837,7 +901,7 @@ describe('routes', async () => {
     done();
   });
 
-  test('search by text in both private and blog', async (done) => {
+  test.only('search by text in both private and blog', async (done) => {
     const privateResult = await explore(
       {
         text: {
@@ -1159,6 +1223,258 @@ describe('routes', async () => {
     );
 
     expect(result.data.perspectiveIds.length).toBe(4);
+    done();
+  });
+
+  test('search forks within a perspective children (under level = 0)', async (done) => {
+    const privatePageFork = await forkPerspective(workSpace.pages[0].id, user);
+
+    await addNewElementsToPerspective(
+      workSpace.forksId,
+      [privatePageFork],
+      user
+    );
+
+    const textFork = await forkPerspective(workSpace.pages[0].links[0], user);
+
+    await addNewElementsToPerspective(workSpace.forksId, [textFork], user);
+
+    const result = await explore(
+      {
+        forks: {
+          include: true,
+          independent: false,
+        },
+        under: {
+          type: Join.full,
+          levels: 0,
+          elements: [
+            {
+              id: workSpace.privateId,
+            },
+          ],
+        },
+      },
+      user
+    );
+
+    expect(result.data.perspectiveIds.length).toEqual(1);
+    expect(result.data.perspectiveIds[0]).toEqual(privatePageFork);
+
+    const selfResult = await explore(
+      {
+        forks: {
+          include: true,
+          independent: false,
+        },
+        under: {
+          type: Join.full,
+          levels: 0,
+          elements: [
+            {
+              id: workSpace.pages[0].id,
+            },
+          ],
+        },
+      },
+      user
+    );
+
+    // Should expect itself and its inmediate relatives.
+    expect(selfResult.data.perspectiveIds.length).toEqual(2);
+    expect(selfResult.data.perspectiveIds[0]).toEqual(textFork);
+    expect(selfResult.data.perspectiveIds[1]).toEqual(privatePageFork);
+
+    done();
+  });
+
+  test('search forks within a perspective ecosystem (under level = -1)', async (done) => {
+    const privatePageFork = await forkPerspective(workSpace.pages[0].id, user);
+
+    await addNewElementsToPerspective(
+      workSpace.forksId,
+      [privatePageFork],
+      user
+    );
+
+    const textFork = await forkPerspective(workSpace.pages[0].links[0], user);
+
+    await addNewElementsToPerspective(workSpace.forksId, [textFork], user);
+
+    const result = await explore(
+      {
+        forks: {
+          include: true,
+          independent: false,
+        },
+        under: {
+          type: Join.full,
+          levels: -1,
+          elements: [
+            {
+              id: workSpace.privateId,
+            },
+          ],
+        },
+      },
+      user
+    );
+
+    expect(result.data.perspectiveIds.length).toEqual(2);
+    expect(result.data.perspectiveIds[1]).toEqual(privatePageFork);
+    expect(result.data.perspectiveIds[0]).toEqual(textFork);
+
+    done();
+  });
+
+  test('search forks within the ecosystem or children of many perspectives (level 0 and level -1 | multiple under elements)', async (done) => {
+    /**
+     * We create 2 workspaces and will look
+     * for forks under these 2 private workspaces.
+     * We will use letters A and B to differentiate
+     * workspaces themselves and their elements.
+     * */
+
+    const userA = await createUser('seed1');
+    const userB = await createUser('seed2');
+
+    const privatePageA: TestFlatPage[] = [
+      {
+        title: {
+          value: 'This is a private page',
+          context: 'firstpagecontext',
+        },
+        text: [
+          {
+            value: 'It will be forked',
+            context: 'forkedtext',
+          },
+        ],
+      },
+    ];
+
+    const workSpaceA = await createFlatScenario(privatePageA, userA);
+
+    const privatePageForkA = await forkPerspective(
+      workSpaceA.pages[0].id,
+      userA
+    );
+
+    await addNewElementsToPerspective(
+      workSpaceA.forksId,
+      [privatePageForkA],
+      userA
+    );
+
+    const textForkA = await forkPerspective(
+      workSpaceA.pages[0].links[0],
+      userA
+    );
+
+    await addNewElementsToPerspective(workSpaceA.forksId, [textForkA], userA);
+
+    const privatePageB: TestFlatPage[] = [
+      {
+        title: {
+          value: 'Another page in different workspace',
+          context: 'workspaceB',
+        },
+        text: [
+          {
+            value: 'Another text in different workspace',
+            context: 'textB',
+          },
+        ],
+      },
+    ];
+
+    const workSpaceB = await createFlatScenario(privatePageB, userB);
+
+    const privatePageForkB = await forkPerspective(
+      workSpaceB.pages[0].id,
+      userB
+    );
+
+    await addNewElementsToPerspective(
+      workSpaceB.forksId,
+      [privatePageForkB],
+      userB
+    );
+
+    const textForkB = await forkPerspective(
+      workSpaceB.pages[0].links[0],
+      userB
+    );
+
+    await addNewElementsToPerspective(workSpaceB.forksId, [textForkB], userB);
+
+    // Set pages to public access to be able to explore freely.
+    await setPublicPermission(
+      privatePageForkA,
+      PermissionType.Read,
+      true,
+      userA.jwt
+    );
+
+    await setPublicPermission(
+      privatePageForkB,
+      PermissionType.Read,
+      true,
+      userB.jwt
+    );
+
+    const result = await explore({
+      forks: {
+        include: true,
+        independent: false,
+      },
+      under: {
+        type: Join.full,
+        levels: 0,
+        elements: [
+          {
+            id: workSpaceA.privateId,
+          },
+          {
+            id: workSpaceB.privateId,
+          },
+        ],
+      },
+    });
+
+    // Results with level 0
+    expect(result.data.perspectiveIds[0]).toEqual(privatePageForkB);
+    expect(result.data.perspectiveIds[1]).toEqual(privatePageForkA);
+
+    // Set texts to public access to be able to explore freely.
+    await setPublicPermission(textForkA, PermissionType.Read, true, userA.jwt);
+
+    await setPublicPermission(textForkB, PermissionType.Read, true, userB.jwt);
+
+    const resultEcosystem = await explore({
+      forks: {
+        include: true,
+        independent: false,
+      },
+      under: {
+        type: Join.full,
+        levels: -1,
+        elements: [
+          {
+            id: workSpaceA.privateId,
+          },
+          {
+            id: workSpaceB.privateId,
+          },
+        ],
+      },
+    });
+
+    // Results with level -1
+    expect(resultEcosystem.data.perspectiveIds[0]).toEqual(textForkB);
+    expect(resultEcosystem.data.perspectiveIds[1]).toEqual(privatePageForkB);
+    expect(resultEcosystem.data.perspectiveIds[2]).toEqual(textForkA);
+    expect(resultEcosystem.data.perspectiveIds[3]).toEqual(privatePageForkA);
     done();
   });
 

@@ -3,6 +3,7 @@ import { createData, getData } from '../data/test.support.data';
 import {
   createPerspectives,
   getCommit,
+  UpdateTest,
   forkPerspective,
   getPerspectiveDetails,
   sendPerspectiveBatch,
