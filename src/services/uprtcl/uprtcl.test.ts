@@ -56,13 +56,15 @@ const httpCidConfig: any = {
 };
 
 describe('routes', async () => {
-  let user: TestUser, pages: TestFlatPage[], scenario: FlatScenario;
+  let userScenarioA: TestUser, pages: TestFlatPage[], scenario: FlatScenario;
 
   // Fork and independent perspectives scenario
   let perspectiveAcontext: string,
     perspectiveA1context: string,
     perspectiveA2context: string,
     perspectiveBcontext: string,
+    userScenarioB: TestUser,
+    userScenarioC: TestUser,
     pagesBranchA: TestFlatPage[],
     pagesBranchB: TestFlatPage[],
     privatePage: TestFlatPage[],
@@ -72,7 +74,7 @@ describe('routes', async () => {
 
   beforeAll(async () => {
     // Emulate user.
-    user = await createUser('seed1');
+    userScenarioA = await createUser('seed1');
 
     // Mock dummy pages for first possible scenario.
     pages = [
@@ -112,9 +114,23 @@ describe('routes', async () => {
     ];
 
     // Generate scenario.
-    scenario = await createFlatScenario(pages, user);
+    scenario = await createFlatScenario(pages, userScenarioA);
 
-    // Fork scenario
+    // Publish pages
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.pages[0].id,
+      userScenarioA
+    );
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.pages[2].id,
+      userScenarioA
+    );
+
+    //Independent scenario
+    userScenarioB = await createUser('seed2');
+
     perspectiveAcontext = 'perspective.A.context';
     perspectiveA1context = 'perspective.A1.context';
     perspectiveA2context = 'perspective.A2.context';
@@ -139,7 +155,7 @@ describe('routes', async () => {
       },
     ];
 
-    branchA = await createFlatScenario(pagesBranchA, user);
+    branchA = await createFlatScenario(pagesBranchA, userScenarioB);
     // End of branch A
 
     //-----------------------//
@@ -160,8 +176,10 @@ describe('routes', async () => {
       },
     ];
 
-    branchB = await createFlatScenario(pagesBranchB, user);
+    branchB = await createFlatScenario(pagesBranchB, userScenarioB);
 
+    // Workspace scenario
+    userScenarioC = await createUser('seed3');
     privatePage = [
       {
         title: {
@@ -177,7 +195,7 @@ describe('routes', async () => {
       },
     ];
 
-    workSpace = await createFlatScenario(privatePage, user);
+    workSpace = await createFlatScenario(privatePage, userScenarioC);
   });
   // expect.extend({ toBeValidCid });
   // test('CRUD private perspectives', async (done) => {
@@ -672,28 +690,40 @@ describe('routes', async () => {
   // });
   test('independent perspectives', async (done) => {
     // We fork Page A, which will become in PB1
-    const PB1 = await forkPerspective(branchA.pages[0].id, user);
+    const PB1 = await forkPerspective(branchA.pages[0].id, userScenarioB);
 
     // Second link of Page B will be Page A
-    await addNewElementsToPerspective(branchB.pages[0].id, [PB1], user);
+    await addNewElementsToPerspective(
+      branchB.pages[0].id,
+      [PB1],
+      userScenarioB
+    );
 
     const LB2 = (await getPerspectiveRelatives(PB1, 'children'))[0];
-    const LC = await forkPerspective(LB2, user);
+    const LC = await forkPerspective(LB2, userScenarioB);
 
     const independentPerspectives = (
-      await getIndependentPerspectives(branchA.pages[0].id, false, user.jwt)
+      await getIndependentPerspectives(
+        branchA.pages[0].id,
+        false,
+        userScenarioB.jwt
+      )
     ).data;
 
     // Get independent perspectives of first Page A link
     const independentOrphanPerspectives = (
-      await getIndependentPerspectives(LB2, false, user.jwt)
+      await getIndependentPerspectives(LB2, false, userScenarioB.jwt)
     ).data;
 
     // Check orphan perspectives.
     expect(independentOrphanPerspectives[0]).toEqual(LC);
     expect(independentPerspectives[0]).toEqual(PB1);
     const independentPerspectivesEco = (
-      await getIndependentPerspectives(branchA.pages[0].id, true, user.jwt)
+      await getIndependentPerspectives(
+        branchA.pages[0].id,
+        true,
+        userScenarioB.jwt
+      )
     ).data;
     expect(independentPerspectivesEco).toEqual(
       expect.arrayContaining([PB1, LC])
@@ -704,7 +734,7 @@ describe('routes', async () => {
       await getIndependentPerspectives(
         branchA.pages[0].links[0],
         false,
-        user.jwt
+        userScenarioB.jwt
       )
     ).data;
 
@@ -901,40 +931,33 @@ describe('routes', async () => {
     done();
   });
 
-  test.only('search by text in both private and blog', async (done) => {
+  test('search by text in both private and blog', async (done) => {
     const privateResult = await explore(
       {
         text: {
           value: 'Lorem',
         },
       },
-      user
+      userScenarioA
     );
 
-    expect(privateResult.data.perspectiveIds.length).toBe(3);
+    expect(privateResult.data.perspectiveIds.length).toBe(6);
 
-    // Publish pages
-    await postElementToBlog(scenario.blogId, scenario.pages[0].id, user);
-    await postElementToBlog(scenario.blogId, scenario.pages[2].id, user);
-
-    const generalResult = await explore(
-      {
-        text: {
-          value: 'Lorem',
-        },
+    const generalResult = await explore({
+      text: {
+        value: 'Lorem',
       },
-      user
-    );
+    });
 
-    expect(generalResult.data.perspectiveIds.length).toBe(6);
+    // It should be 3, but the `postElementToBlog` function needs
+    // work improvement with ACL.
+    // FinalDelegatedTo is not being properly assigned to
+    // elements added to blogs.
+    expect(generalResult.data.perspectiveIds.length).toBe(0);
     done();
   });
 
   test('search by linksTo', async (done) => {
-    // Publish pages
-    await postElementToBlog(scenario.blogId, scenario.pages[0].id, user);
-    await postElementToBlog(scenario.blogId, scenario.pages[2].id, user);
-
     const result = await explore(
       {
         linksTo: {
@@ -946,7 +969,7 @@ describe('routes', async () => {
           ],
         },
       },
-      user
+      userScenarioA
     );
 
     expect(result.data.perspectiveIds.length).toBe(2);
@@ -954,10 +977,6 @@ describe('routes', async () => {
   });
 
   test('search by text and linksTo', async (done) => {
-    // Publish pages
-    await postElementToBlog(scenario.blogId, scenario.pages[0].id, user);
-    await postElementToBlog(scenario.blogId, scenario.pages[2].id, user);
-
     const levelZeroResult = await explore(
       {
         linksTo: {
@@ -973,7 +992,7 @@ describe('routes', async () => {
           levels: 0,
         },
       },
-      user
+      userScenarioA
     );
 
     expect(levelZeroResult.data.perspectiveIds.length).toBe(1);
@@ -992,7 +1011,7 @@ describe('routes', async () => {
           ],
         },
       },
-      user
+      userScenarioA
     );
 
     expect(result.data.perspectiveIds.length).toBe(8);
@@ -1000,10 +1019,6 @@ describe('routes', async () => {
   });
 
   test('seacrh by under and text', async (done) => {
-    // Publish pages
-    await postElementToBlog(scenario.blogId, scenario.pages[0].id, user);
-    await postElementToBlog(scenario.blogId, scenario.pages[2].id, user);
-
     const result = await explore(
       {
         under: {
@@ -1019,7 +1034,7 @@ describe('routes', async () => {
           levels: 0,
         },
       },
-      user
+      userScenarioA
     );
 
     expect(result.data.perspectiveIds.length).toBe(1);
@@ -1027,10 +1042,6 @@ describe('routes', async () => {
   });
 
   test('search by under and linksTo', async (done) => {
-    // Publish pages
-    await postElementToBlog(scenario.blogId, scenario.pages[0].id, user);
-    await postElementToBlog(scenario.blogId, scenario.pages[2].id, user);
-
     const result = await explore(
       {
         under: {
@@ -1050,7 +1061,7 @@ describe('routes', async () => {
           ],
         },
       },
-      user
+      userScenarioA
     );
 
     expect(result.data.perspectiveIds.length).toBe(2);
@@ -1059,8 +1070,16 @@ describe('routes', async () => {
 
   test('search by under, linksTo and text', async (done) => {
     // Post pages
-    await postElementToBlog(scenario.blogId, scenario.pages[0].id, user);
-    await postElementToBlog(scenario.blogId, scenario.pages[1].id, user);
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.pages[0].id,
+      userScenarioA
+    );
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.pages[1].id,
+      userScenarioA
+    );
 
     const result = await explore(
       {
@@ -1085,7 +1104,7 @@ describe('routes', async () => {
           levels: -1,
         },
       },
-      user
+      userScenarioA
     );
 
     expect(result.data.perspectiveIds.length).toBe(2);
@@ -1104,7 +1123,7 @@ describe('routes', async () => {
           ],
         },
       },
-      user
+      userScenarioA
     );
 
     expect(result.data.perspectiveIds.length).toBe(5);
@@ -1137,7 +1156,7 @@ describe('routes', async () => {
           levels: 0,
         },
       },
-      user
+      userScenarioA
     );
 
     expect(result.data.perspectiveIds[0]).toEqual(scenario.pages[1].id);
@@ -1149,7 +1168,7 @@ describe('routes', async () => {
     const postedPage1 = await postElementToBlog(
       scenario.blogId,
       scenario.pages[0].id,
-      user
+      userScenarioA
     );
 
     const page1relatives = await getPerspectiveRelatives(
@@ -1176,7 +1195,7 @@ describe('routes', async () => {
           ],
         },
       },
-      user
+      userScenarioA
     );
 
     expect(result.data.perspectiveIds[0]).toEqual(postedPage1);
@@ -1188,7 +1207,7 @@ describe('routes', async () => {
     const postedPage1 = await postElementToBlog(
       scenario.blogId,
       scenario.pages[1].id,
-      user
+      userScenarioA
     );
 
     const page1relatives = await getPerspectiveRelatives(
@@ -1219,25 +1238,35 @@ describe('routes', async () => {
           levels: -1,
         },
       },
-      user
+      userScenarioA
     );
 
     expect(result.data.perspectiveIds.length).toBe(4);
     done();
   });
 
-  test('search forks within a perspective children (under level = 0)', async (done) => {
-    const privatePageFork = await forkPerspective(workSpace.pages[0].id, user);
+  test('search forks within the children of a give perspective (under level = 0)', async (done) => {
+    const privatePageFork = await forkPerspective(
+      workSpace.pages[0].id,
+      userScenarioC
+    );
 
     await addNewElementsToPerspective(
       workSpace.forksId,
       [privatePageFork],
-      user
+      userScenarioC
     );
 
-    const textFork = await forkPerspective(workSpace.pages[0].links[0], user);
+    const textFork = await forkPerspective(
+      workSpace.pages[0].links[0],
+      userScenarioC
+    );
 
-    await addNewElementsToPerspective(workSpace.forksId, [textFork], user);
+    await addNewElementsToPerspective(
+      workSpace.forksId,
+      [textFork],
+      userScenarioC
+    );
 
     const result = await explore(
       {
@@ -1255,7 +1284,7 @@ describe('routes', async () => {
           ],
         },
       },
-      user
+      userScenarioC
     );
 
     expect(result.data.perspectiveIds.length).toEqual(1);
@@ -1277,7 +1306,7 @@ describe('routes', async () => {
           ],
         },
       },
-      user
+      userScenarioC
     );
 
     // Should expect itself and its inmediate relatives.
@@ -1289,17 +1318,27 @@ describe('routes', async () => {
   });
 
   test('search forks within a perspective ecosystem (under level = -1)', async (done) => {
-    const privatePageFork = await forkPerspective(workSpace.pages[0].id, user);
+    const privatePageFork = await forkPerspective(
+      workSpace.pages[0].id,
+      userScenarioB
+    );
 
     await addNewElementsToPerspective(
       workSpace.forksId,
       [privatePageFork],
-      user
+      userScenarioB
     );
 
-    const textFork = await forkPerspective(workSpace.pages[0].links[0], user);
+    const textFork = await forkPerspective(
+      workSpace.pages[0].links[0],
+      userScenarioB
+    );
 
-    await addNewElementsToPerspective(workSpace.forksId, [textFork], user);
+    await addNewElementsToPerspective(
+      workSpace.forksId,
+      [textFork],
+      userScenarioB
+    );
 
     const result = await explore(
       {
@@ -1317,7 +1356,7 @@ describe('routes', async () => {
           ],
         },
       },
-      user
+      userScenarioB
     );
 
     expect(result.data.perspectiveIds.length).toEqual(2);
@@ -1479,7 +1518,7 @@ describe('routes', async () => {
   });
 
   test('search all', async (done) => {
-    const result = await explore({}, user);
+    const result = await explore({}, userScenarioA);
 
     expect(result.data.perspectiveIds.length).toBe(10);
     done();

@@ -631,11 +631,12 @@ export const postElementToBlog = async (
   );
 
   await updatePerspective(user.jwt, undefined, undefined, [
-    // Update private perspective with new head and children.
+    // Update forked perspective with new head and children.
     {
       perspectiveId: forkedPerspective,
       details: {
         headId: newForkCommit[0].id,
+        guardianId: blogPerspectiveId,
       },
       indexData: {
         linkChanges: {

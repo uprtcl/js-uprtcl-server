@@ -1224,11 +1224,11 @@ export class UprtclRepository {
 
       const start: StartCase = underCase
         ? StartCase.under
-        : linksToCase
-        ? StartCase.above
-        : searchText !== ''
-        ? StartCase.linksTo
         : aboveCase
+        ? StartCase.above
+        : linksToCase
+        ? StartCase.linksTo
+        : searchText !== ''
         ? StartCase.searchText
         : StartCase.all;
 
