@@ -26,6 +26,18 @@ export interface TestFlatPage {
   text: Content[];
 }
 
+export interface Page {
+  id: string;
+  links: string[];
+}
+export interface FlatScenario {
+  linkedThoughts: string;
+  privateId: string;
+  blogId: string;
+  forksId: string;
+  pages: Page[];
+}
+
 /**
  * Includes:
  * -> Home space
@@ -64,6 +76,10 @@ export const createHomeSpace = async (user: TestUser) => {
       // Private section
       {
         title: 'Private',
+        pages: [],
+      },
+      {
+        title: 'Forks',
         pages: [],
       },
     ],
@@ -120,6 +136,7 @@ export const createHomeSpace = async (user: TestUser) => {
         sections: [
           perspectivesInitialNodes[1].perspective.id,
           perspectivesInitialNodes[2].perspective.id,
+          perspectivesInitialNodes[3].perspective.id,
         ],
       },
       // Top element of the tree (Home space)
@@ -164,6 +181,7 @@ export const createHomeSpace = async (user: TestUser) => {
             added: [
               perspectivesInitialNodes[1].perspective.id,
               perspectivesInitialNodes[2].perspective.id,
+              perspectivesInitialNodes[3].perspective.id,
             ],
             removed: [],
           },
@@ -187,7 +205,7 @@ export const createHomeSpace = async (user: TestUser) => {
    * the guardianId based on a hierarchical logic.
    * */
 
-  // We set the guardian Id for Untitle page.
+  // We set the guardian Id for Untitled page.
   perspectivesInitialNodes[0].update.details.guardianId =
     perspectivesInitialNodes[2].perspective.id;
   // We set the guardian Id for Blog entity
@@ -195,6 +213,9 @@ export const createHomeSpace = async (user: TestUser) => {
     perspectivesWrapperNodes[0].perspective.id;
   // We set the guardian Id for Private entity
   perspectivesInitialNodes[2].update.details.guardianId =
+    perspectivesWrapperNodes[0].perspective.id;
+  // We set the guardian Id for Forks entity
+  perspectivesInitialNodes[3].update.details.guardianId =
     perspectivesWrapperNodes[0].perspective.id;
   // We set the guardian Id for sections enitity
   perspectivesWrapperNodes[0].update.details.guardianId =
@@ -401,6 +422,7 @@ export const createHomeSpace = async (user: TestUser) => {
     linkedThoughts: perspectivesWrapperNodes[1],
     blog: perspectivesInitialNodes[1],
     private: perspectivesInitialNodes[2],
+    forks: perspectivesInitialNodes[3],
   };
 };
 
@@ -609,11 +631,12 @@ export const postElementToBlog = async (
   );
 
   await updatePerspective(user.jwt, undefined, undefined, [
-    // Update private perspective with new head and children.
+    // Update forked perspective with new head and children.
     {
       perspectiveId: forkedPerspective,
       details: {
         headId: newForkCommit[0].id,
+        guardianId: blogPerspectiveId,
       },
       indexData: {
         linkChanges: {
@@ -674,6 +697,8 @@ export const postElementToBlog = async (
       },
     },
   ]);
+
+  return forkedPerspective;
 };
 
 export const createHerarchichalScenario = (user: string) => {
@@ -1102,10 +1127,9 @@ export const createHerarchichalScenario = (user: string) => {
 export const createFlatScenario = async (
   pages: TestFlatPage[],
   user: TestUser
-) => {
+): Promise<FlatScenario> => {
   const homeSpace = await createHomeSpace(user);
-  let createdPages = [];
-  let createdLinks: string[] = [];
+  let createdPages: Page[] = [];
 
   for (let i = 0; i < pages.length; i++) {
     const title = await newTitle(
@@ -1114,7 +1138,10 @@ export const createFlatScenario = async (
       user
     );
 
-    createdPages.push(title);
+    createdPages.push({
+      id: title.perspective.id,
+      links: [],
+    });
 
     await addNewElementsToPerspective(
       homeSpace.private.perspective.id,
@@ -1131,7 +1158,7 @@ export const createFlatScenario = async (
     const textIds = pageContent.map((page) => page.perspective.id);
 
     textIds.map((text) => {
-      createdLinks.push(text);
+      createdPages[i].links.push(text);
     });
 
     await addNewElementsToPerspective(title.perspective.id, textIds, user);
@@ -1141,7 +1168,7 @@ export const createFlatScenario = async (
     linkedThoughts: homeSpace.linkedThoughts.perspective.id,
     blogId: homeSpace.blog.perspective.id,
     privateId: homeSpace.private.perspective.id,
+    forksId: homeSpace.forks.perspective.id,
     pages: createdPages,
-    links: createdLinks,
   };
 };

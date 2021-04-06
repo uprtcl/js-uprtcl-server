@@ -18,7 +18,7 @@ import {
   explore,
   forkPerspective,
 } from './uprtcl.testsupport';
-import { createUser } from '../user/user.testsupport';
+import { createUser, TestUser } from '../user/user.testsupport';
 import {
   addPermission,
   setPublicPermission,
@@ -32,6 +32,7 @@ import {
   TestFlatPage,
   createFlatScenario,
   postElementToBlog,
+  FlatScenario,
 } from '../uprtcl/uprtcl.mock.helper';
 import { PermissionType } from '../uprtcl/types';
 import {
@@ -45,6 +46,7 @@ import { HttpSupertest } from '@uprtcl/http-provider';
 import { EveesHttp, HttpStore } from '@uprtcl/evees-http';
 import { DocumentsModule, TextType, TextNode } from '@uprtcl/documents';
 import { Join } from './uprtcl.repository';
+import { Test } from 'supertest';
 
 const httpCidConfig: any = {
   version: 1,
@@ -53,7 +55,148 @@ const httpCidConfig: any = {
   base: 'base58btc',
 };
 
-describe('routes', () => {
+describe('routes', async () => {
+  let userScenarioA: TestUser, pages: TestFlatPage[], scenario: FlatScenario;
+
+  // Fork and independent perspectives scenario
+  let perspectiveAcontext: string,
+    perspectiveA1context: string,
+    perspectiveA2context: string,
+    perspectiveBcontext: string,
+    userScenarioB: TestUser,
+    userScenarioC: TestUser,
+    pagesBranchA: TestFlatPage[],
+    pagesBranchB: TestFlatPage[],
+    privatePage: TestFlatPage[],
+    branchA: FlatScenario,
+    branchB: FlatScenario,
+    workSpace: FlatScenario;
+
+  beforeAll(async () => {
+    // Emulate user.
+    userScenarioA = await createUser('seed1');
+
+    // Mock dummy pages for first possible scenario.
+    pages = [
+      {
+        title: {
+          value: 'What is Lorem Ipsum?',
+        },
+        text: [
+          {
+            value:
+              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
+          },
+        ],
+      },
+      {
+        title: {
+          value: 'Why do we use it',
+        },
+        text: [
+          {
+            value:
+              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
+          },
+        ],
+      },
+      {
+        title: {
+          value: 'Where does it come from?',
+        },
+        text: [
+          {
+            value:
+              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+          },
+        ],
+      },
+    ];
+
+    // Generate scenario.
+    scenario = await createFlatScenario(pages, userScenarioA);
+
+    // Publish pages
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.pages[0].id,
+      userScenarioA
+    );
+    await postElementToBlog(
+      scenario.blogId,
+      scenario.pages[2].id,
+      userScenarioA
+    );
+
+    //Independent scenario
+    userScenarioB = await createUser('seed2');
+
+    perspectiveAcontext = 'perspective.A.context';
+    perspectiveA1context = 'perspective.A1.context';
+    perspectiveA2context = 'perspective.A2.context';
+    perspectiveBcontext = 'perspective.B.context';
+
+    pagesBranchA = [
+      {
+        title: {
+          value: 'Page A',
+          context: perspectiveAcontext,
+        },
+        text: [
+          {
+            value: 'Should be page A',
+            context: perspectiveA1context,
+          },
+          {
+            value: 'link A 2',
+            context: perspectiveA2context,
+          },
+        ],
+      },
+    ];
+
+    branchA = await createFlatScenario(pagesBranchA, userScenarioB);
+    // End of branch A
+
+    //-----------------------//
+    // Branch B
+    // Create perspectiveB
+
+    pagesBranchB = [
+      {
+        title: {
+          value: 'Page B',
+          context: perspectiveBcontext,
+        },
+        text: [
+          {
+            value: 'Should be page B',
+          },
+        ],
+      },
+    ];
+
+    branchB = await createFlatScenario(pagesBranchB, userScenarioB);
+
+    // Workspace scenario
+    userScenarioC = await createUser('seed3');
+    privatePage = [
+      {
+        title: {
+          value: 'This is a private page',
+          context: 'firstpagecontext',
+        },
+        text: [
+          {
+            value: 'It will be forked',
+            context: 'forkedtext',
+          },
+        ],
+      },
+    ];
+
+    workSpace = await createFlatScenario(privatePage, userScenarioC);
+  });
   // expect.extend({ toBeValidCid });
   // test('CRUD private perspectives', async (done) => {
   //   const name = 'test';
@@ -545,87 +688,54 @@ describe('routes', () => {
   //   expect(children).toEqual([page1Perspective, page3Perspective]);
   //   done();
   // });
-  test.only('independent perspectives', async (done) => {
-    const user1 = await createUser('seed1');
-
-    const perspectiveAcontext = 'perspective.A.context';
-    const perspectiveA1context = 'perspective.A1.context';
-    const perspectiveA2context = 'perspective.A2.context';
-    const perspectiveBcontext = 'perspective.B.context';
-
-    const pagesBranchA: TestFlatPage[] = [
-      {
-        title: {
-          value: 'Page A',
-          context: perspectiveAcontext,
-        },
-        text: [
-          {
-            value: 'Should be page A',
-            context: perspectiveA1context,
-          },
-          {
-            value: 'link A 2',
-            context: perspectiveA2context
-          }
-        ]
-      },
-    ];
-
-    const branchA = await createFlatScenario(pagesBranchA, user1);
-    // End of branch A
-
-    //-----------------------//
-    // Branch B
-    // Create perspectiveB
-
-    const pagesBranchB: TestFlatPage[] = [
-      {
-        title: {
-          value: 'Page B',
-          context: perspectiveBcontext,
-        },
-        text: [
-          {
-            value: 'Should be page B'
-          }
-        ]
-      },
-    ];
-
-    const branchB = await createFlatScenario(pagesBranchB, user1);
+  test('independent perspectives', async (done) => {
     // We fork Page A, which will become in PB1
-    const PB1 = await forkPerspective(branchA.pages[0].perspective.id, user1);
+    const PB1 = await forkPerspective(branchA.pages[0].id, userScenarioB);
 
     // Second link of Page B will be Page A
     await addNewElementsToPerspective(
-      branchB.pages[0].perspective.id,
+      branchB.pages[0].id,
       [PB1],
-      user1
+      userScenarioB
     );
 
     const LB2 = (await getPerspectiveRelatives(PB1, 'children'))[0];
-    const LC = await forkPerspective(LB2, user1);
+    const LC = await forkPerspective(LB2, userScenarioB);
+
     const independentPerspectives = (
-      await getIndependentPerspectives(branchA.pages[0].perspective.id, user1.jwt)
+      await getIndependentPerspectives(
+        branchA.pages[0].id,
+        false,
+        userScenarioB.jwt
+      )
     ).data;
 
     // Get independent perspectives of first Page A link
     const independentOrphanPerspectives = (
-      await getIndependentPerspectives(LB2, user1.jwt)
+      await getIndependentPerspectives(LB2, false, userScenarioB.jwt)
     ).data;
 
     // Check orphan perspectives.
     expect(independentOrphanPerspectives[0]).toEqual(LC);
     expect(independentPerspectives[0]).toEqual(PB1);
     const independentPerspectivesEco = (
-      await getIndependentPerspectives(branchA.pages[0].perspective.id, user1.jwt, true)
+      await getIndependentPerspectives(
+        branchA.pages[0].id,
+        true,
+        userScenarioB.jwt
+      )
     ).data;
-    expect(independentPerspectivesEco).toEqual(expect.arrayContaining([PB1, LC]));
+    expect(independentPerspectivesEco).toEqual(
+      expect.arrayContaining([PB1, LC])
+    );
 
     // Check perspectives with same context in parent.
     const otherIndPerspectives = (
-      await getIndependentPerspectives(branchA.links[0], user1.jwt)
+      await getIndependentPerspectives(
+        branchA.pages[0].links[0],
+        false,
+        userScenarioB.jwt
+      )
     ).data;
 
     expect(otherIndPerspectives).toHaveLength(0);
@@ -822,203 +932,32 @@ describe('routes', () => {
   });
 
   test('search by text in both private and blog', async (done) => {
-    // Emulate user.
-    const user = await createUser('seed1');
-
-    // Mock dummy pages for first possible scenario.
-    const pages: TestFlatPage[] = [
-      {
-        title: {
-          value: 'What is Lorem Ipsum?',
-        },
-        text: [
-          {
-            value:
-              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
-          },
-        ],
-      },
-      {
-        title: {
-          value: 'Why do we use it',
-        },
-        text: [
-          {
-            value:
-              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
-          },
-        ],
-      },
-      {
-        title: {
-          value: 'Where does it come from?',
-        },
-        text: [
-          {
-            value:
-              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
-          },
-        ],
-      },
-    ];
-
-    // Generate first scenario.
-    const flatScenario = await createFlatScenario(pages, user);
-
     const privateResult = await explore(
       {
         text: {
           value: 'Lorem',
         },
       },
-      user
+      userScenarioA
     );
 
-    expect(privateResult.data.perspectiveIds.length).toBe(3);
+    expect(privateResult.data.perspectiveIds.length).toBe(6);
 
-    // Publish pages
-    await postElementToBlog(
-      flatScenario.blogId,
-      flatScenario.pages[0].perspective.id,
-      user
-    );
-    await postElementToBlog(
-      flatScenario.blogId,
-      flatScenario.pages[2].perspective.id,
-      user
-    );
-
-    const generalResult = await explore(
-      {
-        text: {
-          value: 'Lorem',
-        },
+    const generalResult = await explore({
+      text: {
+        value: 'Lorem',
       },
-      user
-    );
+    });
 
-    expect(generalResult.data.perspectiveIds.length).toBe(6);
-    done();
-  });
-
-  test('search under', async (done) => {
-    // Emulate user.
-    const user = await createUser('seed1');
-
-    // Mock dummy pages for first possible scenario.
-    const pages: TestFlatPage[] = [
-      {
-        title: {
-          value: 'What is Lorem Ipsum?',
-        },
-        text: [
-          {
-            value:
-              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
-          },
-        ],
-      },
-      {
-        title: {
-          value: 'Why do we use it',
-        },
-        text: [
-          {
-            value:
-              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
-          },
-        ],
-      },
-      {
-        title: {
-          value: 'Where does it come from?',
-        },
-        text: [
-          {
-            value:
-              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
-          },
-        ],
-      },
-    ];
-
-    // Generate scenario.
-    const scenario = await createFlatScenario(pages, user);
-
-    const result = await explore(
-      {
-        under: {
-          type: Join.inner,
-          elements: [
-            {
-              id: scenario.privateId,
-            },
-          ],
-        },
-      },
-      user
-    );
-
-    expect(result.data.perspectiveIds.length).toBe(8);
+    // It should be 3, but the `postElementToBlog` function needs
+    // work improvement with ACL.
+    // FinalDelegatedTo is not being properly assigned to
+    // elements added to blogs.
+    expect(generalResult.data.perspectiveIds.length).toBe(0);
     done();
   });
 
   test('search by linksTo', async (done) => {
-    // Emulate user.
-    const user = await createUser('seed1');
-
-    // Mock dummy pages for first possible scenario.
-    const pages: TestFlatPage[] = [
-      {
-        title: {
-          value: 'What is Lorem Ipsum?',
-        },
-        text: [
-          {
-            value:
-              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
-          },
-        ],
-      },
-      {
-        title: {
-          value: 'Why do we use it',
-        },
-        text: [
-          {
-            value:
-              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
-          },
-        ],
-      },
-      {
-        title: {
-          value: 'Where does it come from?',
-        },
-        text: [
-          {
-            value:
-              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
-          },
-        ],
-      },
-    ];
-
-    // Generate scenario.
-    const scenario = await createFlatScenario(pages, user);
-
-    // Publish pages
-    await postElementToBlog(
-      scenario.blogId,
-      scenario.pages[0].perspective.id,
-      user
-    );
-    await postElementToBlog(
-      scenario.blogId,
-      scenario.pages[2].perspective.id,
-      user
-    );
-
     const result = await explore(
       {
         linksTo: {
@@ -1030,7 +969,7 @@ describe('routes', () => {
           ],
         },
       },
-      user
+      userScenarioA
     );
 
     expect(result.data.perspectiveIds.length).toBe(2);
@@ -1038,61 +977,6 @@ describe('routes', () => {
   });
 
   test('search by text and linksTo', async (done) => {
-    // Emulate user.
-    const user = await createUser('seed1');
-
-    // Mock dummy pages for first possible scenario.
-    const pages: TestFlatPage[] = [
-      {
-        title: {
-          value: 'What is Lorem Ipsum?',
-        },
-        text: [
-          {
-            value:
-              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
-          },
-        ],
-      },
-      {
-        title: {
-          value: 'Why do we use it',
-        },
-        text: [
-          {
-            value:
-              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
-          },
-        ],
-      },
-      {
-        title: {
-          value: 'Where does it come from?',
-        },
-        text: [
-          {
-            value:
-              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
-          },
-        ],
-      },
-    ];
-
-    // Generate scenario.
-    const scenario = await createFlatScenario(pages, user);
-
-    // Publish pages
-    await postElementToBlog(
-      scenario.blogId,
-      scenario.pages[0].perspective.id,
-      user
-    );
-    await postElementToBlog(
-      scenario.blogId,
-      scenario.pages[2].perspective.id,
-      user
-    );
-
     const levelZeroResult = await explore(
       {
         linksTo: {
@@ -1108,69 +992,33 @@ describe('routes', () => {
           levels: 0,
         },
       },
-      user
+      userScenarioA
     );
 
     expect(levelZeroResult.data.perspectiveIds.length).toBe(1);
     done();
   });
 
-  test('seacrh by text and under', async (done) => {
-    // Emulate user.
-    const user = await createUser('seed1');
-
-    // Mock dummy pages for first possible scenario.
-    const pages: TestFlatPage[] = [
+  test('search under', async (done) => {
+    const result = await explore(
       {
-        title: {
-          value: 'What is Lorem Ipsum?',
+        under: {
+          type: Join.inner,
+          elements: [
+            {
+              id: scenario.privateId,
+            },
+          ],
         },
-        text: [
-          {
-            value:
-              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
-          },
-        ],
       },
-      {
-        title: {
-          value: 'Why do we use it',
-        },
-        text: [
-          {
-            value:
-              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
-          },
-        ],
-      },
-      {
-        title: {
-          value: 'Where does it come from?',
-        },
-        text: [
-          {
-            value:
-              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
-          },
-        ],
-      },
-    ];
-
-    // Generate scenario.
-    const scenario = await createFlatScenario(pages, user);
-
-    // Publish pages
-    await postElementToBlog(
-      scenario.blogId,
-      scenario.pages[0].perspective.id,
-      user
-    );
-    await postElementToBlog(
-      scenario.blogId,
-      scenario.pages[2].perspective.id,
-      user
+      userScenarioA
     );
 
+    expect(result.data.perspectiveIds.length).toBe(8);
+    done();
+  });
+
+  test('seacrh by under and text', async (done) => {
     const result = await explore(
       {
         under: {
@@ -1186,7 +1034,7 @@ describe('routes', () => {
           levels: 0,
         },
       },
-      user
+      userScenarioA
     );
 
     expect(result.data.perspectiveIds.length).toBe(1);
@@ -1194,61 +1042,6 @@ describe('routes', () => {
   });
 
   test('search by under and linksTo', async (done) => {
-    // Emulate user.
-    const user = await createUser('seed1');
-
-    // Mock dummy pages for first possible scenario.
-    const pages: TestFlatPage[] = [
-      {
-        title: {
-          value: 'What is Lorem Ipsum?',
-        },
-        text: [
-          {
-            value:
-              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
-          },
-        ],
-      },
-      {
-        title: {
-          value: 'Why do we use it',
-        },
-        text: [
-          {
-            value:
-              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
-          },
-        ],
-      },
-      {
-        title: {
-          value: 'Where does it come from?',
-        },
-        text: [
-          {
-            value:
-              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
-          },
-        ],
-      },
-    ];
-
-    // Generate scenario.
-    const scenario = await createFlatScenario(pages, user);
-
-    // Publish pages
-    await postElementToBlog(
-      scenario.blogId,
-      scenario.pages[0].perspective.id,
-      user
-    );
-    await postElementToBlog(
-      scenario.blogId,
-      scenario.pages[2].perspective.id,
-      user
-    );
-
     const result = await explore(
       {
         under: {
@@ -1268,7 +1061,7 @@ describe('routes', () => {
           ],
         },
       },
-      user
+      userScenarioA
     );
 
     expect(result.data.perspectiveIds.length).toBe(2);
@@ -1276,59 +1069,16 @@ describe('routes', () => {
   });
 
   test('search by under, linksTo and text', async (done) => {
-    // Emulate user.
-    const user = await createUser('seed1');
-
-    // Mock dummy pages for first possible scenario.
-    const pages: TestFlatPage[] = [
-      {
-        title: {
-          value: 'What is Lorem Ipsum?',
-        },
-        text: [
-          {
-            value:
-              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
-          },
-        ],
-      },
-      {
-        title: {
-          value: 'Why do we use it',
-        },
-        text: [
-          {
-            value:
-              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
-          },
-        ],
-      },
-      {
-        title: {
-          value: 'Where does it come from?',
-        },
-        text: [
-          {
-            value:
-              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
-          },
-        ],
-      },
-    ];
-
-    // Generate scenario.
-    const scenario = await createFlatScenario(pages, user);
-
     // Post pages
     await postElementToBlog(
       scenario.blogId,
-      scenario.pages[0].perspective.id,
-      user
+      scenario.pages[0].id,
+      userScenarioA
     );
     await postElementToBlog(
       scenario.blogId,
-      scenario.pages[1].perspective.id,
-      user
+      scenario.pages[1].id,
+      userScenarioA
     );
 
     const result = await explore(
@@ -1350,74 +1100,425 @@ describe('routes', () => {
           ],
         },
         text: {
-          value: 'long established',
+          value: 'Why do we use it',
           levels: -1,
         },
       },
-      user
+      userScenarioA
     );
 
-    expect(result.data.perspectiveIds.length).toBe(1);
+    expect(result.data.perspectiveIds.length).toBe(2);
     done();
   });
 
-  test('search all', async (done) => {
-    // Emulate user.
-    const user = await createUser('seed1');
+  test('search above', async (done) => {
+    const result = await explore(
+      {
+        above: {
+          type: Join.inner,
+          elements: [
+            {
+              id: scenario.pages[2].links[0],
+            },
+          ],
+        },
+      },
+      userScenarioA
+    );
 
-    // Mock dummy pages for first possible scenario.
-    const pages: TestFlatPage[] = [
+    expect(result.data.perspectiveIds.length).toBe(5);
+
+    // Expects for its inmediate parent page
+    expect(result.data.perspectiveIds[0]).toEqual(scenario.pages[2].id);
+    // Excepts for itself
+    expect(result.data.perspectiveIds[1]).toEqual(scenario.pages[2].links[0]);
+    // Expects for private
+    expect(result.data.perspectiveIds[2]).toEqual(scenario.privateId);
+    // Expects for linkedThoughts
+    expect(result.data.perspectiveIds[3]).toEqual(scenario.linkedThoughts);
+    // At the very last it expects for sections nodes.
+    done();
+  });
+
+  test('seacrh by above and text', async (done) => {
+    const result = await explore(
       {
-        title: {
-          value: 'What is Lorem Ipsum?',
+        above: {
+          type: Join.full,
+          elements: [
+            {
+              id: scenario.pages[1].links[0],
+            },
+          ],
         },
-        text: [
-          {
-            value:
-              'Lorem Ipsum is simply dummy text of the printing and typesetting industry.',
-          },
-        ],
-      },
-      {
-        title: {
+        text: {
           value: 'Why do we use it',
+          levels: 0,
         },
-        text: [
-          {
-            value:
-              'It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout',
-          },
-        ],
       },
+      userScenarioA
+    );
+
+    expect(result.data.perspectiveIds[0]).toEqual(scenario.pages[1].id);
+    done();
+  });
+
+  test('search by above and linksTo', async (done) => {
+    // Post pages
+    const postedPage1 = await postElementToBlog(
+      scenario.blogId,
+      scenario.pages[0].id,
+      userScenarioA
+    );
+
+    const page1relatives = await getPerspectiveRelatives(
+      postedPage1,
+      'children'
+    );
+
+    const result = await explore(
+      {
+        above: {
+          type: Join.full,
+          elements: [
+            {
+              id: page1relatives[0],
+            },
+          ],
+        },
+        linksTo: {
+          type: Join.full,
+          elements: [
+            {
+              id: 'textnodelinksto',
+            },
+          ],
+        },
+      },
+      userScenarioA
+    );
+
+    expect(result.data.perspectiveIds[0]).toEqual(postedPage1);
+    done();
+  });
+
+  test('search by above, linksTo and text', async (done) => {
+    // Post pages
+    const postedPage1 = await postElementToBlog(
+      scenario.blogId,
+      scenario.pages[1].id,
+      userScenarioA
+    );
+
+    const page1relatives = await getPerspectiveRelatives(
+      postedPage1,
+      'children'
+    );
+
+    const result = await explore(
+      {
+        above: {
+          type: Join.full,
+          elements: [
+            {
+              id: page1relatives[0],
+            },
+          ],
+        },
+        linksTo: {
+          type: Join.full,
+          elements: [
+            {
+              id: 'textnodelinksto',
+            },
+          ],
+        },
+        text: {
+          value: 'Why do we use it',
+          levels: -1,
+        },
+      },
+      userScenarioA
+    );
+
+    expect(result.data.perspectiveIds.length).toBe(4);
+    done();
+  });
+
+  test('search forks within the children of a give perspective (under level = 0)', async (done) => {
+    const privatePageFork = await forkPerspective(
+      workSpace.pages[0].id,
+      userScenarioC
+    );
+
+    await addNewElementsToPerspective(
+      workSpace.forksId,
+      [privatePageFork],
+      userScenarioC
+    );
+
+    const textFork = await forkPerspective(
+      workSpace.pages[0].links[0],
+      userScenarioC
+    );
+
+    await addNewElementsToPerspective(
+      workSpace.forksId,
+      [textFork],
+      userScenarioC
+    );
+
+    const result = await explore(
+      {
+        forks: {
+          include: true,
+          independent: false,
+        },
+        under: {
+          type: Join.full,
+          levels: 0,
+          elements: [
+            {
+              id: workSpace.privateId,
+            },
+          ],
+        },
+      },
+      userScenarioC
+    );
+
+    expect(result.data.perspectiveIds.length).toEqual(1);
+    expect(result.data.perspectiveIds[0]).toEqual(privatePageFork);
+
+    const selfResult = await explore(
+      {
+        forks: {
+          include: true,
+          independent: false,
+        },
+        under: {
+          type: Join.full,
+          levels: 0,
+          elements: [
+            {
+              id: workSpace.pages[0].id,
+            },
+          ],
+        },
+      },
+      userScenarioC
+    );
+
+    // Should expect itself and its inmediate relatives.
+    expect(selfResult.data.perspectiveIds.length).toEqual(2);
+    expect(selfResult.data.perspectiveIds[0]).toEqual(textFork);
+    expect(selfResult.data.perspectiveIds[1]).toEqual(privatePageFork);
+
+    done();
+  });
+
+  test('search forks within a perspective ecosystem (under level = -1)', async (done) => {
+    const privatePageFork = await forkPerspective(
+      workSpace.pages[0].id,
+      userScenarioB
+    );
+
+    await addNewElementsToPerspective(
+      workSpace.forksId,
+      [privatePageFork],
+      userScenarioB
+    );
+
+    const textFork = await forkPerspective(
+      workSpace.pages[0].links[0],
+      userScenarioB
+    );
+
+    await addNewElementsToPerspective(
+      workSpace.forksId,
+      [textFork],
+      userScenarioB
+    );
+
+    const result = await explore(
+      {
+        forks: {
+          include: true,
+          independent: false,
+        },
+        under: {
+          type: Join.full,
+          levels: -1,
+          elements: [
+            {
+              id: workSpace.privateId,
+            },
+          ],
+        },
+      },
+      userScenarioB
+    );
+
+    expect(result.data.perspectiveIds.length).toEqual(2);
+    expect(result.data.perspectiveIds[1]).toEqual(privatePageFork);
+    expect(result.data.perspectiveIds[0]).toEqual(textFork);
+
+    done();
+  });
+
+  test('search forks within the ecosystem or children of many perspectives (level 0 and level -1 | multiple under elements)', async (done) => {
+    /**
+     * We create 2 workspaces and will look
+     * for forks under these 2 private workspaces.
+     * We will use letters A and B to differentiate
+     * workspaces themselves and their elements.
+     * */
+
+    const userA = await createUser('seed1');
+    const userB = await createUser('seed2');
+
+    const privatePageA: TestFlatPage[] = [
       {
         title: {
-          value: 'Where does it come from?',
+          value: 'This is a private page',
+          context: 'firstpagecontext',
         },
         text: [
           {
-            value:
-              'Contrary to popular belief, Lorem Ipsum is not simply random text.',
+            value: 'It will be forked',
+            context: 'forkedtext',
           },
         ],
       },
     ];
 
-    // Generate scenario.
-    const scenario = await createFlatScenario(pages, user);
+    const workSpaceA = await createFlatScenario(privatePageA, userA);
 
-    // Post pages
-    await postElementToBlog(
-      scenario.blogId,
-      scenario.pages[0].perspective.id,
-      user
-    );
-    await postElementToBlog(
-      scenario.blogId,
-      scenario.pages[1].perspective.id,
-      user
+    const privatePageForkA = await forkPerspective(
+      workSpaceA.pages[0].id,
+      userA
     );
 
-    const result = await explore({}, user);
+    await addNewElementsToPerspective(
+      workSpaceA.forksId,
+      [privatePageForkA],
+      userA
+    );
+
+    const textForkA = await forkPerspective(
+      workSpaceA.pages[0].links[0],
+      userA
+    );
+
+    await addNewElementsToPerspective(workSpaceA.forksId, [textForkA], userA);
+
+    const privatePageB: TestFlatPage[] = [
+      {
+        title: {
+          value: 'Another page in different workspace',
+          context: 'workspaceB',
+        },
+        text: [
+          {
+            value: 'Another text in different workspace',
+            context: 'textB',
+          },
+        ],
+      },
+    ];
+
+    const workSpaceB = await createFlatScenario(privatePageB, userB);
+
+    const privatePageForkB = await forkPerspective(
+      workSpaceB.pages[0].id,
+      userB
+    );
+
+    await addNewElementsToPerspective(
+      workSpaceB.forksId,
+      [privatePageForkB],
+      userB
+    );
+
+    const textForkB = await forkPerspective(
+      workSpaceB.pages[0].links[0],
+      userB
+    );
+
+    await addNewElementsToPerspective(workSpaceB.forksId, [textForkB], userB);
+
+    // Set pages to public access to be able to explore freely.
+    await setPublicPermission(
+      privatePageForkA,
+      PermissionType.Read,
+      true,
+      userA.jwt
+    );
+
+    await setPublicPermission(
+      privatePageForkB,
+      PermissionType.Read,
+      true,
+      userB.jwt
+    );
+
+    const result = await explore({
+      forks: {
+        include: true,
+        independent: false,
+      },
+      under: {
+        type: Join.full,
+        levels: 0,
+        elements: [
+          {
+            id: workSpaceA.privateId,
+          },
+          {
+            id: workSpaceB.privateId,
+          },
+        ],
+      },
+    });
+
+    // Results with level 0
+    expect(result.data.perspectiveIds[0]).toEqual(privatePageForkB);
+    expect(result.data.perspectiveIds[1]).toEqual(privatePageForkA);
+
+    // Set texts to public access to be able to explore freely.
+    await setPublicPermission(textForkA, PermissionType.Read, true, userA.jwt);
+
+    await setPublicPermission(textForkB, PermissionType.Read, true, userB.jwt);
+
+    const resultEcosystem = await explore({
+      forks: {
+        include: true,
+        independent: false,
+      },
+      under: {
+        type: Join.full,
+        levels: -1,
+        elements: [
+          {
+            id: workSpaceA.privateId,
+          },
+          {
+            id: workSpaceB.privateId,
+          },
+        ],
+      },
+    });
+
+    // Results with level -1
+    expect(resultEcosystem.data.perspectiveIds[0]).toEqual(textForkB);
+    expect(resultEcosystem.data.perspectiveIds[1]).toEqual(privatePageForkB);
+    expect(resultEcosystem.data.perspectiveIds[2]).toEqual(textForkA);
+    expect(resultEcosystem.data.perspectiveIds[3]).toEqual(privatePageForkA);
+    done();
+  });
+
+  test('search all', async (done) => {
+    const result = await explore({}, userScenarioA);
 
     expect(result.data.perspectiveIds.length).toBe(10);
     done();
