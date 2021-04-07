@@ -14,6 +14,7 @@ import {
   SearchOptionsJoin,
   SearchOptionsEcoJoin,
   SearchResult,
+  SearchForkOptions,
 } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
@@ -748,7 +749,9 @@ export class UprtclRepository {
   getOtherIndpPerspectivesUpsert(
     perspectiveId: string[],
     ecosystem: boolean,
-    loggedUserId?: string
+    loggedUserId?: string,
+    independent?: boolean,
+    independentOf?: string
   ) {
     // TODO: Check permissions to properly return a response.
     let query = ``;
@@ -769,10 +772,22 @@ export class UprtclRepository {
         }
         ~children {
           context {
-            parentContext as uid
+            ${independent && !independentOf ? `parentContext as uid` : ``}
           }
         }
-      }`);
+      }
+      
+      ${
+        independentOf
+          ? `\nindependentOf(func: eq(xid, ${independentOf})) {
+          context {
+            parentContext as uid
+          }
+        }`
+          : ``
+      }
+      
+      `);
     } else {
       // Otherwise, only look for independent perspective for the indicated persp.
       query = `perspectiveRef as var(func: eq(xid, ${perspectiveId})) { 
@@ -781,7 +796,7 @@ export class UprtclRepository {
         }
         parents: ~children {
           context {
-            parentContext as uid
+            ${independent && !independentOf ? `parentContext as uid` : ``}
           }
         }
       }`;
@@ -793,7 +808,7 @@ export class UprtclRepository {
          not(uid(perspectiveRef))
         ) @cascade {
           ~children {
-            context @filter(not(uid(parentContext)))
+            context ${independent ? `@filter(not(uid(parentContext)))` : ``}
           }
         }
     }`);
@@ -1247,7 +1262,7 @@ export class UprtclRepository {
             above,
             linksTo,
             SearchType.above,
-            searchOptions.forks ? true : false,
+            searchOptions.forks,
             text,
             {
               startQuery,
@@ -1274,7 +1289,7 @@ export class UprtclRepository {
             under,
             linksTo,
             SearchType.under,
-            searchOptions.forks ? true : false,
+            searchOptions.forks,
             text,
             {
               startQuery,
@@ -1632,7 +1647,7 @@ export class UprtclRepository {
     searchEcoOption: SearchOptionsEcoJoin,
     linksTo: SearchOptionsJoin,
     searchType: SearchType.above | SearchType.under,
-    forks: boolean,
+    forks: SearchForkOptions | undefined,
     searchText: Text,
     searchUpsert: SearchUpsert,
     loggedUserId: string | null
@@ -1722,7 +1737,9 @@ export class UprtclRepository {
       let independentUpsert = this.getOtherIndpPerspectivesUpsert(
         ids,
         true,
-        loggedUserId !== null ? loggedUserId : undefined
+        loggedUserId !== null ? loggedUserId : undefined,
+        forks.independent,
+        forks.independentOf
       );
 
       if (searchEcoOption.levels === 0) {
