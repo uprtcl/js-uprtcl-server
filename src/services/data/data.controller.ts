@@ -47,13 +47,15 @@ export class DataController {
           async (req: Request, res: Response) => {
             const allDatas = req.body.datas;
 
-            const commits = allDatas.filter((data: any) => commitFilter(data));
-            const datas = allDatas.filter((data: any) => !commitFilter(data));
-
+            /** all entities are stored in plain text */
             const resultDatas = await this.dataService.createDatas(
-              datas,
+              allDatas,
               getUserFromReq(req)
             );
+
+            /** explicitely store structured commits to link them to other elements */
+            const commits = allDatas.filter((data: any) => commitFilter(data));
+
             const resultCommits = await this.uprtclService.createCommits(
               commits,
               getUserFromReq(req)
