@@ -746,120 +746,240 @@ export class UprtclRepository {
     return enitites;
   }
 
-  getOtherIndpPerspectivesUpsert(
+  getForksUpsert(
     perspectiveId: string[],
-    ecosystem: boolean,
-    loggedUserId?: string,
+    loggedUserId: string | null,
     independent?: boolean,
     independentOf?: string
   ) {
-    // TODO: Check permissions to properly return a response.
     let query = ``;
 
-    if (ecosystem) {
-      // If independent perspectives from an ecosystem are needed
-      query = `
-        persp(func: eq(xid, ${perspectiveId})) {
-          eco as ecosystem
-        }
-      `;
-
-      // Look for independent perspectives for every element of an ecosystem, in this case
-      // the perspective ecosystem
-      query = query.concat(`\nperspectiveRef as var(func: uid(eco)) {
-        context {
-          targetCon as uid
-        }
-        ~children {
-          context {
-            ${independent && !independentOf ? `parentContext as uid` : ``}
-          }
-        }
-      }
-      
-      ${
-        independentOf
-          ? `\nindependentOf(func: eq(xid, ${independentOf})) {
-          context {
-            parentContext as uid
-          }
-        }`
-          : ``
-      }
-      
-      `);
-    } else {
-      // Otherwise, only look for independent perspective for the indicated persp.
-      query = `perspectiveRef as var(func: eq(xid, ${perspectiveId})) { 
-        context {
-          targetCon as uid
-        }
-        parents: ~children {
-          context {
-            ${independent && !independentOf ? `parentContext as uid` : ``}
-          }
-        }
-      }`;
+    enum forkCase {
+      independent = 'independent',
+      childrenAndIndependentTop = 'childrenAndIndependentTop',
+      independentTopAndChildren = 'independentTopAndChildren',
+      all = 'all',
+      default = 'default',
     }
 
-    // Verify indepent perspectives criteria with parents
-    query = query.concat(`\nnormalRef(func: uid(targetCon)) {
-       normalPersps as ~context @filter(
-         not(uid(perspectiveRef))
-        ) @cascade {
-          ~children {
-            context ${independent ? `@filter(not(uid(parentContext)))` : ``}
+    const forkCondition: forkCase =
+      independent && !independentOf
+        ? forkCase.independent
+        : !independent && independentOf
+        ? forkCase.childrenAndIndependentTop
+        : independent && independentOf
+        ? forkCase.independentTopAndChildren
+        : !independent && !independentOf
+        ? forkCase.all
+        : forkCase.default;
+
+    switch (forkCondition) {
+      case forkCase.independent:
+        query = `persp as var(func: eq(xid, ${perspectiveId})) {
+            eco as ecosystem
+          }
+
+          perspectiveRef as var(func: uid(eco)) @filter(not(uid(persp))) {
+            context {
+              targetContext as uid
+            }
+            ~children {
+              context {
+                parentContext as uid
+              }
+            }
+          }`;
+        break;
+      case forkCase.childrenAndIndependentTop:
+        query = `persp as var(func: eq(xid, ${perspectiveId})) {
+          eco as ecosystem
+        }
+
+        childrenRef as var(func: uid(eco)) @filter(not(persp)) 
+        @cascade {
+          context {
+            childrenForksContext as uid
           }
         }
-    }`);
 
-    // Verify indepent perspectives criteria without parents
-    query = query.concat(`\norphanRef(func: uid(targetCon)) {
-      orphanPersps as ~context @filter(
-        not(uid(perspectiveRef))
-        AND
-        eq(count(~children), 0)
-       )
-   }`);
+        childrenContext as var(func: uid(childrenForksContext)) @cascade {
+          childrenForks as ~context
+        }
+        
+        perspectiveRef as var(func: eq(xid, ${perspectiveId})) {
+            context {
+              targetContext as uid
+            }
+          }
+        parent(func: eq(xid, ${independentOf})) {
+            context {
+              parentContext as uid
+            }
+          }`;
+        break;
+      case forkCase.independentTopAndChildren:
+        /**
+         * We collect the top element in @independentOfRef and the
+         * children of the children in @independentRef
+         */
+        query = `independentOfRef as var(func: eq(xid, ${perspectiveId})) {
+          eco as ecosystem
+          context {
+            independentOfContext as uid
+          }
+        }
+        
+        independentRef as var(func: uid(eco)) @filter(not(uid(persp))) {
+          context {
+            independentContext as uid
+          }
+          ~children {
+            context {
+              independentParentContext as uid
+            }
+          }
+        }
 
-    // Add access control layer before delivering perspectives
+        parent(func: eq(xid, ${independentOf})) {
+          context {
+            independentOfParentContext as uid
+          }
+        }`;
+        break;
+      case forkCase.all:
+        query = `persp as var(func: eq(xid, ${perspectiveId})) {
+          eco as ecosystem
+        }
 
-    // Collect result first
+        childrenRef as var(func: uid(eco)) @filter(not(persp)) 
+        @cascade {
+          context {
+            childrenForksContext as uid
+          }
+        }
+
+        childrenContext as var(func: uid(childrenForksContext)) @cascade {
+          childrenForks as ~context
+        }`;
+        break;
+    }
+
+    if (forkCase.independentTopAndChildren) {
+      /**
+       * We collect first normal and orphan for
+       * both independent and independentOf groups.
+       * Consequently, we merge both groups into
+       * one @normalPersp and one @orphanPersp
+       */
+
+      // First we merge normal results
+      query = query.concat(`\nnormalIndependent(func: uid(independentContext)) {
+        normalIndependentGroup as ~context @filter(
+          not(uid(independentRef))
+        ) @cascade {
+          ~children {
+            context @filter(not(uid(independentParentContext)))
+          }
+        }
+      }
+      
+      normalIndependentOf(func: uid(independentOfContext)) {
+        normalIndependentOfGroup as ~context @filter(
+          not(uid(independentOfRef))
+        ) @cascade {
+          ~children {
+            context @filter(not(uid(independentOfParentContext)))
+          }
+        }
+      }
+      
+      normalPersp as var(func: uid(normalIndependentGroup, normalIndependentOfGroup))`);
+
+      // Then we merge orphan results
+      query = query.concat(`\norphanIndependent(func: uid(independentContext)) {
+        orphanIndependentGroup as ~context @filter(
+          not(uid(independentRef))
+          AND
+          eq(count(~children), 0)
+        )
+      }
+      
+      orphanIndependentOf(func: uid(independentOfContext)) {
+        orphanIndependentOfGroup as ~context @filter(
+          not(uid(independentOfRef))
+          AND
+          eq(count(~children), 0)
+        )
+      }
+      orphanPersp as var(func: uid(orphanIndependentGroup, orphanIndependentOfGroup))`);
+    } else if (forkCase.independent || forkCase.childrenAndIndependentTop) {
+      // Verify indepent perspectives criteria with parents
+      query = query.concat(`\nnormalRef(func: uid(targetContext)) {
+        normalPersps as ~context @filter(
+          not(uid(perspectiveRef))
+          ) @cascade {
+            ~children {
+              context @filter(not(uid(parentContext)))
+            }
+          }
+      }`);
+
+      // Verify indepent perspectives criteria without parents
+      query = query.concat(`\norphanRef(func: uid(targetContext)) {
+        orphanPersps as ~context @filter(
+          not(uid(perspectiveRef))
+          AND
+          eq(count(~children), 0)
+          )
+      }`);
+    }
+
+    // Collect results first
     query = query.concat(
-      `\nindPersp as var(func: uid(normalPersps, orphanPersps))`
+      `\nindPersp as var(func: uid(
+        ${
+          forkCase.independent || forkCase.independentTopAndChildren
+            ? `normalPersp, orphanPersp`
+            : forkCase.childrenAndIndependentTop
+            ? `normalPersp, orphanPersp, childrenForks`
+            : `childrenForks`
+        }
+      ))`
     );
 
+    // Add access control layer before delivering perspectives
     if (loggedUserId) {
       query = query.concat(
         `\npublicAccess as var(func: uid(indPersp)) @filter(eq(publicRead, true))`
       );
       query = query.concat(`\npublicRead(func: uid(publicAccess)) {
-        xid
-      }`);
+         xid
+       }`);
       // If loggedUserId is provided, return accessible perspectives
       // to this user as well.
       query = query.concat(`\nuserRead(func: uid(indPersp)) @filter(not(uid(publicAccess))) @cascade {
-        xid
-        canRead @filter(eq(did, "${loggedUserId}"))
-      }`);
+         xid
+         canRead @filter(eq(did, "${loggedUserId}"))
+       }`);
     } else {
       // Return only those perspectives publicly accessible.
       query = query.concat(`\npublicRead(func: uid(indPersp)) @filter(eq(publicRead, true)) {
-        xid
-      }`);
+         xid
+       }`);
     }
     return query;
   }
 
-  async getOtherIndpPerspectives(
-    perspectiveId: string,
-    ecosystem: boolean,
-    loggedUserId: string
+  async getForks(
+    perspectiveIds: string[],
+    forkOptions: SearchForkOptions,
+    loggedUserId: string | null
   ): Promise<Array<string>> {
-    const query = this.getOtherIndpPerspectivesUpsert(
-      [perspectiveId],
-      ecosystem,
-      loggedUserId
+    const query = this.getForksUpsert(
+      perspectiveIds,
+      loggedUserId,
+      forkOptions.independent,
+      forkOptions.independentOf
     );
 
     await this.db.ready();
