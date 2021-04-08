@@ -9,6 +9,7 @@ import {
   ParentAndChild,
   SearchOptions,
   SearchResult,
+  SearchForkOptions,
 } from '@uprtcl/evees';
 
 import { PermissionType } from './types';
@@ -153,17 +154,14 @@ export class UprtclService {
     );
   }
 
-  async findIndPerspectives(
-    perspectiveId: string,
-    includeEcosystem: boolean,
+  async getForks(
+    perspectiveIds: string[],
+    forkOptions: SearchForkOptions,
     loggedUserId: string | null
   ): Promise<string[]> {
-    if (loggedUserId === null)
-      throw new Error('Anonymous user. Cant get independent perspectives');
-
-    return await this.uprtclRepo.getOtherIndpPerspectives(
-      perspectiveId,
-      includeEcosystem,
+    return await this.uprtclRepo.getForks(
+      perspectiveIds,
+      forkOptions,
       loggedUserId
     );
   }
