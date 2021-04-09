@@ -27,10 +27,7 @@ export class DataRepository {
 
     for (let hashedData of datas) {
       const data = hashedData.object;
-      const id =
-        hashedData.id !== ''
-          ? hashedData.id
-          : await ipldService.validateSecured(hashedData);
+      const id = await ipldService.validateSecured(hashedData);
 
       query = query.concat(`\ndata${id} as var(func: eq(xid, ${id}))`);
       nquads = nquads.concat(`\nuid(data${id}) <xid> "${id}" .`);

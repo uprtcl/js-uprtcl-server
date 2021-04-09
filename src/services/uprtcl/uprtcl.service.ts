@@ -131,15 +131,6 @@ export class UprtclService {
     return await this.uprtclRepo.createCommits(commits);
   }
 
-  async getCommit(
-    commitId: string,
-    loggedUserId: string | null
-  ): Promise<Secured<Commit>> {
-    console.log('[UPRTCL-SERVICE] getCommit', { commitId });
-    let commit = await this.uprtclRepo.getCommit(commitId);
-    return commit;
-  }
-
   /** Search engine methods */
   async locatePerspective(
     perspectiveId: string,

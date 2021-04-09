@@ -10,6 +10,8 @@ type genericObject = {
   [key: string]: any;
 };
 
+const LOGINFO = false;
+
 function sortObject(object: genericObject): object {
   if (typeof object !== 'object' || object instanceof Array) {
     // Not to sort the array
@@ -38,15 +40,17 @@ export class IpldService {
       cidConfig.base
     );
 
-    // console.log(`hashed object:`, {
-    //   object,
-    //   sorted,
-    //   buffer,
-    //   buffer2,
-    //   cidConfig,
-    //   cid,
-    //   cidStr: cid.toString(),
-    // });
+    if (LOGINFO) {
+      console.log(`hashed object:`, {
+        object,
+        sorted,
+        buffer,
+        buffer2,
+        cidConfig,
+        cid,
+        cidStr: cid.toString(),
+      });
+    }
 
     return cid.toString();
   }
