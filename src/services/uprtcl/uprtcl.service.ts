@@ -9,6 +9,7 @@ import {
   ParentAndChild,
   SearchOptions,
   SearchResult,
+  CondensateCommits,
 } from '@uprtcl/evees';
 
 import { PermissionType } from './types';
@@ -17,6 +18,7 @@ import { AccessService } from '../access/access.service';
 import { UprtclRepository } from './uprtcl.repository';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
 import { DataService } from '../data/data.service';
+import { LocalStore } from './utils';
 
 export class UprtclService {
   constructor(
@@ -65,6 +67,24 @@ export class UprtclService {
     return [];
   }
 
+  async groupUpdates(updates: Update[]) {
+    const store = new LocalStore(this.dataService);
+
+    const updatesPerPerspective: Map<string, Update[]> = new Map();
+
+    updates.forEach((update) => {
+      const updates = updatesPerPerspective.get(update.perspectiveId) || [];
+      updates.push(update);
+      updatesPerPerspective.set(update.perspectiveId, updates);
+    });
+
+    Array.from(updatesPerPerspective.entries()).map(
+      ([perspectiveId, updates]) => {
+        const condensate = new CondensateCommits(store, updates);
+      }
+    );
+  }
+
   async updatePerspectives(
     updates: Update[],
     loggedUserId: string | null
@@ -76,6 +96,9 @@ export class UprtclService {
     if (loggedUserId === null)
       throw new Error('Anonymous user. Cant update a perspective');
 
+    /** combine updates to the same perspective */
+    const updatesGrouped = this.groupUpdates(updates);
+
     const canUpdate = await this.access.canAll(
       updates.map((u) => u.perspectiveId),
       loggedUserId,
@@ -85,7 +108,7 @@ export class UprtclService {
     if (!canUpdate)
       throw new Error('Anonymous user. Cant update a perspective');
 
-    const result = await this.uprtclRepo.updatePerspectives(updates);
+    const result = await this.uprtclRepo.updatePerspectives(updatesGrouped);
     console.log('[UPRTCL-SERVICE] updatePerspectives', { result });
   }
 
