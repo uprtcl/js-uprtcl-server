@@ -18,6 +18,7 @@ import {
   Update,
   NewPerspective,
   SearchOptions,
+  SearchForkOptions,
 } from '@uprtcl/evees';
 import { FetchResult } from './uprtcl.repository';
 import { addNewElementsToPerspective } from './uprtcl.mock.helper';
@@ -572,6 +573,22 @@ export const explore = async (
   const get = await request(router)
     .put(`/uprtcl/1/explore`)
     .send({ searchOptions })
+    .set('Authorization', user ? (user.jwt ? `Bearer ${user.jwt}` : '') : '');
+  return JSON.parse(get.text);
+};
+
+export const getForks = async (
+  perspectiveIds: string[],
+  forkOptions: SearchForkOptions,
+  user?: TestUser
+): Promise<GetResult<string[]>> => {
+  const router = await createApp();
+  const get = await request(router)
+    .put(`/uprtcl/1/forks`)
+    .send({
+      perspectiveIds,
+      forkOptions,
+    })
     .set('Authorization', user ? (user.jwt ? `Bearer ${user.jwt}` : '') : '');
   return JSON.parse(get.text);
 };
