@@ -196,7 +196,7 @@ export class UprtclController {
       },
       // A Get with put, it receive the get options in the body
       {
-        path: '/uprtcl/1/persp/forks',
+        path: '/uprtcl/1/forks',
         method: 'put',
         handler: [
           checkJwt,
