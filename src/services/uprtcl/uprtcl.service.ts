@@ -88,7 +88,11 @@ export class UprtclService {
     await Promise.all(
       Array.from(updatesPerPerspective.entries()).map(
         async ([perspectiveId, group]) => {
-          const condensate = new CondensateCommits(store, group.orgUpdates);
+          const condensate = new CondensateCommits(
+            store,
+            group.orgUpdates,
+            false
+          );
           await condensate.init();
           const eqUpdates = await condensate.condensate();
           if (eqUpdates.length !== 1) {
@@ -120,7 +124,7 @@ export class UprtclService {
     const updatesSingle = await this.groupUpdates(updates);
 
     const canUpdate = await this.access.canAll(
-      updates.map((u) => u.perspectiveId),
+      updatesSingle.map((u) => u.perspectiveId),
       loggedUserId,
       PermissionType.Write
     );
