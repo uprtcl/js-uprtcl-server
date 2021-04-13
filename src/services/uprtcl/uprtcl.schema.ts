@@ -57,7 +57,7 @@ type ${COMMIT_SCHEMA_NAME} {
 
 
 stored: bool @index(bool) . 
-xid: string @index(hash) .
+xid: string @index(hash) @upsert .
 text: string @index(fulltext) .
 authority: string .
 timextamp: int .

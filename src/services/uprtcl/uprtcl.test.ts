@@ -39,13 +39,10 @@ import { PermissionType } from '../uprtcl/types';
 import {
   EveesContentModule,
   NewPerspective,
-  eveesConstructorHelper,
+  init,
   AppElement,
   AppElements,
 } from '@uprtcl/evees';
-import { HttpSupertest } from '@uprtcl/http-provider';
-import { EveesHttp, HttpStore } from '@uprtcl/evees-http';
-import { DocumentsModule, TextType, TextNode } from '@uprtcl/documents';
 import { Join } from './uprtcl.repository';
 import { Test } from 'supertest';
 

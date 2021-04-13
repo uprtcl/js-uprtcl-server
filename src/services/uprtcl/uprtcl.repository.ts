@@ -94,74 +94,7 @@ interface DgCommit {
   proof_type: string;
 }
 
-const COMMIT_PROPERTIES = `
-message
-creators {
-  did
-}
-parents {
-  xid
-}
-timextamp
-stored
-signature
-type
-`;
-
 const defaultFirst = 10;
-
-const assembleCommit = (dcommit: DgCommit): Secured<Commit> => {
-  const commit: Commit = {
-    creatorsIds: dcommit.creators
-      ? dcommit.creators.map((creator: any) => creator.did)
-      : [],
-    dataId: dcommit.data.xid,
-    timestamp: dcommit.timextamp,
-    message: dcommit.message,
-    parentsIds: dcommit.parents
-      ? dcommit.parents.map((parent) => parent.xid)
-      : [],
-  };
-
-  return {
-    id: dcommit.xid,
-    object: {
-      payload: commit,
-      proof: {
-        signature: dcommit.signature,
-        type: dcommit.proof_type,
-      },
-    },
-    casID: '',
-  };
-};
-
-const assemblePerspective = (dperspective: DgPerspective) => {
-  if (!dperspective) throw new Error(`Perspective not found`);
-  if (!dperspective.stored)
-    throw new Error(`Perspective with id ${dperspective.xid} not stored`);
-
-  const perspective: Perspective = {
-    remote: dperspective.remote,
-    path: dperspective.path,
-    creatorId: dperspective.creator.did,
-    timestamp: dperspective.timextamp,
-    context: dperspective.context.name,
-  };
-
-  const securedPerspective: Secured<Perspective> = {
-    id: dperspective.xid,
-    object: {
-      payload: perspective,
-      proof: {
-        signature: dperspective.signature,
-        type: dperspective.proof_type,
-      },
-    },
-    casID: '',
-  };
-  return securedPerspective;
-};
 
 export interface FetchResult {
   perspectiveIds: string[];
@@ -655,10 +588,7 @@ export class UprtclRepository {
       const commit = securedCommit.object.payload;
       const proof = securedCommit.object.proof;
 
-      const id =
-        securedCommit.id !== ''
-          ? securedCommit.id
-          : await ipldService.validateSecured(securedCommit);
+      const id = await ipldService.validateSecured(securedCommit);
 
       /** make sure creatorId exist */
       for (let ix = 0; ix < commit.creatorsIds.length; ix++) {
@@ -1626,16 +1556,8 @@ export class UprtclRepository {
     /** The query uses ecosystem if levels === -1 and get the head and data json objects if entities === true */
     let elementQuery = `
       xid
-      context {
-        name
-      }
-      remote
-      path
-      creator {
-        did
-      }
-      timextamp
       stored
+      jsonString
       deleted
       finDelegatedTo {
         canWrite @filter(eq(did, "${loggedUserId}")) {
@@ -1657,7 +1579,7 @@ export class UprtclRepository {
             xid
             ${entities ? `jsonString` : ''}
           }
-          ${entities ? COMMIT_PROPERTIES : ''}
+          ${entities ? `jsonString` : ''}
         }
         delegate
         delegateTo {
@@ -1774,7 +1696,11 @@ export class UprtclRepository {
           }
 
           if (entities) {
-            const commit = assembleCommit(element.head);
+            const commit = {
+              id: element.head.xid,
+              object: decodeData(element.head.jsonString),
+              casID: '',
+            };
 
             const data: Entity<any> = {
               id: element.head.data.xid,
@@ -1786,7 +1712,11 @@ export class UprtclRepository {
 
             if (element.xid !== perspectiveId) {
               // add the perspective entity only if a subperspective
-              const perspective = assemblePerspective(element);
+              const perspective = {
+                id: element.xid,
+                object: decodeData(element.jsonString),
+                casID: '',
+              };
               result.slice.entities.push(perspective);
             }
           }
@@ -1800,31 +1730,6 @@ export class UprtclRepository {
     result.slice.entities = Array.from(new Set(result.slice.entities));
 
     return result;
-  }
-
-  async getCommit(commitId: string): Promise<Secured<Commit>> {
-    await this.db.ready();
-    const query = `query {
-      commit(func: eq(xid, ${commitId})) {
-        xid
-        data {
-          xid
-        }
-        ${COMMIT_PROPERTIES}
-      }
-    }`;
-
-    let result = await this.db.client.newTxn().query(query);
-    let dcommit: DgCommit = result.getJson().commit[0];
-    console.log(
-      '[DGRAPH] getCommit',
-      { query },
-      JSON.stringify(result.getJson())
-    );
-    if (!dcommit) new Error(`Commit with id ${commitId} not found`);
-    if (!dcommit.stored) new Error(`Commit with id ${commitId} not found`);
-
-    return assembleCommit(dcommit);
   }
 
   async explore(
