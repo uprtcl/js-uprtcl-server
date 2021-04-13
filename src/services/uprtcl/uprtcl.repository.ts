@@ -684,6 +684,7 @@ export class UprtclRepository {
     ecoLevels?: number
   ) {
     let query = ``;
+    independent = independent === undefined ? true : independent;
 
     enum forkCase {
       independent = 'independent',
@@ -706,11 +707,11 @@ export class UprtclRepository {
 
     switch (forkCondition) {
       case forkCase.independent:
-        if (ecoLevels !== undefined) {
+        if (ecoLevels !== undefined && ecoLevels !== 0) {
           query = `persp as var(func: eq(xid, ${perspectiveId})) 
           ${ecoLevels > 0 ? `@recurse (depth: ${ecoLevels})` : ``}          
           {
-            eco as ${ecoLevels > 0 ? `children` : `ecosystem`}
+            eco as ${ecoLevels > -1 ? `children` : `ecosystem`}
           }
           
           officialPersp as var(func: uid(eco))
@@ -738,11 +739,11 @@ export class UprtclRepository {
         }
         break;
       case forkCase.forksAndIndependentTop:
-        if (ecoLevels) {
+        if (ecoLevels !== undefined && ecoLevels !== 0) {
           query = `officialPersp as var(func: eq(xid, ${perspectiveId})) 
           ${ecoLevels > 0 ? `@recurse (depth: ${ecoLevels})` : ``}          
           {
-            eco as ${ecoLevels > 0 ? `children` : `ecosystem`}
+            eco as ${ecoLevels > -1 ? `children` : `ecosystem`}
             context {
               officialContext as uid
             }
@@ -787,11 +788,11 @@ export class UprtclRepository {
          * We collect the top element in @independentOfRef and the
          * children of the children in @independentRef depending on the @ecoLevels
          */
-        if (ecoLevels) {
+        if (ecoLevels !== undefined && ecoLevels !== 0) {
           query = `officialPersp as var(func: eq(xid, ${perspectiveId}))
           ${ecoLevels > 0 ? `@recurse (depth: ${ecoLevels})` : ``}       
           {
-            eco as ${ecoLevels > 0 ? `children` : `ecosystem`}
+            eco as ${ecoLevels > -1 ? `children` : `ecosystem`}
             context {
               officialContext as uid
             }
@@ -835,11 +836,11 @@ export class UprtclRepository {
         }
         break;
       case forkCase.onlyForks:
-        if (ecoLevels !== undefined) {
+        if (ecoLevels !== undefined && ecoLevels !== 0) {
           query = `persp as var(func: eq(xid, ${perspectiveId})) 
           ${ecoLevels > 0 ? `@recurse (depth: ${ecoLevels})` : ``}          
           {
-            eco as ${ecoLevels > 0 ? `children` : `ecosystem`}
+            eco as ${ecoLevels > -1 ? `children` : `ecosystem`}
           }
           
           officials(func: uid(eco)) 
@@ -1758,7 +1759,8 @@ export class UprtclRepository {
     loggedUserId: string | null
   ): SearchUpsert {
     const ids = searchEcoOption.elements.map((el) => el.id);
-    const ecoLevels = searchEcoOption.levels ? searchEcoOption.levels : -1;
+    const ecoLevels =
+      searchEcoOption.levels !== undefined ? searchEcoOption.levels : -1;
     let { startQuery, internalWrapper, optionalWrapper } = searchUpsert;
 
     if (searchEcoOption.type === Join.full) {
