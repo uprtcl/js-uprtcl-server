@@ -51,7 +51,7 @@ export class UprtclService {
   }
 
   async createAndInitPerspectives(
-    perspectivesData: NewPerspective[],
+    newPerspectives: NewPerspective[],
     loggedUserId: string | null
   ): Promise<string[]> {
     // TEMP
@@ -59,10 +59,15 @@ export class UprtclService {
     if (loggedUserId === null)
       throw new Error('Anonymous user. Cant create a perspective');
 
-    await this.uprtclRepo.createPerspectives(perspectivesData, loggedUserId);
+    await this.dataService.createDatas(
+      newPerspectives.map((newPerspective) => newPerspective.perspective),
+      loggedUserId
+    );
+
+    await this.uprtclRepo.createPerspectives(newPerspectives, loggedUserId);
 
     await this.uprtclRepo.updatePerspectives(
-      perspectivesData.map((newPerspective) => newPerspective.update)
+      newPerspectives.map((newPerspective) => newPerspective.update)
     );
 
     return [];
@@ -195,12 +200,14 @@ export class UprtclService {
   async getForks(
     perspectiveIds: string[],
     forkOptions: SearchForkOptions,
-    loggedUserId: string | null
+    loggedUserId: string | null,
+    ecoLevels?: number
   ): Promise<string[]> {
     return await this.uprtclRepo.getForks(
       perspectiveIds,
       forkOptions,
-      loggedUserId
+      loggedUserId,
+      ecoLevels
     );
   }
 
