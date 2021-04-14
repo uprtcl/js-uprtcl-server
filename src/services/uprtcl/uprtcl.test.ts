@@ -669,19 +669,6 @@ describe('routes', async () => {
   //   expect(children).toEqual([page1Perspective, page3Perspective]);
   //   done();
   // });
-  test('get independent forks', async (done) => {
-    const result = await getForks(
-      [treeA.pages[0].links[1]],
-      {
-        independent: true,
-      },
-      userScenarioB
-    );
-
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0]).toEqual(treeC);
-    done();
-  });
 
   test('get forks and independent of top', async (done) => {
     const result = await getForks(
@@ -690,12 +677,12 @@ describe('routes', async () => {
         independent: false,
         independentOf: treeB, // Top element of treeB
       },
-      userScenarioB
+      userScenarioB,
+      0
     );
 
-    expect(result.data).toHaveLength(2);
-    expect(result.data[0]).toEqual(treeA.pages[0].links[1]);
-    expect(result.data[1]).toEqual(treeC);
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0]).toEqual(treeC);
     done();
   });
 
@@ -703,10 +690,10 @@ describe('routes', async () => {
     const result = await getForks(
       [treeBChildren[1]],
       {
-        independent: true,
         independentOf: treeC, // Top element of treeB
       },
-      userScenarioB
+      userScenarioB,
+      0
     );
 
     expect(result.data).toHaveLength(2);
@@ -716,13 +703,7 @@ describe('routes', async () => {
   });
 
   test('get forks', async (done) => {
-    const result = await getForks(
-      [treeBChildren[1]],
-      {
-        independent: false,
-      },
-      userScenarioB
-    );
+    const result = await getForks([treeBChildren[1]], {}, userScenarioB, 0);
 
     expect(result.data).toHaveLength(2);
     expect(result.data[0]).toEqual(treeA.pages[0].links[1]);
@@ -1001,7 +982,7 @@ describe('routes', async () => {
       userScenarioA
     );
 
-    expect(result.data.perspectiveIds.length).toBe(8);
+    expect(result.data.perspectiveIds.length).toBe(7);
     done();
   });
 
@@ -1252,10 +1233,11 @@ describe('routes', async () => {
       userScenarioB
     );
 
-    expect(result.data.perspectiveIds.length).toEqual(3);
+    expect(result.data.perspectiveIds.length).toEqual(4);
     expect(result.data.perspectiveIds[0]).toEqual(treeC);
     expect(result.data.perspectiveIds[1]).toEqual(treeBChildren[1]);
-    expect(result.data.perspectiveIds[2]).toEqual(treeBChildren[0]);
+    expect(result.data.perspectiveIds[2]).toEqual(treeB);
+    expect(result.data.perspectiveIds[3]).toEqual(treeBChildren[0]);
 
     done();
   });
@@ -1264,7 +1246,6 @@ describe('routes', async () => {
     const result = await explore(
       {
         forks: {
-          independent: true,
           exclusive: true,
         },
         under: {
@@ -1289,7 +1270,6 @@ describe('routes', async () => {
     const result = await explore(
       {
         forks: {
-          independent: true,
           independentOf: treeB,
           exclusive: true,
         },
@@ -1317,7 +1297,6 @@ describe('routes', async () => {
     const result = await explore(
       {
         forks: {
-          independent: true,
           exclusive: true,
         },
         under: {
@@ -1343,7 +1322,6 @@ describe('routes', async () => {
     const resultEcosystem = await explore(
       {
         forks: {
-          independent: true,
           exclusive: true,
         },
         under: {
