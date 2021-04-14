@@ -205,7 +205,8 @@ export class UprtclController {
               let perspectives = await this.uprtclService.getForks(
                 req.body.perspectiveIds,
                 req.body.forkOptions,
-                getUserFromReq(req)
+                getUserFromReq(req),
+                req.body.ecoLevels
               );
 
               let result: GetResult<string[]> = {
