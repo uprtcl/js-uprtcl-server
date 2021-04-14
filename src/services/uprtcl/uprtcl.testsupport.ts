@@ -580,7 +580,8 @@ export const explore = async (
 export const getForks = async (
   perspectiveIds: string[],
   forkOptions: SearchForkOptions,
-  user?: TestUser
+  user?: TestUser,
+  ecoLevels?: number
 ): Promise<GetResult<string[]>> => {
   const router = await createApp();
   const get = await request(router)
@@ -588,6 +589,7 @@ export const getForks = async (
     .send({
       perspectiveIds,
       forkOptions,
+      ecoLevels,
     })
     .set('Authorization', user ? (user.jwt ? `Bearer ${user.jwt}` : '') : '');
   return JSON.parse(get.text);
