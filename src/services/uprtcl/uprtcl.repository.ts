@@ -685,248 +685,105 @@ export class UprtclRepository {
   ) {
     let query = ``;
     independent = independent === undefined ? true : independent;
+    ecoLevels = ecoLevels === undefined ? -1 : ecoLevels;
 
-    enum forkCase {
-      independent = 'independent',
-      forksAndIndependentTop = 'forksAndIndependentTop',
-      independentTopAndIndependent = 'independentTopAndChildren',
-      onlyForks = 'onlyForks',
-      default = 'default',
+    if (ecoLevels !== 0) {
+      query = `persp as var(func: eq(xid, ${perspectiveId})) 
+          ${ecoLevels > 0 ? `@recurse (depth: ${ecoLevels})` : ``}          
+          {
+            eco as ${ecoLevels >= 1 ? `children` : `ecosystem`}
+          }
+
+          ${
+            independentOf
+              ? ` official(func: eq(xid, ${perspectiveId})) {
+                context {
+                  officialContext as uid
+                }
+              }`
+              : ``
+          }
+
+          ${
+            independent
+              ? `children(func: uid(eco)) @filter(not(uid(persp))) {
+              context {
+                childrenContext as uid
+              }
+              ~children {
+                context {
+                  parentContext as uid
+                }
+              }
+            }`
+              : ``
+          }
+
+          ${
+            independent || independentOf
+              ? ``
+              : ` forks(func: uid(eco ${ecoLevels >= 0 ? `, persp` : ``})) {
+              context {
+                forksContext as uid
+              }
+            }          
+            
+            context(func: uid(forksContext)) @cascade {
+              forks as ~context @filter(not(uid(eco, persp)))
+            }`
+          }
+         `;
+    } else if (ecoLevels === 0) {
+      query = `persp ${
+        independentOf ? `as var` : ``
+      }(func: eq(xid, ${perspectiveId})) {
+            context {
+              officialContext as uid
+            }
+          }
+          
+          ${
+            independentOf
+              ? ``
+              : `context(func: uid(officialContext)) @cascade {
+              forks as ~context @filter(not(eq(xid, ${perspectiveId})))
+            }`
+          }`;
     }
 
-    const forkCondition: forkCase =
-      independent && !independentOf
-        ? forkCase.independent
-        : !independent && independentOf
-        ? forkCase.forksAndIndependentTop
-        : independent && independentOf
-        ? forkCase.independentTopAndIndependent
-        : !independent && !independentOf
-        ? forkCase.onlyForks
-        : forkCase.default;
-
-    switch (forkCondition) {
-      case forkCase.independent:
-        if (ecoLevels !== undefined && ecoLevels !== 0) {
-          query = `persp as var(func: eq(xid, ${perspectiveId})) 
-          ${ecoLevels > 0 ? `@recurse (depth: ${ecoLevels})` : ``}          
-          {
-            eco as ${ecoLevels > -1 ? `children` : `ecosystem`}
-          }
-          
-          officialPersp as var(func: uid(eco))
-          @filter(not(uid(persp))) {
-            context {
-              officialContext as uid
-            }
-            ~children {
-              context {
-                parentContext as uid
-              }
-            }
-          }`;
-        } else {
-          query = `officialPersp as var(func: eq(xid, ${perspectiveId})) {
-            context {
-              officialContext as uid
-            }
-            ~children {
-              context {
-                parentContext as uid
-              }
-            }
-          }`;
-        }
-        break;
-      case forkCase.forksAndIndependentTop:
-        if (ecoLevels !== undefined && ecoLevels !== 0) {
-          query = `officialPersp as var(func: eq(xid, ${perspectiveId})) 
-          ${ecoLevels > 0 ? `@recurse (depth: ${ecoLevels})` : ``}          
-          {
-            eco as ${ecoLevels > -1 ? `children` : `ecosystem`}
-            context {
-              officialContext as uid
-            }
-          }
-
-          childrenOfficials(func: uid(eco)) 
-          @filter(not(uid(officialPersp))) {
-            context {
-              childrenOfficialContext as uid
-            }
-          }
-          
-          context(func: uid(childrenOfficialContext)) @cascade {
-            forks as ~context @filter(not(uid(eco)))
-          }
-
-          parent(func: eq(xid, ${independentOf})) {
-            context {
-              parentContext as uid
-            }
-          }`;
-        } else {
-          query = `officialPersp as var(func: eq(xid, ${perspectiveId})) {
-            context {
-              officialContext as uid
-            }
-          }
-          
-          context(func: uid(officialContext)) @cascade {
-            forks as ~context @filter(not(uid(officialPersp)))
-          }
-
-          parent(func: eq(xid, ${independentOf})) {
-            context {
-              parentContext as uid
-            }
-          }`;
-        }
-        break;
-      case forkCase.independentTopAndIndependent:
-        /**
-         * We collect the top element in @independentOfRef and the
-         * children of the children in @independentRef depending on the @ecoLevels
-         */
-        if (ecoLevels !== undefined && ecoLevels !== 0) {
-          query = `officialPersp as var(func: eq(xid, ${perspectiveId}))
-          ${ecoLevels > 0 ? `@recurse (depth: ${ecoLevels})` : ``}       
-          {
-            eco as ${ecoLevels > -1 ? `children` : `ecosystem`}
-            context {
-              officialContext as uid
-            }
-          }
-          
-          officialChildren(func: uid(eco))
-          @filter(not(eq(xid, ${perspectiveId}))) {
-            context {
-              childrenOfficialContext as uid
-            }
-            ~children {
-              context {
-                independentParentContext as uid
-              }
-            }
-          }
-
-          parent(func: eq(xid, ${independentOf})) {
-            context {
-              independentOfParentContext as uid
-            }
-          }`;
-        } else {
-          query = `officialPersp as var(func: eq(xid, ${perspectiveId}))     
-          {
-            context {
-              officialContext as uid
-            }
-            ~children {
-              context {
-                independentParentContext as uid
-              }
-            }
-          }
-
-          parent(func: eq(xid, ${independentOf})) {
-            context {
-              independentOfParentContext as uid
-            }
-          }`;
-        }
-        break;
-      case forkCase.onlyForks:
-        if (ecoLevels !== undefined && ecoLevels !== 0) {
-          query = `persp as var(func: eq(xid, ${perspectiveId})) 
-          ${ecoLevels > 0 ? `@recurse (depth: ${ecoLevels})` : ``}          
-          {
-            eco as ${ecoLevels > -1 ? `children` : `ecosystem`}
-          }
-          
-          officials(func: uid(eco)) 
-          @filter(not(uid(persp))) {
-            context {
-              officialsContext as uid
-            }
-          }
-          
-          context(func: uid(officialsContext)) @cascade {
-            forks as ~context @filter(not(uid(eco)))
-          }`;
-        } else {
-          query = `official(func: eq(xid, ${perspectiveId})) {
-            context {
-              officialContext as uid
-            }
-          }
-          
-          context(func: uid(officialContext)) @cascade {
-            forks as ~context @filter(not(eq(xid, ${perspectiveId})))
-          }`;
-        }
-        break;
-    }
-
-    if (forkCondition === forkCase.independentTopAndIndependent) {
-      /**
-       * We collect first normal and orphan for
-       * both independent and independentOf groups.
-       * Consequently, we merge both groups into
-       * one @normalPersp and one @orphanPersp
-       */
-
-      // First we merge normal results
-      query = query.concat(`\nnormalIndependent(func: uid(${
-        ecoLevels ? `childrenOfficialContext` : `officialContext`
-      })) {
-        normalIndependentGroup as ~context @filter(
-          not(uid(${ecoLevels ? `eco` : `officialPersp`}))
-        ) @cascade {
-          ~children {
-            context @filter(not(uid(independentParentContext)))
-          }
+    if (independentOf) {
+      query = query.concat(`\nparent(func: eq(xid, ${independentOf})) {
+        context {
+          independentOfContext as uid
         }
       }
       
       normalIndependentOf(func: uid(officialContext)) {
-        normalIndependentOfGroup as ~context @filter(
-          not(uid(officialPersp))
+        normalIndependentOf as ~context @filter(
+          not(uid(persp
+            ${independent || ecoLevels === 0 ? `` : `,forks`}))
         ) @cascade {
           ~children {
-            context @filter(not(uid(independentOfParentContext)))
+            context @filter(not(uid(independentOfContext)))
           }
         }
       }
-      
-      normalPersps as var(func: uid(normalIndependentGroup, normalIndependentOfGroup))`);
 
-      // Then we merge orphan results
-      query = query.concat(`\norphanIndependent(func: uid(${
-        ecoLevels ? `childrenOfficialContext` : `officialContext`
-      })) {
-        orphanIndependentGroup as ~context @filter(
-          not(uid(${ecoLevels ? `eco` : `officialPersp`}))
-          AND
-          eq(count(~children), 0)
-        )
-      }
-      
       orphanIndependentOf(func: uid(officialContext)) {
-        orphanIndependentOfGroup as ~context @filter(
-          not(uid(officialPersp))
+        orphanIndependentOf as ~context @filter(
+          not(uid(persp
+            ${independent || ecoLevels === 0 ? `` : `,forks`}))
           AND
           eq(count(~children), 0)
         )
-      }
-      orphanPersps as var(func: uid(orphanIndependentGroup, orphanIndependentOfGroup))`);
-    } else if (
-      forkCondition === forkCase.independent ||
-      forkCondition === forkCase.forksAndIndependentTop
-    ) {
+      }`);
+    }
+
+    if (independent && ecoLevels !== 0) {
       // Verify indepent perspectives criteria with parents
-      query = query.concat(`\nnormalRef(func: uid(officialContext)) {
+      query = query.concat(`\nnormalRef(func: uid(childrenContext)) {
         normalPersps as ~context @filter(
-          not(uid(officialPersp))
+          not(uid(persp))
           ) @cascade {
             ~children {
               context @filter(not(uid(parentContext)))
@@ -935,9 +792,9 @@ export class UprtclRepository {
       }`);
 
       // Verify indepent perspectives criteria without parents
-      query = query.concat(`\norphanRef(func: uid(officialContext)) {
+      query = query.concat(`\norphanRef(func: uid(childrenContext)) {
         orphanPersps as ~context @filter(
-          not(uid(officialPersp))
+          not(uid(persp))
           AND
           eq(count(~children), 0)
           )
@@ -948,11 +805,16 @@ export class UprtclRepository {
     query = query.concat(
       `\nindPersp as var(func: uid(
         ${
-          forkCondition === forkCase.independent ||
-          forkCondition === forkCase.independentTopAndIndependent
+          ecoLevels === 0
+            ? independentOf
+              ? `normalIndependentOf, orphanIndependentOf`
+              : `forks`
+            : independent && independentOf
+            ? `normalPersps, orphanPersps, normalIndependentOf, orphanIndependentOf`
+            : !independent && independentOf
+            ? `forks, normalIndependentOf, orphanIndependentOf`
+            : independent && !independentOf
             ? `normalPersps, orphanPersps`
-            : forkCondition === forkCase.forksAndIndependentTop
-            ? `normalPersps, orphanPersps, forks`
             : `forks`
         }
       ))`
@@ -984,13 +846,15 @@ export class UprtclRepository {
   async getForks(
     perspectiveIds: string[],
     forkOptions: SearchForkOptions,
-    loggedUserId: string | null
+    loggedUserId: string | null,
+    ecoLevels?: number
   ): Promise<Array<string>> {
     const query = this.getForksUpsert(
       perspectiveIds,
       loggedUserId,
       forkOptions.independent,
-      forkOptions.independentOf
+      forkOptions.independentOf,
+      ecoLevels
     );
 
     await this.db.ready();
