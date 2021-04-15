@@ -843,13 +843,13 @@ export class UprtclRepository {
        }`);
     }
 
-    query = query.concat(`\nforksOf(func: uid(indPersp)) {
-      fork: xid
+    query = query.concat(`\nforksOf(func: ${
+      ecoLevels !== 0 ? `uid(eco, persp)` : `eq(xid, ${perspectiveId})`
+    }) {
+      ofPerspective: xid
       context {
-        reference: ~context @filter(
-          ${ecoLevels !== 0 ? `uid(eco)` : `eq(xid, ${perspectiveId})`}
-        ) {
-          xid
+        forks: ~context @filter(uid(indPersp)) {
+          forkId: xid
         }
       }
     }`);
@@ -1611,10 +1611,11 @@ export class UprtclRepository {
 
     if (json.forksOf) {
       json.forksOf.map((persp: any) => {
-        result.forksDetails!.push({
-          forkId: persp.fork,
-          ofPerspectiveId: persp.context.reference[0].xid,
-        });
+        if (persp.context)
+          result.forksDetails!.push({
+            forkIds: persp.context.forks.map((fork: any) => fork.forkId),
+            ofPerspectiveId: persp.ofPerspective,
+          });
       });
     }
     return result;
