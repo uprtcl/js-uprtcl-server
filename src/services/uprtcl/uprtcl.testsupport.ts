@@ -19,6 +19,7 @@ import {
   NewPerspective,
   SearchOptions,
   SearchForkOptions,
+  SearchResult,
 } from '@uprtcl/evees';
 import { FetchResult } from './uprtcl.repository';
 import { addNewElementsToPerspective } from './uprtcl.mock.helper';
@@ -568,7 +569,7 @@ export const getEcosystem = async (
 export const explore = async (
   searchOptions: SearchOptions,
   user?: TestUser
-): Promise<GetResult<FetchResult>> => {
+): Promise<GetResult<SearchResult>> => {
   const router = await createApp();
   const get = await request(router)
     .put(`/uprtcl/1/explore`)

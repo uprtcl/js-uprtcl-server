@@ -15,6 +15,7 @@ import {
   SearchOptionsEcoJoin,
   SearchResult,
   SearchForkOptions,
+  ForkOf,
 } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
@@ -101,6 +102,7 @@ export interface FetchResult {
   ended?: boolean;
   details: PerspectiveDetails;
   slice: Slice;
+  forksDetails?: ForkOf[];
 }
 
 export class UprtclRepository {
@@ -840,6 +842,17 @@ export class UprtclRepository {
          xid
        }`);
     }
+
+    query = query.concat(`\nforksOf(func: uid(indPersp)) {
+      fork: xid
+      context {
+        reference: ~context @filter(
+          ${ecoLevels !== 0 ? `uid(eco)` : `eq(xid, ${perspectiveId})`}
+        ) {
+          xid
+        }
+      }
+    }`);
     return query;
   }
 
@@ -1104,6 +1117,7 @@ export class UprtclRepository {
       perspectiveIds: exploreResult.perspectiveIds,
       ended: exploreResult.ended ? exploreResult.ended : false,
       slice: exploreResult.slice,
+      forksDetails: exploreResult.forksDetails,
     };
   }
 
@@ -1511,6 +1525,7 @@ export class UprtclRepository {
         perspectives: [],
         entities: [],
       },
+      forksDetails: [],
     };
 
     if (first && perspectives.length < first) {
@@ -1594,6 +1609,14 @@ export class UprtclRepository {
     result.slice.perspectives = Array.from(new Set(result.slice.perspectives));
     result.slice.entities = Array.from(new Set(result.slice.entities));
 
+    if (json.forksOf) {
+      json.forksOf.map((persp: any) => {
+        result.forksDetails!.push({
+          forkId: persp.fork,
+          ofPerspectiveId: persp.context.reference[0].xid,
+        });
+      });
+    }
     return result;
   }
 
