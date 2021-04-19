@@ -9,7 +9,8 @@ import {
   ParentAndChild,
   SearchOptions,
   SearchResult,
-  CondensateCommits,
+  condensateUpdates,
+  CASStore,
 } from '@uprtcl/evees';
 
 import { PermissionType } from './types';
@@ -21,12 +22,16 @@ import { DataService } from '../data/data.service';
 import { LocalStore } from './utils';
 
 export class UprtclService {
+  store: CASStore;
+
   constructor(
     protected db: DGraphService,
     protected uprtclRepo: UprtclRepository,
     protected access: AccessService,
     protected dataService: DataService
-  ) {}
+  ) {
+    this.store = new LocalStore(this.dataService);
+  }
 
   async createAclRecursively(
     of: NewPerspective,
@@ -67,48 +72,6 @@ export class UprtclService {
     return [];
   }
 
-  async groupUpdates(updates: Update[]): Promise<Update[]> {
-    const store = new LocalStore(this.dataService);
-
-    interface UpdateGroup {
-      orgUpdates: Update[];
-      eqUpdate?: Update;
-    }
-
-    const updatesPerPerspective: Map<string, UpdateGroup> = new Map();
-
-    updates.forEach((update) => {
-      const group = updatesPerPerspective.get(update.perspectiveId) || {
-        orgUpdates: [],
-      };
-      group.orgUpdates.push(update);
-      updatesPerPerspective.set(update.perspectiveId, group);
-    });
-
-    await Promise.all(
-      Array.from(updatesPerPerspective.entries()).map(
-        async ([perspectiveId, group]) => {
-          const condensate = new CondensateCommits(
-            store,
-            group.orgUpdates,
-            false
-          );
-          await condensate.init();
-          const eqUpdates = await condensate.condensate();
-          if (eqUpdates.length !== 1) {
-            throw new Error('update group has multiple heads');
-          }
-          group.eqUpdate = eqUpdates[0];
-          updatesPerPerspective.set(perspectiveId, group);
-        }
-      )
-    );
-
-    return Array.from(updatesPerPerspective.values()).map(
-      (group) => group.eqUpdate as Update
-    );
-  }
-
   async updatePerspectives(
     updates: Update[],
     loggedUserId: string | null
@@ -121,7 +84,7 @@ export class UprtclService {
       throw new Error('Anonymous user. Cant update a perspective');
 
     /** combine updates to the same perspective */
-    const updatesSingle = await this.groupUpdates(updates);
+    const updatesSingle = await condensateUpdates(updates, this.store);
 
     const canUpdate = await this.access.canAll(
       updatesSingle.map((u) => u.perspectiveId),
