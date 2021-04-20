@@ -64,7 +64,6 @@ export class ProposalsService {
 
             return {
               fromPerspectiveId: fromPerspectiveId,
-              oldDetails: { headId: oldHead?.xid },
               perspectiveId: perspectiveId,
               details: { headId: newHeadId },
             };

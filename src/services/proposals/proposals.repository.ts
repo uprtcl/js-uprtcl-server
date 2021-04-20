@@ -125,9 +125,6 @@ export class ProposalsRepository {
     query = query.concat(
       `\nnewHead as var(func: eq(xid, ${update.details.headId}))`
     );
-    query = query.concat(
-      `\noldHead as var(func: eq(xid, ${update.oldDetails?.headId}))`
-    );
 
     let nquads = `_:HeadUpdate <perspective>  uid(perspective) .`;
 
