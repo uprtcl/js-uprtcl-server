@@ -707,21 +707,6 @@ export class UprtclRepository {
           }
 
           ${
-            independent
-              ? `children(func: uid(eco)) @filter(not(uid(persp))) {
-              context {
-                childrenContext as uid
-              }
-              ~children {
-                context {
-                  parentContext as uid
-                }
-              }
-            }`
-              : ``
-          }
-
-          ${
             independent || independentOf
               ? ``
               : ` forks(func: uid(eco ${ecoLevels >= 0 ? `, persp` : ``})) {
@@ -735,24 +720,62 @@ export class UprtclRepository {
             }`
           }
          `;
+
+      /**
+       *  We check for independent criteria inside the ecoLevels != 0
+       * case because this criteria exclusively applies to the children of
+       * its children.
+       */
+      if (independent) {
+        // Verify indepent perspectives criteria with parents
+        query = query.concat(`\nchildren(func: uid(eco)) @filter(not(uid(persp))) {
+          context {
+            childrenContext as uid
+          }
+          ~children {
+            context {
+              parentContext as uid
+            }
+          }
+        }
+        normalRef(func: uid(childrenContext)) {
+          normalPersps as ~context @filter(
+            not(uid(persp))
+            ) @cascade {
+              ~children {
+                context @filter(not(uid(parentContext)))
+              }
+            }
+        }`);
+
+        // Verify indepent perspectives criteria without parents
+        query = query.concat(`\norphanRef(func: uid(childrenContext)) {
+          orphanPersps as ~context @filter(
+            not(uid(persp))
+            AND
+            eq(count(~children), 0)
+            )
+        }`);
+      }
     } else if (ecoLevels === 0) {
       query = `persp ${
         independentOf ? `as var` : ``
       }(func: eq(xid, ${perspectiveId})) {
-            context {
-              officialContext as uid
-            }
-          }
-          
-          ${
-            independentOf
-              ? ``
-              : `context(func: uid(officialContext)) @cascade {
-              forks as ~context @filter(not(eq(xid, ${perspectiveId})))
-            }`
-          }`;
+        context {
+          officialContext as uid
+        }
+      }
+      
+      ${
+        independentOf
+          ? ``
+          : `context(func: uid(officialContext)) @cascade {
+          forks as ~context @filter(not(eq(xid, ${perspectiveId})))
+        }`
+      }`;
     }
 
+    // IndependentOf case will be implemented whether ecoLevels === 0 or not.
     if (independentOf) {
       query = query.concat(`\nparent(func: eq(xid, ${independentOf})) {
         context {
@@ -781,29 +804,17 @@ export class UprtclRepository {
       }`);
     }
 
-    if (independent && ecoLevels !== 0) {
-      // Verify indepent perspectives criteria with parents
-      query = query.concat(`\nnormalRef(func: uid(childrenContext)) {
-        normalPersps as ~context @filter(
-          not(uid(persp))
-          ) @cascade {
-            ~children {
-              context @filter(not(uid(parentContext)))
-            }
-          }
-      }`);
-
-      // Verify indepent perspectives criteria without parents
-      query = query.concat(`\norphanRef(func: uid(childrenContext)) {
-        orphanPersps as ~context @filter(
-          not(uid(persp))
-          AND
-          eq(count(~children), 0)
-          )
-      }`);
-    }
-
     // Collect results first
+
+    /**
+     * If ecoLevels === 0, we only check if
+     * independentOf is required, else we return
+     * forks without filtering.
+     *
+     * If ecoLevels != 0, we check for Both
+     * independentOf and independent, we are checking
+     * for the top element and its children of its children.
+     */
     query = query.concat(
       `\nindPersp as var(func: uid(
         ${
@@ -1143,42 +1154,6 @@ export class UprtclRepository {
     if (!details && entities) {
       throw new Error('Entities can not be provided without details...');
     }
-
-    /** -------------------------------------------------------------------------
-     * TEMPORARY PATCH TO GET INDEPENDENT PERSPECTIVES WHEN FORKS IS PROVIDED
-     * -------------------------------------------------------------------------- */
-    // if (searchOptions && searchOptions.forks) {
-    //   if (!searchOptions.under) {
-    //     throw new Error(
-    //       'forks currently support a single mandatory "under" property'
-    //     );
-    //   }
-
-    //   if (loggedUserId == null) {
-    //     throw new Error('forks currently supports for logged user');
-    //   }
-
-    //   const ecosystem =
-    //     searchOptions.under.levels === undefined
-    //       ? true
-    //       : searchOptions.under.levels === -1;
-
-    //   // TODO: Combine the search for independent forks with this search query ! :)
-    //   const perspectiveIds = await this.getOtherIndpPerspectives(
-    //     searchOptions.under.elements[0].id,
-    //     ecosystem,
-    //     loggedUserId
-    //   );
-
-    //   return {
-    //     perspectiveIds,
-    //     details: {},
-    //     slice: {
-    //       entities: [],
-    //       perspectives: [],
-    //     },
-    //   };
-    // }
 
     /**
      * We build the function depending on how the method is implemented.
