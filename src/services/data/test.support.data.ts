@@ -14,7 +14,7 @@ export const createData = async (
     const hashedData: Entity<Object> = {
       id: dataId,
       object: obj,
-      casID: ''
+      remote: '',
     };
     return hashedData;
   });

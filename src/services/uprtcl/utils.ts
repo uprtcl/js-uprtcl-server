@@ -1,4 +1,4 @@
-import { CASStore, Entity, EntityCreate, EntityGetResult } from '@uprtcl/evees';
+import { CASStore, Entity, EntityCreate } from '@uprtcl/evees';
 import { DataService } from '../data/data.service';
 
 export class LocalStore implements CASStore {
@@ -16,11 +16,8 @@ export class LocalStore implements CASStore {
   hashEntities(entities: EntityCreate<any>[]): Promise<Entity<any>[]> {
     throw new Error('Method not implemented.');
   }
-  async getEntities(hashes: string[]): Promise<EntityGetResult> {
-    const entities = await Promise.all(
-      hashes.map((hash) => this.dataService.getData(hash))
-    );
-    return { entities };
+  async getEntities(hashes: string[]): Promise<Entity[]> {
+    return Promise.all(hashes.map((hash) => this.dataService.getData(hash)));
   }
   flush(): Promise<void> {
     throw new Error('Method not implemented.');

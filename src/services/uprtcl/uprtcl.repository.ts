@@ -653,7 +653,7 @@ export class UprtclRepository {
       enitites.push({
         id,
         object: securedCommit.object,
-        casID: '',
+        remote: '',
       });
     }
 
@@ -1484,13 +1484,13 @@ export class UprtclRepository {
             const commit = {
               id: element.head.xid,
               object: decodeData(element.head.jsonString),
-              casID: '',
+              remote: '',
             };
 
             const data: Entity<any> = {
               id: element.head.data.xid,
               object: decodeData(element.head.data.jsonString),
-              casID: '',
+              remote: '',
             };
 
             result.slice.entities.push(commit, data);
@@ -1500,7 +1500,7 @@ export class UprtclRepository {
               const perspective = {
                 id: element.xid,
                 object: decodeData(element.jsonString),
-                casID: '',
+                remote: '',
               };
               result.slice.entities.push(perspective);
             }

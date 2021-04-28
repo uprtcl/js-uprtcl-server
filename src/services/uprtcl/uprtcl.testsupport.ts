@@ -304,7 +304,7 @@ export const createPerspectives = async (
       const secured: Secured<Perspective> = {
         id: perspectiveId,
         object: securedObject,
-        casID: '',
+        remote: '',
       };
 
       update.perspectiveId = perspectiveId;
@@ -372,7 +372,7 @@ export const createCommit = async (
   const secured: Secured<Commit> = {
     id: commitId,
     object: securedObject,
-    casID: '',
+    remote: '',
   };
 
   const router = await createApp();
