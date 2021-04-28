@@ -62,7 +62,7 @@ export const forkPerspective = async (
         },
         payload: {
           creatorsIds: [],
-          dataId: forkData[0].id,
+          dataId: forkData[0].hash,
           message: '',
           timestamp: Date.now(),
           parentsIds: officialHead.parentsIds,
@@ -78,7 +78,7 @@ export const forkPerspective = async (
     {
       perspectiveId: '',
       details: {
-        headId: forkCommit[0].id,
+        headId: forkCommit[0].hash,
       },
       indexData: {
         text: officialData.text,
@@ -89,7 +89,7 @@ export const forkPerspective = async (
 
   await sendPerspectiveBatch(forkedPerspective, user);
 
-  const topElement = forkedPerspective[0].perspective.id;
+  const topElement = forkedPerspective[0].perspective.hash;
 
   const relatives = await getPerspectiveRelatives(perspectiveId, 'children');
 
@@ -118,7 +118,7 @@ export const forkPerspective = async (
           },
           payload: {
             creatorsIds: [],
-            dataId: updatedData[0].id,
+            dataId: updatedData[0].hash,
             message: '',
             timestamp: Date.now(),
             parentsIds: [],
@@ -132,7 +132,7 @@ export const forkPerspective = async (
       {
         perspectiveId: topElement,
         details: {
-          headId: commitUpdates[0].id,
+          headId: commitUpdates[0].hash,
         },
         indexData: {
           linkChanges: {
@@ -188,7 +188,7 @@ const forkChildren = async (
         },
         payload: {
           creatorsIds: [],
-          dataId: data.id,
+          dataId: data.hash,
           message: '',
           timestamp: Date.now(),
           parentsIds: officialHeads[i].parentsIds,
@@ -206,7 +206,7 @@ const forkChildren = async (
       return {
         perspectiveId: '',
         details: {
-          headId: commit.id,
+          headId: commit.hash,
           guardianId: guardianId,
         },
         indexData: {
@@ -219,7 +219,7 @@ const forkChildren = async (
 
   await sendPerspectiveBatch(forkedPerspectives, user);
 
-  return forkedPerspectives.map((persp) => persp.perspective.id);
+  return forkedPerspectives.map((persp) => persp.perspective.hash);
 };
 
 const getPerspectivesContext = async (
@@ -302,7 +302,7 @@ export const createPerspectives = async (
       );
 
       const secured: Secured<Perspective> = {
-        id: perspectiveId,
+        hash: perspectiveId,
         object: securedObject,
         remote: '',
       };
@@ -370,7 +370,7 @@ export const createCommit = async (
   );
 
   const secured: Secured<Commit> = {
-    id: commitId,
+    hash: commitId,
     object: securedObject,
     remote: '',
   };

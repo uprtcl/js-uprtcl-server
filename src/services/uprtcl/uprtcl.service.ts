@@ -40,14 +40,14 @@ export class UprtclService {
   ) {
     /** top first traverse the tree of new perspectives*/
     await this.access.createAccessConfig(
-      of.perspective.id,
+      of.perspective.hash,
       of.update.details.guardianId,
       loggedUserId
     );
 
     /** recursively call on all children */
     const children = all.filter(
-      (p) => p.update.details.guardianId === of.perspective.id
+      (p) => p.update.details.guardianId === of.perspective.hash
     );
     for (const child of children) {
       await this.createAclRecursively(child, all, loggedUserId);

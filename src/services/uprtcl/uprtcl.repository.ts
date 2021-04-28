@@ -118,7 +118,7 @@ export class UprtclRepository {
   ) {
     // Perspective object destructuring
     const {
-      id,
+      hash: id,
       object: {
         payload: { creatorId, timestamp, context, remote, path },
         proof,
@@ -251,7 +251,7 @@ export class UprtclRepository {
     };
 
     let upsertedProfiles: string[] = [];
-    let perspectiveIds = newPerspectives.map((p) => p.perspective.id);
+    let perspectiveIds = newPerspectives.map((p) => p.perspective.hash);
 
     const externalParentPerspectives = newPerspectives.filter((p) => {
       if (p.update.details.guardianId !== null) {
@@ -304,7 +304,7 @@ export class UprtclRepository {
     for (let i = 0; i < externalParentPerspectives.length; i++) {
       const externalPerspective = externalParentPerspectives[i];
       const aclUpsertString = this.recurseACLupdateUpsert(
-        externalPerspective.perspective.id,
+        externalPerspective.perspective.hash,
         ACLupsert
       );
 
@@ -651,7 +651,7 @@ export class UprtclRepository {
       }
 
       enitites.push({
-        id,
+        hash: id,
         object: securedCommit.object,
         remote: '',
       });
@@ -1482,13 +1482,13 @@ export class UprtclRepository {
 
           if (entities) {
             const commit = {
-              id: element.head.xid,
+              hash: element.head.xid,
               object: decodeData(element.head.jsonString),
               remote: '',
             };
 
             const data: Entity<any> = {
-              id: element.head.data.xid,
+              hash: element.head.data.xid,
               object: decodeData(element.head.data.jsonString),
               remote: '',
             };
@@ -1498,7 +1498,7 @@ export class UprtclRepository {
             if (element.xid !== perspectiveId) {
               // add the perspective entity only if a subperspective
               const perspective = {
-                id: element.xid,
+                hash: element.xid,
                 object: decodeData(element.jsonString),
                 remote: '',
               };

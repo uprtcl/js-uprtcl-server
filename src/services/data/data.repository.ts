@@ -42,7 +42,7 @@ export class DataRepository {
       nquads = nquads.concat(`\nuid(data${id}) <jsonString> "${dataCoded}" .`);
 
       entities.push({
-        id,
+        hash: id,
         object: data,
         remote: '',
       });
@@ -99,7 +99,7 @@ export class DataRepository {
     console.log('[DGRAPH] getData', { query, json, data });
 
     return {
-      id: dataId,
+      hash: dataId,
       object: data,
       remote: '',
     };
