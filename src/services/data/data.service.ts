@@ -15,9 +15,9 @@ export class DataService {
     return await this.dataRepo.createDatas(datas);
   }
 
-  async getData(dataId: string): Promise<any> {
-    console.log('[UPRTCL-SERVICE] getData', dataId);
-    let data = await this.dataRepo.getData(dataId);
+  async getData(hashes: string[]): Promise<any> {
+    console.log('[UPRTCL-SERVICE] getData', hashes);
+    let data = await this.dataRepo.getData(hashes);
     return data;
   }
 }

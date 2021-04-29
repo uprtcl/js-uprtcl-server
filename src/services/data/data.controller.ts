@@ -75,12 +75,13 @@ export class DataController {
       },
 
       {
-        path: '/uprtcl/1/data/:dataId',
+        path: '/uprtcl/1/data',
         method: 'get',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const data = await this.dataService.getData(req.params.dataId);
+            const hashes = req.body.hashes as string[];
+            const data = await this.dataService.getData(hashes);
             let result: GetResult<any> = {
               result: SUCCESS,
               message: '',
