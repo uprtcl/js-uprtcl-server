@@ -81,11 +81,11 @@ export class DataController {
           checkJwt,
           async (req: Request, res: Response) => {
             const hashes = req.body.hashes as string[];
-            const data = await this.dataService.getData(hashes);
+            const datas = await this.dataService.getDatas(hashes);
             let result: GetResult<any> = {
               result: SUCCESS,
               message: '',
-              data: data,
+              data: datas,
             };
             res.status(200).send(result);
           },

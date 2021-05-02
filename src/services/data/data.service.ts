@@ -8,16 +8,21 @@ export class DataService {
   ) {}
 
   async createDatas(
-    datas: Entity<Object>[],
+    datas: Entity[],
     _loggedUserId: string | null
   ): Promise<Entity<any>[]> {
     console.log('[UPRTCL-SERVICE] createDatas', datas);
     return await this.dataRepo.createDatas(datas);
   }
 
-  async getData(hashes: string[]): Promise<any> {
+  async getDatas(hashes: string[]): Promise<Entity[]> {
     console.log('[UPRTCL-SERVICE] getData', hashes);
-    let data = await this.dataRepo.getData(hashes);
-    return data;
+    let datas = await this.dataRepo.getDatas(hashes);
+    return datas;
+  }
+
+  async getData(hash: string): Promise<Entity> {
+    let entities = await this.dataRepo.getDatas([hash]);
+    return entities[0];
   }
 }

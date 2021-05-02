@@ -85,7 +85,7 @@ export class ProposalsService {
               return {
                 perspective,
                 update: {
-                  perspectiveId: perspective.id,
+                  perspectiveId: perspective.hash,
                   details: { headId: newPerspective.NEWP_headId },
                 },
               };

@@ -17,7 +17,7 @@ export class LocalStore implements CASStore {
     throw new Error('Method not implemented.');
   }
   async getEntities(hashes: string[]): Promise<Entity[]> {
-    return Promise.all(hashes.map((hash) => this.dataService.getData(hash)));
+    return this.dataService.getDatas(hashes);
   }
   flush(): Promise<void> {
     throw new Error('Method not implemented.');
@@ -25,8 +25,9 @@ export class LocalStore implements CASStore {
   diff(): Promise<Entity<any>[]> {
     throw new Error('Method not implemented.');
   }
-  getEntity<T = any>(hash: string): Promise<Entity<T>> {
-    return this.dataService.getData(hash);
+  async getEntity<T = any>(hash: string): Promise<Entity<T>> {
+    const entities = await this.dataService.getDatas([hash]);
+    return entities[0];
   }
   storeEntity(entity: EntityCreate<any>): Promise<Entity<any>> {
     throw new Error('Method not implemented.');
