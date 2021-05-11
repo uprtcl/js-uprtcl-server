@@ -82,7 +82,7 @@ export class DataRepository {
     console.log('[DGRAPH] getData', { query, json });
 
     const datas = hashes.map((hash) => {
-      const data = json[`data${hash}`];
+      const data = json[`data${hash}`][0];
 
       if (data.stored) {
         const object = decodeData(data.jsonString);

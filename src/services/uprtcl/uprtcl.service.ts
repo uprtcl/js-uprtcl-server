@@ -10,7 +10,7 @@ import {
   SearchOptions,
   SearchResult,
   condensateUpdates,
-  CASStore,
+  EntityResolver,
 } from '@uprtcl/evees';
 
 import { PermissionType } from './types';
@@ -19,10 +19,10 @@ import { AccessService } from '../access/access.service';
 import { UprtclRepository } from './uprtcl.repository';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
 import { DataService } from '../data/data.service';
-import { LocalStore } from './utils';
+import { LocalEntityResolver } from './local.entity.resolver';
 
 export class UprtclService {
-  store: CASStore;
+  entityResolver: EntityResolver;
 
   constructor(
     protected db: DGraphService,
@@ -30,7 +30,7 @@ export class UprtclService {
     protected access: AccessService,
     protected dataService: DataService
   ) {
-    this.store = new LocalStore(this.dataService);
+    this.entityResolver = new LocalEntityResolver(this.dataService);
   }
 
   async createAclRecursively(
@@ -84,7 +84,7 @@ export class UprtclService {
       throw new Error('Anonymous user. Cant update a perspective');
 
     /** combine updates to the same perspective */
-    const updatesSingle = await condensateUpdates(updates, this.store);
+    const updatesSingle = await condensateUpdates(updates, this.entityResolver);
 
     const canUpdate = await this.access.canAll(
       updatesSingle.map((u) => u.perspectiveId),
