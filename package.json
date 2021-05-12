@@ -37,7 +37,7 @@
     "express": "^5.0.0-alpha.7",
     "express-jwt": "^5.3.1",
     "express-jwt-authz": "^2.3.1",
-    "grpc": "^1.24.2",
+    "grpc": "^1.24.9",
     "jsonwebtoken": "^8.5.1",
     "jwks-rsa": "^1.6.0",
     "multihashing-async": "^0.8.0",
