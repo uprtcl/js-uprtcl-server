@@ -74,9 +74,10 @@ export class DataController {
         ],
       },
 
+      /** GET with put to receive the list of hashes as an object */
       {
         path: '/uprtcl/1/data',
-        method: 'get',
+        method: 'put',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
