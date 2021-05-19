@@ -11,6 +11,7 @@ import {
   SearchResult,
   condensateUpdates,
   EntityResolver,
+  SearchForkOptions,
 } from '@uprtcl/evees';
 
 import { PermissionType } from './types';
@@ -55,7 +56,7 @@ export class UprtclService {
   }
 
   async createAndInitPerspectives(
-    perspectivesData: NewPerspective[],
+    newPerspectives: NewPerspective[],
     loggedUserId: string | null
   ): Promise<string[]> {
     // TEMP
@@ -63,10 +64,15 @@ export class UprtclService {
     if (loggedUserId === null)
       throw new Error('Anonymous user. Cant create a perspective');
 
-    await this.uprtclRepo.createPerspectives(perspectivesData, loggedUserId);
+    await this.dataService.createDatas(
+      newPerspectives.map((newPerspective) => newPerspective.perspective),
+      loggedUserId
+    );
+
+    await this.uprtclRepo.createPerspectives(newPerspectives, loggedUserId);
 
     await this.uprtclRepo.updatePerspectives(
-      perspectivesData.map((newPerspective) => newPerspective.update)
+      newPerspectives.map((newPerspective) => newPerspective.update)
     );
 
     return [];
@@ -154,18 +160,17 @@ export class UprtclService {
     );
   }
 
-  async findIndPerspectives(
-    perspectiveId: string,
-    includeEcosystem: boolean,
-    loggedUserId: string | null
+  async getForks(
+    perspectiveIds: string[],
+    forkOptions: SearchForkOptions,
+    loggedUserId: string | null,
+    ecoLevels?: number
   ): Promise<string[]> {
-    if (loggedUserId === null)
-      throw new Error('Anonymous user. Cant get independent perspectives');
-
-    return await this.uprtclRepo.getOtherIndpPerspectives(
-      perspectiveId,
-      includeEcosystem,
-      loggedUserId
+    return await this.uprtclRepo.getForks(
+      perspectiveIds,
+      forkOptions,
+      loggedUserId,
+      ecoLevels
     );
   }
 
