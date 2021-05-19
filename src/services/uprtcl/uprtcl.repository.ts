@@ -1039,9 +1039,12 @@ export class UprtclRepository {
     const { levels, entities, details } = getPerspectiveOptions;
 
     if (searchOptions && searchOptions.forks) {
-      if (!searchOptions.under || searchOptions.linksTo) {
+      if (
+        (!searchOptions.under && !searchOptions.above) ||
+        searchOptions.linksTo
+      ) {
         throw new Error(
-          'forks currently support a single mandatory "under" property'
+          'forks currently support a single mandatory "under" or "above" property'
         );
       }
     }
