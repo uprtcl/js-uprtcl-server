@@ -728,14 +728,14 @@ export class UprtclRepository {
        */
       if (independent) {
         // Verify indepent perspectives criteria with parents
-        query = query.concat(`\nchildren(func: uid(eco)) @filter(not(uid(persp))) {
-          context {
-            childrenContext as uid
-          }
-          ~children {
-            context {
-              parentContext as uid
+        query = query.concat(`\nrecurseChildren(func: uid(eco)) @filter(not(uid(persp))) {
+          children {
+						context {
+              childrenContext as uid
             }
+          }
+          context {
+            parentContext as uid
           }
         }
         normalRef(func: uid(childrenContext)) {
@@ -1781,6 +1781,8 @@ export class UprtclRepository {
         optionalWrapper = optionalWrapper.replace('ecosystem', '~ecosystem');
       }
     }
+
+    console.log(optionalWrapper);
 
     return {
       startQuery,
