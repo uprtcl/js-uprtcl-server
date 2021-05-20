@@ -728,6 +728,14 @@ export class UprtclRepository {
        */
       if (independent) {
         // Verify indepent perspectives criteria with parents
+
+        /**
+         * In the query below called @recurseChildren, we retrieve the context of:
+         * a) The *children of the previous recurse query result a.k.a eco*, whether the query
+         * is aimed at walking the tree downwards ("under" asking for children) or upwards ("above"
+         * asking for parents) also known as children context.
+         * b) The *previous recurse query result* also know as the parent context.
+         */
         query = query.concat(`\nrecurseChildren(func: uid(eco)) @filter(not(uid(persp))) {
           children {
 						context {
