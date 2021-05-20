@@ -74,17 +74,19 @@ export class DataController {
         ],
       },
 
+      /** GET with put to receive the list of hashes as an object */
       {
-        path: '/uprtcl/1/data/:dataId',
-        method: 'get',
+        path: '/uprtcl/1/data',
+        method: 'put',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const data = await this.dataService.getData(req.params.dataId);
+            const hashes = req.body.hashes as string[];
+            const datas = await this.dataService.getDatas(hashes);
             let result: GetResult<any> = {
               result: SUCCESS,
               message: '',
-              data: data,
+              data: datas,
             };
             res.status(200).send(result);
           },

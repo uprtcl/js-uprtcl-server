@@ -56,12 +56,12 @@ export class IpldService {
   }
 
   async validateSecured(secured: Secured<any>) {
-    if (secured.id !== undefined && secured.id !== '') {
-      let valid = await this.validateCid(secured.id, secured.object);
+    if (secured.hash !== undefined && secured.hash !== '') {
+      let valid = await this.validateCid(secured.hash, secured.object);
       if (!valid) {
-        throw new Error(`Invalid cid ${secured.id}`);
+        throw new Error(`Invalid cid ${secured.hash}`);
       }
-      return secured.id;
+      return secured.hash;
     } else {
       const id = await ipldService.generateCidOrdered(
         secured.object,

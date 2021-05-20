@@ -64,7 +64,6 @@ export class ProposalsService {
 
             return {
               fromPerspectiveId: fromPerspectiveId,
-              oldDetails: { headId: oldHead?.xid },
               perspectiveId: perspectiveId,
               details: { headId: newHeadId },
             };
@@ -86,7 +85,7 @@ export class ProposalsService {
               return {
                 perspective,
                 update: {
-                  perspectiveId: perspective.id,
+                  perspectiveId: perspective.hash,
                   details: { headId: newPerspective.NEWP_headId },
                 },
               };

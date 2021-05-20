@@ -14,6 +14,8 @@ import {
   SearchOptionsJoin,
   SearchOptionsEcoJoin,
   SearchResult,
+  SearchForkOptions,
+  ForkOf,
 } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
@@ -100,6 +102,7 @@ export interface FetchResult {
   ended?: boolean;
   details: PerspectiveDetails;
   slice: Slice;
+  forksDetails?: ForkOf[];
 }
 
 export class UprtclRepository {
@@ -118,7 +121,7 @@ export class UprtclRepository {
   ) {
     // Perspective object destructuring
     const {
-      id,
+      hash: id,
       object: {
         payload: { creatorId, timestamp, context, remote, path },
         proof,
@@ -251,7 +254,7 @@ export class UprtclRepository {
     };
 
     let upsertedProfiles: string[] = [];
-    let perspectiveIds = newPerspectives.map((p) => p.perspective.id);
+    let perspectiveIds = newPerspectives.map((p) => p.perspective.hash);
 
     const externalParentPerspectives = newPerspectives.filter((p) => {
       if (p.update.details.guardianId !== null) {
@@ -304,7 +307,7 @@ export class UprtclRepository {
     for (let i = 0; i < externalParentPerspectives.length; i++) {
       const externalPerspective = externalParentPerspectives[i];
       const aclUpsertString = this.recurseACLupdateUpsert(
-        externalPerspective.perspective.id,
+        externalPerspective.perspective.hash,
         ACLupsert
       );
 
@@ -651,9 +654,9 @@ export class UprtclRepository {
       }
 
       enitites.push({
-        id,
+        hash: id,
         object: securedCommit.object,
-        casID: '',
+        remote: '',
       });
     }
 
@@ -675,106 +678,207 @@ export class UprtclRepository {
     return enitites;
   }
 
-  getOtherIndpPerspectivesUpsert(
+  getForksUpsert(
     perspectiveId: string[],
-    ecosystem: boolean,
-    loggedUserId?: string
+    loggedUserId: string | null,
+    independent?: boolean,
+    independentOf?: string,
+    ecoLevels?: number
   ) {
-    // TODO: Check permissions to properly return a response.
     let query = ``;
+    independent = independent === undefined ? true : independent;
+    ecoLevels = ecoLevels === undefined ? -1 : ecoLevels;
 
-    if (ecosystem) {
-      // If independent perspectives from an ecosystem are needed
-      query = `
-        persp(func: eq(xid, ${perspectiveId})) {
-          eco as ecosystem
-        }
-      `;
+    if (ecoLevels !== 0) {
+      query = `persp as var(func: eq(xid, ${perspectiveId})) 
+          ${ecoLevels > 0 ? `@recurse (depth: ${ecoLevels})` : ``}          
+          {
+            eco as ${ecoLevels >= 1 ? `children` : `ecosystem`}
+          }
 
-      // Look for independent perspectives for every element of an ecosystem, in this case
-      // the perspective ecosystem
-      query = query.concat(`\nperspectiveRef as var(func: uid(eco)) {
-        context {
-          targetCon as uid
-        }
-        ~children {
+          ${
+            independentOf
+              ? ` official(func: eq(xid, ${perspectiveId})) {
+                context {
+                  officialContext as uid
+                }
+              }`
+              : ``
+          }
+
+          ${
+            independent || independentOf
+              ? ``
+              : ` forks(func: uid(eco ${ecoLevels >= 0 ? `, persp` : ``})) {
+              context {
+                forksContext as uid
+              }
+            }          
+            
+            context(func: uid(forksContext)) @cascade {
+              forks as ~context @filter(not(uid(eco, persp)))
+            }`
+          }
+         `;
+
+      /**
+       *  We check for independent criteria inside the ecoLevels != 0
+       * case because this criteria exclusively applies to the children of
+       * its children.
+       */
+      if (independent) {
+        // Verify indepent perspectives criteria with parents
+        query = query.concat(`\nchildren(func: uid(eco)) @filter(not(uid(persp))) {
           context {
-            parentContext as uid
+            childrenContext as uid
+          }
+          ~children {
+            context {
+              parentContext as uid
+            }
           }
         }
-      }`);
-    } else {
-      // Otherwise, only look for independent perspective for the indicated persp.
-      query = `perspectiveRef as var(func: eq(xid, ${perspectiveId})) { 
+        normalRef(func: uid(childrenContext)) {
+          normalPersps as ~context @filter(
+            not(uid(persp))
+            ) @cascade {
+              ~children {
+                context @filter(not(uid(parentContext)))
+              }
+            }
+        }`);
+
+        // Verify indepent perspectives criteria without parents
+        query = query.concat(`\norphanRef(func: uid(childrenContext)) {
+          orphanPersps as ~context @filter(
+            not(uid(persp))
+            AND
+            eq(count(~children), 0)
+            )
+        }`);
+      }
+    } else if (ecoLevels === 0) {
+      query = `persp ${
+        independentOf ? `as var` : ``
+      }(func: eq(xid, ${perspectiveId})) {
         context {
-          targetCon as uid
+          officialContext as uid
         }
-        parents: ~children {
-          context {
-            parentContext as uid
-          }
-        }
+      }
+      
+      ${
+        independentOf
+          ? ``
+          : `context(func: uid(officialContext)) @cascade {
+          forks as ~context @filter(not(eq(xid, ${perspectiveId})))
+        }`
       }`;
     }
 
-    // Verify indepent perspectives criteria with parents
-    query = query.concat(`\nnormalRef(func: uid(targetCon)) {
-       normalPersps as ~context @filter(
-         not(uid(perspectiveRef))
+    // IndependentOf case will be implemented whether ecoLevels === 0 or not.
+    if (independentOf) {
+      query = query.concat(`\nparent(func: eq(xid, ${independentOf})) {
+        context {
+          independentOfContext as uid
+        }
+      }
+      
+      normalIndependentOf(func: uid(officialContext)) {
+        normalIndependentOf as ~context @filter(
+          not(uid(persp
+            ${independent || ecoLevels === 0 ? `` : `,forks`}))
         ) @cascade {
           ~children {
-            context @filter(not(uid(parentContext)))
+            context @filter(not(uid(independentOfContext)))
           }
         }
-    }`);
+      }
 
-    // Verify indepent perspectives criteria without parents
-    query = query.concat(`\norphanRef(func: uid(targetCon)) {
-      orphanPersps as ~context @filter(
-        not(uid(perspectiveRef))
-        AND
-        eq(count(~children), 0)
-       )
-   }`);
+      orphanIndependentOf(func: uid(officialContext)) {
+        orphanIndependentOf as ~context @filter(
+          not(uid(persp
+            ${independent || ecoLevels === 0 ? `` : `,forks`}))
+          AND
+          eq(count(~children), 0)
+        )
+      }`);
+    }
 
-    // Add access control layer before delivering perspectives
+    // Collect results first
 
-    // Collect result first
+    /**
+     * If ecoLevels === 0, we only check if
+     * independentOf is required, else we return
+     * forks without filtering.
+     *
+     * If ecoLevels != 0, we check for Both
+     * independentOf and independent, we are checking
+     * for the top element and its children of its children.
+     */
     query = query.concat(
-      `\nindPersp as var(func: uid(normalPersps, orphanPersps))`
+      `\nindPersp as var(func: uid(
+        ${
+          ecoLevels === 0
+            ? independentOf
+              ? `normalIndependentOf, orphanIndependentOf`
+              : `forks`
+            : independent && independentOf
+            ? `normalPersps, orphanPersps, normalIndependentOf, orphanIndependentOf`
+            : !independent && independentOf
+            ? `forks, normalIndependentOf, orphanIndependentOf`
+            : independent && !independentOf
+            ? `normalPersps, orphanPersps`
+            : `forks`
+        }
+      ))`
     );
 
+    // Add access control layer before delivering perspectives
     if (loggedUserId) {
       query = query.concat(
         `\npublicAccess as var(func: uid(indPersp)) @filter(eq(publicRead, true))`
       );
       query = query.concat(`\npublicRead(func: uid(publicAccess)) {
-        xid
-      }`);
+         xid
+       }`);
       // If loggedUserId is provided, return accessible perspectives
       // to this user as well.
       query = query.concat(`\nuserRead(func: uid(indPersp)) @filter(not(uid(publicAccess))) @cascade {
-        xid
-        canRead @filter(eq(did, "${loggedUserId}"))
-      }`);
+         xid
+         canRead @filter(eq(did, "${loggedUserId}"))
+       }`);
     } else {
       // Return only those perspectives publicly accessible.
       query = query.concat(`\npublicRead(func: uid(indPersp)) @filter(eq(publicRead, true)) {
-        xid
-      }`);
+         xid
+       }`);
     }
+
+    query = query.concat(`\nforksOf(func: ${
+      ecoLevels !== 0 ? `uid(eco, persp)` : `eq(xid, ${perspectiveId})`
+    }) {
+      ofPerspective: xid
+      context {
+        forks: ~context @filter(uid(indPersp)) {
+          forkId: xid
+        }
+      }
+    }`);
     return query;
   }
 
-  async getOtherIndpPerspectives(
-    perspectiveId: string,
-    ecosystem: boolean,
-    loggedUserId: string
+  async getForks(
+    perspectiveIds: string[],
+    forkOptions: SearchForkOptions,
+    loggedUserId: string | null,
+    ecoLevels?: number
   ): Promise<Array<string>> {
-    const query = this.getOtherIndpPerspectivesUpsert(
-      [perspectiveId],
-      ecosystem,
-      loggedUserId
+    const query = this.getForksUpsert(
+      perspectiveIds,
+      loggedUserId,
+      forkOptions.independent,
+      forkOptions.independentOf,
+      ecoLevels
     );
 
     await this.db.ready();
@@ -1024,6 +1128,7 @@ export class UprtclRepository {
       perspectiveIds: exploreResult.perspectiveIds,
       ended: exploreResult.ended ? exploreResult.ended : false,
       slice: exploreResult.slice,
+      forksDetails: exploreResult.forksDetails,
     };
   }
 
@@ -1039,9 +1144,12 @@ export class UprtclRepository {
     const { levels, entities, details } = getPerspectiveOptions;
 
     if (searchOptions && searchOptions.forks) {
-      if (!searchOptions.under || searchOptions.linksTo) {
+      if (
+        (!searchOptions.under && !searchOptions.above) ||
+        searchOptions.linksTo
+      ) {
         throw new Error(
-          'forks currently support a single mandatory "under" property'
+          'forks currently support a single mandatory "under" or "above" property'
         );
       }
     }
@@ -1049,42 +1157,6 @@ export class UprtclRepository {
     if (!details && entities) {
       throw new Error('Entities can not be provided without details...');
     }
-
-    /** -------------------------------------------------------------------------
-     * TEMPORARY PATCH TO GET INDEPENDENT PERSPECTIVES WHEN FORKS IS PROVIDED
-     * -------------------------------------------------------------------------- */
-    // if (searchOptions && searchOptions.forks) {
-    //   if (!searchOptions.under) {
-    //     throw new Error(
-    //       'forks currently support a single mandatory "under" property'
-    //     );
-    //   }
-
-    //   if (loggedUserId == null) {
-    //     throw new Error('forks currently supports for logged user');
-    //   }
-
-    //   const ecosystem =
-    //     searchOptions.under.levels === undefined
-    //       ? true
-    //       : searchOptions.under.levels === -1;
-
-    //   // TODO: Combine the search for independent forks with this search query ! :)
-    //   const perspectiveIds = await this.getOtherIndpPerspectives(
-    //     searchOptions.under.elements[0].id,
-    //     ecosystem,
-    //     loggedUserId
-    //   );
-
-    //   return {
-    //     perspectiveIds,
-    //     details: {},
-    //     slice: {
-    //       entities: [],
-    //       perspectives: [],
-    //     },
-    //   };
-    // }
 
     /**
      * We build the function depending on how the method is implemented.
@@ -1177,7 +1249,7 @@ export class UprtclRepository {
             above,
             linksTo,
             SearchType.above,
-            searchOptions.forks ? true : false,
+            searchOptions.forks,
             text,
             {
               startQuery,
@@ -1204,7 +1276,7 @@ export class UprtclRepository {
             under,
             linksTo,
             SearchType.under,
-            searchOptions.forks ? true : false,
+            searchOptions.forks,
             text,
             {
               startQuery,
@@ -1431,6 +1503,7 @@ export class UprtclRepository {
         perspectives: [],
         entities: [],
       },
+      forksDetails: [],
     };
 
     if (first && perspectives.length < first) {
@@ -1482,15 +1555,15 @@ export class UprtclRepository {
 
           if (entities) {
             const commit = {
-              id: element.head.xid,
+              hash: element.head.xid,
               object: decodeData(element.head.jsonString),
-              casID: '',
+              remote: '',
             };
 
             const data: Entity<any> = {
-              id: element.head.data.xid,
+              hash: element.head.data.xid,
               object: decodeData(element.head.data.jsonString),
-              casID: '',
+              remote: '',
             };
 
             result.slice.entities.push(commit, data);
@@ -1498,9 +1571,9 @@ export class UprtclRepository {
             if (element.xid !== perspectiveId) {
               // add the perspective entity only if a subperspective
               const perspective = {
-                id: element.xid,
+                hash: element.xid,
                 object: decodeData(element.jsonString),
-                casID: '',
+                remote: '',
               };
               result.slice.entities.push(perspective);
             }
@@ -1514,6 +1587,15 @@ export class UprtclRepository {
     result.slice.perspectives = Array.from(new Set(result.slice.perspectives));
     result.slice.entities = Array.from(new Set(result.slice.entities));
 
+    if (json.forksOf) {
+      json.forksOf.map((persp: any) => {
+        if (persp.context)
+          result.forksDetails!.push({
+            forkIds: persp.context.forks.map((fork: any) => fork.forkId),
+            ofPerspectiveId: persp.ofPerspective,
+          });
+      });
+    }
     return result;
   }
 
@@ -1537,26 +1619,36 @@ export class UprtclRepository {
     searchEcoOption: SearchOptionsEcoJoin,
     linksTo: SearchOptionsJoin,
     searchType: SearchType.above | SearchType.under,
-    forks: boolean,
+    forks: SearchForkOptions | undefined,
     searchText: Text,
     searchUpsert: SearchUpsert,
     loggedUserId: string | null
   ): SearchUpsert {
     const ids = searchEcoOption.elements.map((el) => el.id);
+    const ecoLevels =
+      searchEcoOption.levels !== undefined ? searchEcoOption.levels : -1;
     let { startQuery, internalWrapper, optionalWrapper } = searchUpsert;
 
     if (searchEcoOption.type === Join.full) {
-      startQuery = `search(func: eq(xid, ${ids})) @cascade`;
+      startQuery = `search(func: eq(xid, ${ids})) @cascade ${
+        ecoLevels > 0 ? `@recurse (depth: ${ecoLevels})` : ``
+      }`;
     } else if (searchEcoOption.type === Join.inner) {
       for (let i = 0; i < ids.length; i++) {
         startQuery = startQuery.concat(
-          `\nvar(func: eq(xid, ${ids[i]})) {
-            eco${i} as ecosystem ${i > 0 ? `@filter(uid(eco${i - 1}))` : ''}
+          `\nvar(func: eq(xid, ${ids[i]}))  ${
+            ecoLevels > 0 ? `@recurse (depth: ${ecoLevels})` : ``
+          } {
+            eco${i} as ${ecoLevels > 0 ? `children` : `ecosystem`} ${
+            i > 0 ? `@filter(uid(eco${i - 1}))` : ''
+          }
           }`
         );
       }
       startQuery = startQuery.concat(
-        `\nsearch(func: uid(eco${ids.length - 1})) @filter(type(Perspective))`
+        `\nsearch(func: uid(eco${ids.length - 1})) @filter(type(Perspective)) ${
+          ecoLevels > 0 ? `@recurse (depth: ${ecoLevels})` : ``
+        }`
       );
     } else {
       throw new Error(
@@ -1568,11 +1660,15 @@ export class UprtclRepository {
       // under and linksTo
       const linksToIds = linksTo.elements.map((el) => el.id);
       if (linksTo.type === Join.full) {
-        internalWrapper = `linkingTo as ecosystem {
+        internalWrapper = `linkingTo as ${
+          ecoLevels > 0 ? `children` : `ecosystem`
+        } {
           linksTo @filter(eq(xid, ${linksToIds}))
         }`;
       } else if (linksTo.type === Join.inner) {
-        internalWrapper = `link0 as ecosystem`;
+        internalWrapper = `link0 as ${
+          ecoLevels > 0 ? `children` : `ecosystem`
+        }`;
 
         for (let i = 0; i < linksToIds.length; i++) {
           optionalWrapper = optionalWrapper.concat(
@@ -1613,34 +1709,28 @@ export class UprtclRepository {
     } else if (searchText.value !== '') {
       if (searchText.levels === -1) {
         internalWrapper = `
-          ecosystem @filter(anyoftext(text, "${searchText.value}")) {
+        ${ecoLevels > 0 ? `children` : `ecosystem`} @filter(anyoftext(text, "${
+          searchText.value
+        }")) {
             filtered as ecosystem
           }
         `;
       } else {
         internalWrapper = `
-          filtered as ecosystem @filter(anyoftext(text, "${searchText.value}"))
+          filtered as ${
+            ecoLevels > 0 ? `children` : `ecosystem`
+          } @filter(anyoftext(text, "${searchText.value}"))
         `;
       }
     } else if (forks) {
       // if only under or above and fork
-      let independentUpsert = this.getOtherIndpPerspectivesUpsert(
+      let independentUpsert = this.getForksUpsert(
         ids,
-        true,
-        loggedUserId !== null ? loggedUserId : undefined
+        loggedUserId,
+        forks.independent,
+        forks.independentOf,
+        ecoLevels
       );
-
-      if (searchEcoOption.levels === 0) {
-        independentUpsert = independentUpsert.replace('persp', 'persp as var');
-        independentUpsert = independentUpsert.replace(
-          'eco as ecosystem',
-          'eco as children'
-        );
-        independentUpsert = independentUpsert.replace(
-          'uid(eco)',
-          'uid(persp, eco)'
-        );
-      }
 
       if (loggedUserId !== null) {
         independentUpsert = independentUpsert.replace(
@@ -1652,27 +1742,44 @@ export class UprtclRepository {
           'userRead as var ('
         );
         optionalWrapper = optionalWrapper.concat(independentUpsert);
-        optionalWrapper = optionalWrapper.concat(
-          `\nfiltered as var(func: uid(publicRead, userRead))`
-        );
       } else {
         independentUpsert = independentUpsert.replace(
           'publicRead(',
           'publicRead as var ('
         );
         optionalWrapper = optionalWrapper.concat(independentUpsert);
+      }
+
+      optionalWrapper = optionalWrapper.concat(
+        `\n${
+          forks.exclusive ? `filtered` : `ecoForks`
+        } as var(func: uid(publicRead ${
+          loggedUserId !== null ? `,userRead` : ``
+        }))`
+      );
+
+      if (!forks.exclusive) {
+        internalWrapper = 'ecoElements as ecosystem';
         optionalWrapper = optionalWrapper.concat(
-          `\nfiltered as var(func: uid(publicRead))`
+          `\n filtered as var(func: uid(ecoElements, ecoForks))`
         );
       }
     } else {
-      internalWrapper = 'filtered as ecosystem';
+      internalWrapper = `filtered as ${
+        ecoLevels > 0 ? `children` : `ecosystem`
+      }`;
     }
 
     if (searchType === SearchType.above) {
-      startQuery = startQuery.replace('ecosystem', '~ecosystem');
-      internalWrapper = internalWrapper.replace('ecosystem', '~ecosystem');
-      optionalWrapper = optionalWrapper.replace('ecosystem', '~ecosystem');
+      if (ecoLevels > 0) {
+        startQuery = startQuery.replace('children', '~children');
+        internalWrapper = internalWrapper.replace('children', '~children');
+        optionalWrapper = optionalWrapper.replace('children', '~children');
+      } else {
+        startQuery = startQuery.replace('ecosystem', '~ecosystem');
+        internalWrapper = internalWrapper.replace('ecosystem', '~ecosystem');
+        optionalWrapper = optionalWrapper.replace('ecosystem', '~ecosystem');
+      }
     }
 
     return {

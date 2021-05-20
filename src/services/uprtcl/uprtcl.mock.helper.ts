@@ -96,7 +96,7 @@ export const createHomeSpace = async (user: TestUser) => {
         },
         payload: {
           creatorsIds: [],
-          dataId: data.id,
+          dataId: data.hash,
           message: '',
           timestamp: Date.now(),
           parentsIds: [],
@@ -117,7 +117,7 @@ export const createHomeSpace = async (user: TestUser) => {
       return {
         perspectiveId: '',
         details: {
-          headId: commit.id,
+          headId: commit.hash,
         },
       };
     })
@@ -134,9 +134,9 @@ export const createHomeSpace = async (user: TestUser) => {
       // Sections
       {
         sections: [
-          perspectivesInitialNodes[1].perspective.id,
-          perspectivesInitialNodes[2].perspective.id,
-          perspectivesInitialNodes[3].perspective.id,
+          perspectivesInitialNodes[1].perspective.hash,
+          perspectivesInitialNodes[2].perspective.hash,
+          perspectivesInitialNodes[3].perspective.hash,
         ],
       },
       // Top element of the tree (Home space)
@@ -159,7 +159,7 @@ export const createHomeSpace = async (user: TestUser) => {
         },
         payload: {
           creatorsIds: [],
-          dataId: data.id,
+          dataId: data.hash,
           message: '',
           timestamp: Date.now(),
           parentsIds: [],
@@ -173,15 +173,15 @@ export const createHomeSpace = async (user: TestUser) => {
     {
       perspectiveId: '',
       details: {
-        headId: commitWrapperNodes[0].id,
+        headId: commitWrapperNodes[0].hash,
       },
       indexData: {
         linkChanges: {
           children: {
             added: [
-              perspectivesInitialNodes[1].perspective.id,
-              perspectivesInitialNodes[2].perspective.id,
-              perspectivesInitialNodes[3].perspective.id,
+              perspectivesInitialNodes[1].perspective.hash,
+              perspectivesInitialNodes[2].perspective.hash,
+              perspectivesInitialNodes[3].perspective.hash,
             ],
             removed: [],
           },
@@ -191,7 +191,7 @@ export const createHomeSpace = async (user: TestUser) => {
     {
       perspectiveId: '',
       details: {
-        headId: commitWrapperNodes[1].id,
+        headId: commitWrapperNodes[1].hash,
       },
       context: `${user.userId}.home`,
     },
@@ -207,19 +207,19 @@ export const createHomeSpace = async (user: TestUser) => {
 
   // We set the guardian Id for Untitled page.
   perspectivesInitialNodes[0].update.details.guardianId =
-    perspectivesInitialNodes[2].perspective.id;
+    perspectivesInitialNodes[2].perspective.hash;
   // We set the guardian Id for Blog entity
   perspectivesInitialNodes[1].update.details.guardianId =
-    perspectivesWrapperNodes[0].perspective.id;
+    perspectivesWrapperNodes[0].perspective.hash;
   // We set the guardian Id for Private entity
   perspectivesInitialNodes[2].update.details.guardianId =
-    perspectivesWrapperNodes[0].perspective.id;
+    perspectivesWrapperNodes[0].perspective.hash;
   // We set the guardian Id for Forks entity
   perspectivesInitialNodes[3].update.details.guardianId =
-    perspectivesWrapperNodes[0].perspective.id;
+    perspectivesWrapperNodes[0].perspective.hash;
   // We set the guardian Id for sections enitity
   perspectivesWrapperNodes[0].update.details.guardianId =
-    perspectivesWrapperNodes[1].perspective.id;
+    perspectivesWrapperNodes[1].perspective.hash;
 
   // We are ready to send all perspectives
   const perspectives = perspectivesInitialNodes.concat(
@@ -232,14 +232,14 @@ export const createHomeSpace = async (user: TestUser) => {
   await updatePerspective(user.jwt, undefined, undefined, [
     // Update private perspective with new head and children.
     {
-      perspectiveId: perspectivesWrapperNodes[1].perspective.id,
+      perspectiveId: perspectivesWrapperNodes[1].perspective.hash,
       details: {
-        headId: commitWrapperNodes[1].id,
+        headId: commitWrapperNodes[1].hash,
       },
       indexData: {
         linkChanges: {
           children: {
-            added: [perspectivesWrapperNodes[0].perspective.id],
+            added: [perspectivesWrapperNodes[0].perspective.hash],
             removed: [],
           },
         },
@@ -279,11 +279,11 @@ export const createHomeSpace = async (user: TestUser) => {
         },
         payload: {
           creatorsIds: [],
-          dataId: newBlogData[0].id,
+          dataId: newBlogData[0].hash,
           message: '',
           timestamp: Date.now(),
           // Previous head of private
-          parentsIds: [commitInitialNodes[1].id],
+          parentsIds: [commitInitialNodes[1].hash],
         },
       },
     ],
@@ -294,9 +294,9 @@ export const createHomeSpace = async (user: TestUser) => {
   await updatePerspective(user.jwt, undefined, undefined, [
     // Update private perspective with new head and children.
     {
-      perspectiveId: perspectivesInitialNodes[1].perspective.id,
+      perspectiveId: perspectivesInitialNodes[1].perspective.hash,
       details: {
-        headId: newBlogDataCommit[0].id,
+        headId: newBlogDataCommit[0].hash,
       },
       indexData: {
         linkChanges: {
@@ -315,7 +315,7 @@ export const createHomeSpace = async (user: TestUser) => {
       // Private section
       {
         title: 'Private',
-        pages: [perspectivesInitialNodes[0].perspective.id],
+        pages: [perspectivesInitialNodes[0].perspective.hash],
       },
     ],
     user.jwt
@@ -330,11 +330,11 @@ export const createHomeSpace = async (user: TestUser) => {
         },
         payload: {
           creatorsIds: [],
-          dataId: newPageDataToPrivate[0].id,
+          dataId: newPageDataToPrivate[0].hash,
           message: '',
           timestamp: Date.now(),
           // Previous head of private
-          parentsIds: [commitInitialNodes[2].id],
+          parentsIds: [commitInitialNodes[2].hash],
         },
       },
     ],
@@ -344,14 +344,14 @@ export const createHomeSpace = async (user: TestUser) => {
   await updatePerspective(user.jwt, undefined, undefined, [
     // Update private perspective with new head and children.
     {
-      perspectiveId: perspectivesInitialNodes[2].perspective.id,
+      perspectiveId: perspectivesInitialNodes[2].perspective.hash,
       details: {
-        headId: newPageDataToPrivateCommit[0].id,
+        headId: newPageDataToPrivateCommit[0].hash,
       },
       indexData: {
         linkChanges: {
           children: {
-            added: [perspectivesInitialNodes[0].perspective.id],
+            added: [perspectivesInitialNodes[0].perspective.hash],
             removed: [],
           },
         },
@@ -359,9 +359,9 @@ export const createHomeSpace = async (user: TestUser) => {
     },
     // Set private as guardianId of the new page.
     {
-      perspectiveId: perspectivesInitialNodes[0].perspective.id,
+      perspectiveId: perspectivesInitialNodes[0].perspective.hash,
       details: {
-        guardianId: perspectivesInitialNodes[2].perspective.id,
+        guardianId: perspectivesInitialNodes[2].perspective.hash,
       },
     },
   ]);
@@ -374,7 +374,7 @@ export const createHomeSpace = async (user: TestUser) => {
       // Top element of the tree (Home space)
       // Now we have the sections id
       {
-        linkedThoughts: [perspectivesWrapperNodes[0].perspective.id],
+        linkedThoughts: [perspectivesWrapperNodes[0].perspective.hash],
       },
     ],
     user.jwt
@@ -390,7 +390,7 @@ export const createHomeSpace = async (user: TestUser) => {
         },
         payload: {
           creatorsIds: [],
-          dataId: newDataForTopElement[0].id,
+          dataId: newDataForTopElement[0].hash,
           message: '',
           timestamp: Date.now(),
           parentsIds: [],
@@ -403,14 +403,14 @@ export const createHomeSpace = async (user: TestUser) => {
   await updatePerspective(user.jwt, undefined, undefined, [
     // Update top element of the tree
     {
-      perspectiveId: perspectivesWrapperNodes[1].perspective.id,
+      perspectiveId: perspectivesWrapperNodes[1].perspective.hash,
       details: {
-        headId: newTopElementCommit[0].id,
+        headId: newTopElementCommit[0].hash,
       },
       indexData: {
         linkChanges: {
           children: {
-            added: [perspectivesWrapperNodes[0].perspective.id],
+            added: [perspectivesWrapperNodes[0].perspective.hash],
             removed: [],
           },
         },
@@ -451,7 +451,7 @@ export const newTitle = async (
         },
         payload: {
           creatorsIds: [],
-          dataId: titleData[0].id,
+          dataId: titleData[0].hash,
           message: '',
           timestamp: Date.now(),
           parentsIds: [],
@@ -465,7 +465,7 @@ export const newTitle = async (
     {
       perspectiveId: '',
       details: {
-        headId: titleCommit[0].id,
+        headId: titleCommit[0].hash,
         guardianId,
       },
       indexData: {
@@ -504,7 +504,7 @@ export const newText = async (
         },
         payload: {
           creatorsIds: [],
-          dataId: data.id,
+          dataId: data.hash,
           message: '',
           timestamp: Date.now(),
           parentsIds: [],
@@ -520,7 +520,7 @@ export const newText = async (
       return {
         perspectiveId: '',
         details: {
-          headId: commit.id,
+          headId: commit.hash,
           guardianId,
         },
         indexData: {
@@ -566,7 +566,7 @@ export const addNewElementsToPerspective = async (
         },
         payload: {
           creatorsIds: [],
-          dataId: newData[0].id,
+          dataId: newData[0].hash,
           message: '',
           timestamp: Date.now(),
           // Previous head of perspective
@@ -581,7 +581,7 @@ export const addNewElementsToPerspective = async (
     {
       perspectiveId: toPerspectiveId,
       details: {
-        headId: dataCommit[0].id,
+        headId: dataCommit[0].hash,
       },
       indexData: {
         linkChanges: {
@@ -620,7 +620,7 @@ export const postElementToBlog = async (
         },
         payload: {
           creatorsIds: [],
-          dataId: newForkData[0].id,
+          dataId: newForkData[0].hash,
           message: '',
           timestamp: Date.now(),
           parentsIds: [],
@@ -635,7 +635,7 @@ export const postElementToBlog = async (
     {
       perspectiveId: forkedPerspective,
       details: {
-        headId: newForkCommit[0].id,
+        headId: newForkCommit[0].hash,
         guardianId: blogPerspectiveId,
       },
       indexData: {
@@ -670,7 +670,7 @@ export const postElementToBlog = async (
         },
         payload: {
           creatorsIds: [],
-          dataId: newBlogData[0].id,
+          dataId: newBlogData[0].hash,
           message: '',
           timestamp: Date.now(),
           // Previous head of perspective
@@ -685,7 +685,7 @@ export const postElementToBlog = async (
     {
       perspectiveId: blogPerspectiveId,
       details: {
-        headId: updateCommit[0].id,
+        headId: updateCommit[0].hash,
       },
       indexData: {
         linkChanges: {
@@ -1134,41 +1134,41 @@ export const createFlatScenario = async (
   for (let i = 0; i < pages.length; i++) {
     const title = await newTitle(
       pages[i].title,
-      homeSpace.private.perspective.id,
+      homeSpace.private.perspective.hash,
       user
     );
 
     createdPages.push({
-      id: title.perspective.id,
+      id: title.perspective.hash,
       links: [],
     });
 
     await addNewElementsToPerspective(
-      homeSpace.private.perspective.id,
-      [title.perspective.id],
+      homeSpace.private.perspective.hash,
+      [title.perspective.hash],
       user
     );
 
     const pageContent = await newText(
       pages[i].text,
-      title.perspective.id,
+      title.perspective.hash,
       user
     );
 
-    const textIds = pageContent.map((page) => page.perspective.id);
+    const textIds = pageContent.map((page) => page.perspective.hash);
 
     textIds.map((text) => {
       createdPages[i].links.push(text);
     });
 
-    await addNewElementsToPerspective(title.perspective.id, textIds, user);
+    await addNewElementsToPerspective(title.perspective.hash, textIds, user);
   }
 
   return {
-    linkedThoughts: homeSpace.linkedThoughts.perspective.id,
-    blogId: homeSpace.blog.perspective.id,
-    privateId: homeSpace.private.perspective.id,
-    forksId: homeSpace.forks.perspective.id,
+    linkedThoughts: homeSpace.linkedThoughts.perspective.hash,
+    blogId: homeSpace.blog.perspective.hash,
+    privateId: homeSpace.private.perspective.hash,
+    forksId: homeSpace.forks.perspective.hash,
     pages: createdPages,
   };
 };

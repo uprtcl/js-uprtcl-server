@@ -125,9 +125,6 @@ export class ProposalsRepository {
     query = query.concat(
       `\nnewHead as var(func: eq(xid, ${update.details.headId}))`
     );
-    query = query.concat(
-      `\noldHead as var(func: eq(xid, ${update.oldDetails?.headId}))`
-    );
 
     let nquads = `_:HeadUpdate <perspective>  uid(perspective) .`;
 
@@ -162,7 +159,7 @@ export class ProposalsRepository {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    let nquads = `_:NewPerspective <NEWP_perspectiveId>  "${newPerspective.perspective.id}" .`;
+    let nquads = `_:NewPerspective <NEWP_perspectiveId>  "${newPerspective.perspective.hash}" .`;
     if (newPerspective.update.details.guardianId)
       nquads = nquads.concat(
         `\n_:NewPerspective <NEWP_parentId> "${newPerspective.update.details.guardianId}" .`

@@ -10,7 +10,8 @@ import {
   SearchOptions,
   SearchResult,
   condensateUpdates,
-  CASStore,
+  EntityResolver,
+  SearchForkOptions,
 } from '@uprtcl/evees';
 
 import { PermissionType } from './types';
@@ -19,10 +20,10 @@ import { AccessService } from '../access/access.service';
 import { UprtclRepository } from './uprtcl.repository';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
 import { DataService } from '../data/data.service';
-import { LocalStore } from './utils';
+import { LocalEntityResolver } from './local.entity.resolver';
 
 export class UprtclService {
-  store: CASStore;
+  entityResolver: EntityResolver;
 
   constructor(
     protected db: DGraphService,
@@ -30,7 +31,7 @@ export class UprtclService {
     protected access: AccessService,
     protected dataService: DataService
   ) {
-    this.store = new LocalStore(this.dataService);
+    this.entityResolver = new LocalEntityResolver(this.dataService);
   }
 
   async createAclRecursively(
@@ -40,14 +41,14 @@ export class UprtclService {
   ) {
     /** top first traverse the tree of new perspectives*/
     await this.access.createAccessConfig(
-      of.perspective.id,
+      of.perspective.hash,
       of.update.details.guardianId,
       loggedUserId
     );
 
     /** recursively call on all children */
     const children = all.filter(
-      (p) => p.update.details.guardianId === of.perspective.id
+      (p) => p.update.details.guardianId === of.perspective.hash
     );
     for (const child of children) {
       await this.createAclRecursively(child, all, loggedUserId);
@@ -55,7 +56,7 @@ export class UprtclService {
   }
 
   async createAndInitPerspectives(
-    perspectivesData: NewPerspective[],
+    newPerspectives: NewPerspective[],
     loggedUserId: string | null
   ): Promise<string[]> {
     // TEMP
@@ -63,10 +64,15 @@ export class UprtclService {
     if (loggedUserId === null)
       throw new Error('Anonymous user. Cant create a perspective');
 
-    await this.uprtclRepo.createPerspectives(perspectivesData, loggedUserId);
+    await this.dataService.createDatas(
+      newPerspectives.map((newPerspective) => newPerspective.perspective),
+      loggedUserId
+    );
+
+    await this.uprtclRepo.createPerspectives(newPerspectives, loggedUserId);
 
     await this.uprtclRepo.updatePerspectives(
-      perspectivesData.map((newPerspective) => newPerspective.update)
+      newPerspectives.map((newPerspective) => newPerspective.update)
     );
 
     return [];
@@ -84,7 +90,7 @@ export class UprtclService {
       throw new Error('Anonymous user. Cant update a perspective');
 
     /** combine updates to the same perspective */
-    const updatesSingle = await condensateUpdates(updates, this.store);
+    const updatesSingle = await condensateUpdates(updates, this.entityResolver);
 
     const canUpdate = await this.access.canAll(
       updatesSingle.map((u) => u.perspectiveId),
@@ -154,18 +160,17 @@ export class UprtclService {
     );
   }
 
-  async findIndPerspectives(
-    perspectiveId: string,
-    includeEcosystem: boolean,
-    loggedUserId: string | null
+  async getForks(
+    perspectiveIds: string[],
+    forkOptions: SearchForkOptions,
+    loggedUserId: string | null,
+    ecoLevels?: number
   ): Promise<string[]> {
-    if (loggedUserId === null)
-      throw new Error('Anonymous user. Cant get independent perspectives');
-
-    return await this.uprtclRepo.getOtherIndpPerspectives(
-      perspectiveId,
-      includeEcosystem,
-      loggedUserId
+    return await this.uprtclRepo.getForks(
+      perspectiveIds,
+      forkOptions,
+      loggedUserId,
+      ecoLevels
     );
   }
 

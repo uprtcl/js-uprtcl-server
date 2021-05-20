@@ -12,9 +12,9 @@ export const createData = async (
   const hashedPromises = data.map(async (obj) => {
     const dataId = await ipldService.generateCidOrdered(obj, localCidConfig);
     const hashedData: Entity<Object> = {
-      id: dataId,
+      hash: dataId,
       object: obj,
-      casID: ''
+      remote: '',
     };
     return hashedData;
   });

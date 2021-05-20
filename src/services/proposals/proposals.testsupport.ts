@@ -63,7 +63,6 @@ export const createUpdateRequest = async (
 ): Promise<Update> => {
   const update: Update = {
     fromPerspectiveId: fromPerspectiveId,
-    oldDetails: { headId: oldHeadId !== '' ? oldHeadId : undefined },
     perspectiveId: perspectiveId,
     details: { headId: newHeadId },
   };

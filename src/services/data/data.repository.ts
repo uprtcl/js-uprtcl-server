@@ -42,9 +42,9 @@ export class DataRepository {
       nquads = nquads.concat(`\nuid(data${id}) <jsonString> "${dataCoded}" .`);
 
       entities.push({
-        id,
+        hash: id,
         object: data,
-        casID: '',
+        remote: '',
       });
     }
 
@@ -65,43 +65,39 @@ export class DataRepository {
     return entities;
   }
 
-  async getData(dataId: string): Promise<Entity<Object>> {
+  async getDatas(hashes: string[]): Promise<Entity[]> {
     await this.db.ready();
 
-    const query = `query {
-      data(func: eq(xid, ${dataId})) {
+    let query = '';
+    hashes.forEach((hash) => {
+      query = query.concat(`\ndata${hash}(func: eq(xid, ${hash})) {
         xid
         stored
         jsonString
-      }
-    }`;
+      }`);
+    });
 
-    let result = await this.db.client.newTxn().query(query);
+    let result = await this.db.client.newTxn().query(`query{${query}}`);
     const json = result.getJson();
     console.log('[DGRAPH] getData', { query, json });
 
-    if (json.data.length === 0) {
-      throw new Error(`element with xid ${dataId} not found`);
-    }
+    const datas = hashes.map((hash) => {
+      const data = json[`data${hash}`][0];
 
-    if (json.data.length > 1) {
-      throw new Error(
-        `unexpected number of entries ${json.data.length} for xid ${dataId}`
-      );
-    }
+      if (data.stored) {
+        const object = decodeData(data.jsonString);
+        return {
+          hash,
+          object,
+          remote: '',
+        };
+      }
+      return undefined;
+    });
 
-    if (!json.data[0].stored) {
-      throw new Error(`element with xid ${dataId} content not stored`);
-    }
+    const datasValid = datas.filter((d) => !!d);
+    console.log('[DGRAPH] getData', { query, json, datasValid });
 
-    const data = decodeData(json.data[0].jsonString);
-
-    console.log('[DGRAPH] getData', { query, json, data });
-
-    return {
-      id: dataId,
-      object: data,
-      casID: '',
-    };
+    return datasValid as Entity[];
   }
 }
