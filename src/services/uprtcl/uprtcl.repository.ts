@@ -1782,8 +1782,6 @@ export class UprtclRepository {
       }
     }
 
-    console.log(optionalWrapper);
-
     return {
       startQuery,
       internalWrapper,
