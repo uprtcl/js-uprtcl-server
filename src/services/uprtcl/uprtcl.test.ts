@@ -167,7 +167,7 @@ describe('routes', async () => {
     // Then we add it to the last treeB child
     await addNewElementsToPerspective(
       treeBChildren[1],
-      [textP221[0].perspective.id],
+      [textP221[0].perspective.hash],
       userScenarioB
     );
 
