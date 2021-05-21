@@ -17,10 +17,10 @@ export class LocalEntityResolver implements EntityResolver {
     return entities[0];
   }
 
-  storeEntity(entity: Entity<any>): Promise<void> {
+  putEntity(entity: Entity<any>): Promise<void> {
     throw new Error('Method not implemented.');
   }
-  storeEntities(entities: Entity<any>[]): Promise<void> {
+  putEntities(entities: Entity<any>[]): Promise<void> {
     throw new Error('Method not implemented.');
   }
   removeEntity(entityId: string): Promise<void> {
