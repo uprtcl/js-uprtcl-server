@@ -59,7 +59,9 @@ export class IpldService {
     if (secured.hash !== undefined && secured.hash !== '') {
       let valid = await this.validateCid(secured.hash, secured.object);
       if (!valid) {
-        throw new Error(`Invalid cid ${secured.hash}`);
+        throw new Error(
+          `Invalid cid ${secured.hash} (see log above for details)`
+        );
       }
       return secured.hash;
     } else {
