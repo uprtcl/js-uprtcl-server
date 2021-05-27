@@ -929,12 +929,8 @@ describe('routes', async () => {
     const result = await explore(
       {
         linksTo: {
-          type: Join.full,
-          elements: [
-            {
-              id: 'textnodelinksto',
-            },
-          ],
+          joinType: Join.full,
+          elements: ['textnodelinksto'],
         },
       },
       userScenarioA
@@ -948,16 +944,12 @@ describe('routes', async () => {
     const levelZeroResult = await explore(
       {
         linksTo: {
-          type: Join.full,
-          elements: [
-            {
-              id: 'textnodelinksto',
-            },
-          ],
+          joinType: Join.full,
+          elements: ['textnodelinksto'],
         },
         text: {
           value: 'Lorem',
-          levels: 0,
+          textLevels: 0,
         },
       },
       userScenarioA
@@ -970,8 +962,8 @@ describe('routes', async () => {
   test('search under', async (done) => {
     const result = await explore(
       {
-        under: {
-          type: Join.inner,
+        start: {
+          joinType: Join.inner,
           elements: [
             {
               id: scenario.privateId,
@@ -989,8 +981,8 @@ describe('routes', async () => {
   test('seacrh by under and text', async (done) => {
     const result = await explore(
       {
-        under: {
-          type: Join.full,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: scenario.privateId,
@@ -999,7 +991,7 @@ describe('routes', async () => {
         },
         text: {
           value: 'long established',
-          levels: 0,
+          textLevels: 0,
         },
       },
       userScenarioA
@@ -1012,8 +1004,8 @@ describe('routes', async () => {
   test('search by under and linksTo', async (done) => {
     const result = await explore(
       {
-        under: {
-          type: Join.full,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: scenario.linkedThoughts,
@@ -1021,12 +1013,8 @@ describe('routes', async () => {
           ],
         },
         linksTo: {
-          type: Join.full,
-          elements: [
-            {
-              id: 'textnodelinksto',
-            },
-          ],
+          joinType: Join.full,
+          elements: ['textnodelinksto'],
         },
       },
       userScenarioA
@@ -1051,8 +1039,8 @@ describe('routes', async () => {
 
     const result = await explore(
       {
-        under: {
-          type: Join.full,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: scenario.linkedThoughts,
@@ -1060,16 +1048,12 @@ describe('routes', async () => {
           ],
         },
         linksTo: {
-          type: Join.full,
-          elements: [
-            {
-              id: 'textnodelinksto',
-            },
-          ],
+          joinType: Join.full,
+          elements: ['textnodelinksto'],
         },
         text: {
           value: 'Why do we use it',
-          levels: -1,
+          textLevels: -1,
         },
       },
       userScenarioA
@@ -1082,8 +1066,8 @@ describe('routes', async () => {
   test('search above', async (done) => {
     const result = await explore(
       {
-        above: {
-          type: Join.inner,
+        start: {
+          joinType: Join.inner,
           elements: [
             {
               id: scenario.pages[2].links[0],
@@ -1111,17 +1095,18 @@ describe('routes', async () => {
   test('seacrh by above and text', async (done) => {
     const result = await explore(
       {
-        above: {
-          type: Join.full,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: scenario.pages[1].links[0],
+              direction: 'above',
             },
           ],
         },
         text: {
           value: 'Why do we use it',
-          levels: 0,
+          textLevels: 0,
         },
       },
       userScenarioA
@@ -1146,8 +1131,8 @@ describe('routes', async () => {
 
     const result = await explore(
       {
-        above: {
-          type: Join.full,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: page1relatives[0],
@@ -1155,12 +1140,8 @@ describe('routes', async () => {
           ],
         },
         linksTo: {
-          type: Join.full,
-          elements: [
-            {
-              id: 'textnodelinksto',
-            },
-          ],
+          joinType: Join.full,
+          elements: ['textnodelinksto'],
         },
       },
       userScenarioA
@@ -1185,25 +1166,22 @@ describe('routes', async () => {
 
     const result = await explore(
       {
-        above: {
-          type: Join.full,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: page1relatives[0],
+              direction: 'above',
             },
           ],
         },
         linksTo: {
-          type: Join.full,
-          elements: [
-            {
-              id: 'textnodelinksto',
-            },
-          ],
+          joinType: Join.full,
+          elements: ['textnodelinksto'],
         },
         text: {
           value: 'Why do we use it',
-          levels: -1,
+          textLevels: -1,
         },
       },
       userScenarioA
@@ -1216,16 +1194,16 @@ describe('routes', async () => {
   test('search forks within the children of a given perspective (under level = 1)', async (done) => {
     const result = await explore(
       {
-        forks: {
-          independent: false,
-          exclusive: true,
-        },
-        under: {
-          type: Join.full,
-          levels: 1,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: treeA.pages[0].id,
+              levels: 1,
+              forks: {
+                independent: false,
+                exclusive: true,
+              },
             },
           ],
         },
@@ -1245,15 +1223,14 @@ describe('routes', async () => {
   test('search independent forks within a perspective ecosystem (under level = -1)', async (done) => {
     const result = await explore(
       {
-        forks: {
-          exclusive: true,
-        },
-        under: {
-          type: Join.full,
-          levels: -1,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: treeA.pages[0].id,
+              forks: {
+                exclusive: true,
+              },
             },
           ],
         },
@@ -1269,16 +1246,15 @@ describe('routes', async () => {
   test('search independent forks within a perspective ecosystem and independent forks of top element (under level = -1)', async (done) => {
     const result = await explore(
       {
-        forks: {
-          independentOf: treeB,
-          exclusive: true,
-        },
-        under: {
-          type: Join.full,
-          levels: -1,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: treeBChildren[1],
+              forks: {
+                independentOf: treeB,
+                exclusive: true,
+              },
             },
           ],
         },
@@ -1296,18 +1272,22 @@ describe('routes', async () => {
   test('search forks within the ecosystem or children of many perspectives (level 1 and level -1 | multiple under elements)', async (done) => {
     const result = await explore(
       {
-        forks: {
-          exclusive: true,
-        },
-        under: {
-          type: Join.full,
-          levels: 1,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: treeA.pages[0].id,
+              levels: 1,
+              forks: {
+                exclusive: true,
+              },
             },
             {
               id: treeB,
+              levels: 1,
+              forks: {
+                exclusive: true,
+              },
             },
           ],
         },
@@ -1321,18 +1301,20 @@ describe('routes', async () => {
 
     const resultEcosystem = await explore(
       {
-        forks: {
-          exclusive: true,
-        },
-        under: {
-          type: Join.full,
-          levels: -1,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: treeA.pages[0].id,
+              forks: {
+                exclusive: true,
+              },
             },
             {
               id: treeB,
+              forks: {
+                exclusive: true,
+              },
             },
           ],
         },

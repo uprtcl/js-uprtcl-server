@@ -1151,24 +1151,13 @@ export class UprtclRepository {
     let query = ``;
     const { levels, entities, details } = getPerspectiveOptions;
 
-    if (searchOptions && searchOptions.forks) {
-      if (
-        (!searchOptions.under && !searchOptions.above) ||
-        searchOptions.linksTo
-      ) {
-        throw new Error(
-          'forks currently support a single mandatory "under" or "above" property'
-        );
-      }
-    }
-
     if (!details && entities) {
       throw new Error('Entities can not be provided without details...');
     }
 
     /**
-     * We build the function depending on how the method is implemented.
-     * For searching or for grabbing an specific perspective.
+     * The same function is used for explore and get perspective so as 
+     * to reuse the GetPerspectiveOptions logic
      */
 
     let startQuery = '';
@@ -1176,89 +1165,33 @@ export class UprtclRepository {
     let optionalWrapper = '';
 
     if (searchOptions) {
-      const searchText = searchOptions.text ? searchOptions.text.value : '';
-
-      const textLevels = searchOptions.text
-        ? searchOptions.text.levels
-          ? searchOptions.text.levels
-          : 0
-        : 0;
-
-      const above = searchOptions.above
-        ? searchOptions.above
-        : {
-            elements: [],
-            type: Join.inner,
-          };
-
-      /** optional type, full by default */
-      if (!above.type) above.type = Join.full;
-
-      const under = searchOptions.under
-        ? searchOptions.under
-        : {
-            elements: [],
-            type: Join.inner,
-          };
-
-      /** optional type, full by default */
-      if (!under.type) under.type = Join.full;
-
-      const linksTo = searchOptions.linksTo
-        ? searchOptions.linksTo
-        : {
-            elements: [],
-            type: Join.inner,
-          };
-
-      /** optional type, full by default */
-      if (!linksTo.type) linksTo.type = Join.full;
-
       enum StartCase {
         all = 'all',
-        above = 'above',
-        under = 'under',
+        start = 'start',
         linksTo = 'linksTo',
         searchText = 'searchText',
       }
 
-      const aboveCase = above.elements && above.elements.length > 0;
-      const underCase = under.elements && under.elements.length > 0;
-      const linksToCase = linksTo.elements && linksTo.elements.length > 0;
+      const startCase = searchOptions.start && searchOptions.start.elements.length > 0;
+      const linksToCase = searchOptions.linksTo && searchOptions.linksTo.elements.length > 0;
 
-      if (underCase && aboveCase) {
-        throw new Error(
-          `Search can only look whether under or above a given perspective`
-        );
-      }
-
-      const start: StartCase = underCase
-        ? StartCase.under
-        : aboveCase
-        ? StartCase.above
+      const start: StartCase = startCase
+        ? StartCase.start
         : linksToCase
         ? StartCase.linksTo
-        : searchText !== ''
+        : searchOptions.text
         ? StartCase.searchText
         : StartCase.all;
 
-      const text: Text = {
-        value: searchText,
-        levels: textLevels,
-      };
-
       switch (start) {
         case StartCase.all:
+          /** consider all perspectives in the DB (paginated of course) */
           startQuery = `filtered as search(func: eq(dgraph.type, "Perspective"))`;
           break;
 
-        case StartCase.above:
+        case StartCase.start:
           const ecoSearchA = this.ecosystemSearchUpsert(
-            above,
-            linksTo,
-            SearchType.above,
-            searchOptions.forks,
-            text,
+            searchOptions
             {
               startQuery,
               internalWrapper,
@@ -1624,18 +1557,41 @@ export class UprtclRepository {
   }
 
   private ecosystemSearchUpsert(
-    searchEcoOption: SearchOptionsEcoJoin,
-    linksTo: SearchOptionsJoin,
-    searchType: SearchType.above | SearchType.under,
-    forks: SearchForkOptions | undefined,
-    searchText: Text,
+    searchOptions: SearchOptions,
     searchUpsert: SearchUpsert,
     loggedUserId: string | null
   ): SearchUpsert {
+
+    /** build the treePERPID variables with the three (under or above) of each
+     * of the JointTree elements in the start property */ 
+    if (searchOptions.start) {
+      searchOptions.start.elements.forEach(el => {
+        const ecosystem = el.levels ? el.levels < 0 : true;
+        const direction = el.direction ? el.direction : 'under';
+        const forks = el.forks !== undefined;
+
+        // if fork,  then ecoOf is more complex in the sense that it is expected to include the forks of el.id and its children and maybe only those independent
+        const ecoOfQuery = `ecoOf${el.id}(func: eq(xid, ${el.id})) @cascade ${ecosystem ? '' : `@recurse(depth: ${el.levels})`} {
+          ${`ecoOf${el.id} as ${`${direction === 'above' ? '~' : ''} ${ecosystem ? 'ecosystem' : 'children'}`}`
+        }`;
+
+      })
+
+      // then joined
+      ..`filtered = func(OR(uid(ecoOf())))`
+
+      // then further filtered based on linksTo
+
+      // then further filtered absed on text.
+
+
+    }
+    
     const ids = searchEcoOption.elements.map((el) => el.id);
     const ecoLevels =
       searchEcoOption.levels !== undefined ? searchEcoOption.levels : -1;
-    let { startQuery, internalWrapper, optionalWrapper } = searchUpsert;
+   
+      let { startQuery, internalWrapper, optionalWrapper } = searchUpsert;
 
     if (searchEcoOption.type === Join.full) {
       startQuery = `search(func: eq(xid, ${ids})) @cascade ${
