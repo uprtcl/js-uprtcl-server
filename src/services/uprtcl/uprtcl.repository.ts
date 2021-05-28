@@ -1151,175 +1151,56 @@ export class UprtclRepository {
     let query = ``;
     const { levels, entities, details } = getPerspectiveOptions;
 
-    if (!details && entities) {
-      throw new Error('Entities can not be provided without details...');
-    }
+    // Search options
+    const start = searchOptions?.start;
+    // - LinksTo
+    const linksTo = searchOptions?.linksTo;
+    // - Text
+    const text = searchOptions?.text;
 
-    /**
-     * The same function is used for explore and get perspective so as 
-     * to reuse the GetPerspectiveOptions logic
-     */
-
-    let startQuery = '';
-    let internalWrapper = '';
-    let optionalWrapper = '';
-
-    if (searchOptions) {
-      enum StartCase {
-        all = 'all',
-        start = 'start',
-        linksTo = 'linksTo',
-        searchText = 'searchText',
-      }
-
-      const startCase = searchOptions.start && searchOptions.start.elements.length > 0;
-      const linksToCase = searchOptions.linksTo && searchOptions.linksTo.elements.length > 0;
-
-      const start: StartCase = startCase
-        ? StartCase.start
-        : linksToCase
-        ? StartCase.linksTo
-        : searchOptions.text
-        ? StartCase.searchText
-        : StartCase.all;
-
-      switch (start) {
-        case StartCase.all:
-          /** consider all perspectives in the DB (paginated of course) */
-          startQuery = `filtered as search(func: eq(dgraph.type, "Perspective"))`;
-          break;
-
-        case StartCase.start:
-          const ecoSearchA = this.ecosystemSearchUpsert(
-            searchOptions
-            {
-              startQuery,
-              internalWrapper,
-              optionalWrapper,
-            },
-            loggedUserId
-          );
-
-          startQuery = ecoSearchA.startQuery;
-
-          internalWrapper = ecoSearchA.internalWrapper;
-
-          optionalWrapper = ecoSearchA.optionalWrapper;
-
-          break;
-
-        case StartCase.searchText:
-          startQuery = `filtered as search(func: anyoftext(text, "${searchText}"))`;
-          break;
-
-        case StartCase.under:
-          const ecoSearch = this.ecosystemSearchUpsert(
-            under,
-            linksTo,
-            SearchType.under,
-            searchOptions.forks,
-            text,
-            {
-              startQuery,
-              internalWrapper,
-              optionalWrapper,
-            },
-            loggedUserId
-          );
-
-          startQuery = ecoSearch.startQuery;
-
-          internalWrapper = ecoSearch.internalWrapper;
-
-          optionalWrapper = ecoSearch.optionalWrapper;
-
-          break;
-
-        case StartCase.linksTo:
-          const linksToIds = linksTo.elements.map((el) => el.id);
-          // We first define the starting query according to each type
-          if (linksTo.type === Join.full) {
-            startQuery = `filtered as search(func: eq(dgraph.type, "Perspective")) @cascade`;
-            internalWrapper = `linksTo @filter(eq(xid, ${linksToIds}))`;
-
-            if (searchText !== '') {
-              if (textLevels === -1) {
-                // We move the filtered variable to the internal wrapper instead.
-                startQuery = startQuery.replace('filtered as', '');
-                internalWrapper = internalWrapper.concat(
-                  `@cascade {
-                    ~linksTo  @filter(anyoftext(text, "${searchText}")) {
-                      filtered as ecosystem
-                    }
-                  }`
-                );
-              } else {
-                // We move the filtered variable to the internal wrapper instead.
-                startQuery = startQuery.replace('filtered as', '');
-                internalWrapper = internalWrapper.concat(
-                  `@cascade {
-                      filtered as ~linksTo @filter(anyoftext(text, "${searchText}"))
-                    }`
-                );
-              }
-            }
-          } else if (linksTo.type === Join.inner) {
-            for (let i = 0; i < linksTo.elements.length; i++) {
-              startQuery = startQuery.concat(
-                `\nvar(func: eq(xid, ${linksToIds[i]})) {
-                  perspectives${i} as ~linksTo ${
-                  i > 0 ? `@filter(uid(perspectives${i - 1}))` : ''
-                }
-                }`
-              );
-            }
-
-            // We leave the filter open for more options
-            startQuery = startQuery.concat(
-              `\nfiltered as search(func: uid(perspectives${
-                linksToIds.length - 1
-              })) @filter(type(Perspective)`
-            );
-
-            if (searchText !== '') {
-              if (textLevels === -1) {
-                startQuery = startQuery.replace('filtered as', '');
-                startQuery = startQuery.concat(
-                  ` AND anyoftext(text, "${searchText}")) {
-                    filtered as ecosystem 
-                  }`
-                );
-              } else {
-                startQuery = startQuery.concat(
-                  `AND anyoftext(text, "${searchText}"))`
-                );
-              }
-            } else {
-              // We close the filter if no more options are needed.
-              startQuery = startQuery.concat(')');
-            }
-          } else {
-            throw new Error(
-              'LinksTo operation type must be specified. INNER_JOIN or FULL_JOIN'
-            );
-          }
-          break;
-      }
-    } else {
-      startQuery = `filtered as search(func: eq(xid, ${perspectiveId}))`;
-    }
-
-    query = query.concat(`
-      ${startQuery} ${
-      internalWrapper !== ''
-        ? `{
-          ${internalWrapper}
-        }`
-        : ''
-    }
-      ${optionalWrapper}`);
+    // - Pagination
+    let pagination = searchOptions?.pagination;
+    let first = defaultFirst;
+    let offset = 0;
 
     if (searchOptions) {
+      // If start, get JoinTree
+      if (start) {
+        // We check if there will be a next search.
+        // If so we have to prepare the query for next search.
+        const searchAfterStart = linksTo || text ? true : false;
+      }
+
+      if (linksTo) {
+        // We check if there was a previous search.
+        // If so we have to keep filtering  upon a previous filtering result.
+        const searchBeforeLinks = start ? true : false;
+        // We check if there will be a next search.
+        // If so we have to prepare the query for next search.
+        const searchAfterLinks = text ? true : false;
+        query = query.concat(
+          this.linksToQuery(
+            searchBeforeLinks,
+            searchAfterLinks,
+            linksTo.elements,
+            linksTo.joinType
+          )
+        );
+      }
+
+      if (text) {
+        // We check if there was a previous search.
+        // If so we have to keep filtering  upon a previous filtering result.
+        const searchBeforeText = linksTo || start ? true : false;
+        query = query.concat(
+          this.textSearchQuery(searchBeforeText, text.value, text.textLevels)
+        );
+      }
+
+      first = pagination ? pagination.first : defaultFirst;
+      offset = pagination ? pagination.offset : 0;
+
+      // Set ACL to search result
       const DgraphACL = `
         private as aclPriv(func: uid(filtered)) @filter(eq(deleted, false)) @cascade {
           finDelegatedTo {
@@ -1332,19 +1213,11 @@ export class UprtclRepository {
         `;
 
       query = query.concat(DgraphACL);
+    } else {
+      query = query.concat(
+        `filtered as search(func: eq(xid, ${perspectiveId}))`
+      );
     }
-
-    // Initializes pagination parameters
-    const { first, offset } = {
-      first:
-        searchOptions && searchOptions.pagination
-          ? searchOptions.pagination.first
-          : defaultFirst,
-      offset:
-        searchOptions && searchOptions.pagination
-          ? searchOptions.pagination.offset
-          : 0,
-    };
 
     /**
      * Order by subnode has been clarified here:
@@ -1397,19 +1270,13 @@ export class UprtclRepository {
 
     if (levels && levels > 0) {
       query = query.concat(
-        `\ntopElements as var(func: uid(elements), orderdesc: val(datetemp) 
-                      ${
-                        searchOptions
-                          ? `,first: ${first}, offset: ${offset}`
-                          : ''
-                      })
-                      ${
-                        searchOptions
-                          ? `@filter(uid(private) OR uid(public))`
-                          : ''
-                      } @recurse(depth: ${levels}) {
-                        recurseIds as children
-                      }
+        `\ntopElements as var(func: uid(elements), orderdesc: val(datetemp)
+            ${searchOptions ? `,first: ${first}, offset: ${offset}` : ''})
+            ${
+              searchOptions ? `@filter(uid(private) OR uid(public))` : ''
+            } @recurse(depth: ${levels}) {
+              recurseIds as children
+            }
 
         perspectives(func: uid(topElements)) {
           ${elementQuery}
@@ -1420,8 +1287,8 @@ export class UprtclRepository {
       );
     } else {
       query = query.concat(
-        `\nperspectives(func: uid(elements), orderdesc: val(datetemp) 
-          ${searchOptions ? `,first: ${first}, offset: ${offset}` : ''}) 
+        `\nperspectives(func: uid(elements), orderdesc: val(datetemp)
+          ${searchOptions ? `,first: ${first}, offset: ${offset}` : ''})
           ${searchOptions ? `@filter(uid(private) OR uid(public))` : ''} {
             ${
               levels === -1
@@ -1457,7 +1324,7 @@ export class UprtclRepository {
       if (levels && levels > 0) {
         all = [persp].concat(json.recurseChildren);
       } else {
-        all = levels === -1 ? persp.ecosystem : [persp];
+        all = levels && levels > -1 ? [persp] : persp.ecosystem;
       }
 
       result.perspectiveIds.push(persp.xid);
@@ -1540,6 +1407,404 @@ export class UprtclRepository {
     return result;
   }
 
+  // private async fetchPerspectives(
+  //   loggedUserId: string | null,
+  //   getPerspectiveOptions: GetPerspectiveOptions = {},
+  //   perspectiveId?: string,
+  //   searchOptions?: SearchOptions
+  // ): Promise<FetchResult> {
+  //   let query = ``;
+  //   const { levels, entities, details } = getPerspectiveOptions;
+
+  //   if (!details && entities) {
+  //     throw new Error('Entities can not be provided without details...');
+  //   }
+
+  //   /**
+  //    * The same function is used for explore and get perspective so as
+  //    * to reuse the GetPerspectiveOptions logic
+  //    */
+
+  //   let startQuery = '';
+  //   let internalWrapper = '';
+  //   let optionalWrapper = '';
+
+  //   if (searchOptions) {
+  //     enum StartCase {
+  //       all = 'all',
+  //       start = 'start',
+  //       linksTo = 'linksTo',
+  //       searchText = 'searchText',
+  //     }
+
+  //     const startCase = searchOptions.start && searchOptions.start.elements.length > 0;
+  //     const linksToCase = searchOptions.linksTo && searchOptions.linksTo.elements.length > 0;
+
+  //     const start: StartCase = startCase
+  //       ? StartCase.start
+  //       : linksToCase
+  //       ? StartCase.linksTo
+  //       : searchOptions.text
+  //       ? StartCase.searchText
+  //       : StartCase.all;
+
+  //     switch (start) {
+  //       case StartCase.all:
+  //         /** consider all perspectives in the DB (paginated of course) */
+  //         startQuery = `filtered as search(func: eq(dgraph.type, "Perspective"))`;
+  //         break;
+
+  //       case StartCase.start:
+  //         const ecoSearchA = this.ecosystemSearchUpsert(
+  //           searchOptions
+  //           {
+  //             startQuery,
+  //             internalWrapper,
+  //             optionalWrapper,
+  //           },
+  //           loggedUserId
+  //         );
+
+  //         startQuery = ecoSearchA.startQuery;
+
+  //         internalWrapper = ecoSearchA.internalWrapper;
+
+  //         optionalWrapper = ecoSearchA.optionalWrapper;
+
+  //         break;
+
+  //       case StartCase.searchText:
+  //         startQuery = `filtered as search(func: anyoftext(text, "${searchText}"))`;
+  //         break;
+
+  //       case StartCase.under:
+  //         const ecoSearch = this.ecosystemSearchUpsert(
+  //           under,
+  //           linksTo,
+  //           SearchType.under,
+  //           searchOptions.forks,
+  //           text,
+  //           {
+  //             startQuery,
+  //             internalWrapper,
+  //             optionalWrapper,
+  //           },
+  //           loggedUserId
+  //         );
+
+  //         startQuery = ecoSearch.startQuery;
+
+  //         internalWrapper = ecoSearch.internalWrapper;
+
+  //         optionalWrapper = ecoSearch.optionalWrapper;
+
+  //         break;
+
+  //       case StartCase.linksTo:
+  //         const linksToIds = linksTo.elements.map((el) => el.id);
+  //         // We first define the starting query according to each type
+  //         if (linksTo.type === Join.full) {
+  //           startQuery = `filtered as search(func: eq(dgraph.type, "Perspective")) @cascade`;
+  //           internalWrapper = `linksTo @filter(eq(xid, ${linksToIds}))`;
+
+  //           if (searchText !== '') {
+  //             if (textLevels === -1) {
+  //               // We move the filtered variable to the internal wrapper instead.
+  //               startQuery = startQuery.replace('filtered as', '');
+  //               internalWrapper = internalWrapper.concat(
+  //                 `@cascade {
+  //                   ~linksTo  @filter(anyoftext(text, "${searchText}")) {
+  //                     filtered as ecosystem
+  //                   }
+  //                 }`
+  //               );
+  //             } else {
+  //               // We move the filtered variable to the internal wrapper instead.
+  //               startQuery = startQuery.replace('filtered as', '');
+  //               internalWrapper = internalWrapper.concat(
+  //                 `@cascade {
+  //                     filtered as ~linksTo @filter(anyoftext(text, "${searchText}"))
+  //                   }`
+  //               );
+  //             }
+  //           }
+  //         } else if (linksTo.type === Join.inner) {
+  //           for (let i = 0; i < linksTo.elements.length; i++) {
+  //             startQuery = startQuery.concat(
+  //               `\nvar(func: eq(xid, ${linksToIds[i]})) {
+  //                 perspectives${i} as ~linksTo ${
+  //                 i > 0 ? `@filter(uid(perspectives${i - 1}))` : ''
+  //               }
+  //               }`
+  //             );
+  //           }
+
+  //           // We leave the filter open for more options
+  //           startQuery = startQuery.concat(
+  //             `\nfiltered as search(func: uid(perspectives${
+  //               linksToIds.length - 1
+  //             })) @filter(type(Perspective)`
+  //           );
+
+  //           if (searchText !== '') {
+  //             if (textLevels === -1) {
+  //               startQuery = startQuery.replace('filtered as', '');
+  //               startQuery = startQuery.concat(
+  //                 ` AND anyoftext(text, "${searchText}")) {
+  //                   filtered as ecosystem
+  //                 }`
+  //               );
+  //             } else {
+  //               startQuery = startQuery.concat(
+  //                 `AND anyoftext(text, "${searchText}"))`
+  //               );
+  //             }
+  //           } else {
+  //             // We close the filter if no more options are needed.
+  //             startQuery = startQuery.concat(')');
+  //           }
+  //         } else {
+  //           throw new Error(
+  //             'LinksTo operation type must be specified. INNER_JOIN or FULL_JOIN'
+  //           );
+  //         }
+  //         break;
+  //     }
+  //   } else {
+  //     startQuery = `filtered as search(func: eq(xid, ${perspectiveId}))`;
+  //   }
+
+  //   query = query.concat(`
+  //     ${startQuery} ${
+  //     internalWrapper !== ''
+  //       ? `{
+  //         ${internalWrapper}
+  //       }`
+  //       : ''
+  //   }
+  //     ${optionalWrapper}`);
+
+  //   if (searchOptions) {
+  //     const DgraphACL = `
+  //       private as aclPriv(func: uid(filtered)) @filter(eq(deleted, false)) @cascade {
+  //         finDelegatedTo {
+  //           canRead @filter(eq(did, "${loggedUserId}"))
+  //         }
+  //       }
+  //       public as aclPub(func: uid(filtered)) @filter(eq(deleted, false)) @cascade {
+  //         finDelegatedTo @filter(eq(publicRead, true))
+  //       }
+  //       `;
+
+  //     query = query.concat(DgraphACL);
+  //   }
+
+  //   // Initializes pagination parameters
+  //   const { first, offset } = {
+  //     first:
+  //       searchOptions && searchOptions.pagination
+  //         ? searchOptions.pagination.first
+  //         : defaultFirst,
+  //     offset:
+  //       searchOptions && searchOptions.pagination
+  //         ? searchOptions.pagination.offset
+  //         : 0,
+  //   };
+
+  //   /**
+  //    * Order by subnode has been clarified here:
+  //    * https://discuss.dgraph.io/t/sort-query-results-by-any-edge-property/12989
+  //    */
+
+  //   /** The query uses ecosystem if levels === -1 and get the head and data json objects if entities === true */
+  //   let elementQuery = `
+  //     xid
+  //     stored
+  //     jsonString
+  //     deleted
+  //     finDelegatedTo {
+  //       canWrite @filter(eq(did, "${loggedUserId}")) {
+  //         count(uid)
+  //       }
+  //       canRead @filter(eq(did, "${loggedUserId}")) {
+  //         count(uid)
+  //       }
+  //       publicWrite
+  //       publicRead
+  //     }
+  //   `;
+
+  //   if (details) {
+  //     elementQuery = elementQuery.concat(
+  //       `\nhead {
+  //         xid
+  //         data {
+  //           xid
+  //           ${entities ? `jsonString` : ''}
+  //         }
+  //         ${entities ? `jsonString` : ''}
+  //       }
+  //       delegate
+  //       delegateTo {
+  //         xid
+  //       }`
+  //     );
+  //   }
+
+  //   query = query.concat(`
+  //     \nelements as var(func: uid(filtered)) {
+  //       head {
+  //         date as timextamp
+  //       }
+  //       datetemp as max(val(date))
+  //     }
+  //   `);
+
+  //   if (levels && levels > 0) {
+  //     query = query.concat(
+  //       `\ntopElements as var(func: uid(elements), orderdesc: val(datetemp)
+  //                     ${
+  //                       searchOptions
+  //                         ? `,first: ${first}, offset: ${offset}`
+  //                         : ''
+  //                     })
+  //                     ${
+  //                       searchOptions
+  //                         ? `@filter(uid(private) OR uid(public))`
+  //                         : ''
+  //                     } @recurse(depth: ${levels}) {
+  //                       recurseIds as children
+  //                     }
+
+  //       perspectives(func: uid(topElements)) {
+  //         ${elementQuery}
+  //       }
+  //       recurseChildren(func: uid(recurseIds)) {
+  //         ${elementQuery}
+  //       }`
+  //     );
+  //   } else {
+  //     query = query.concat(
+  //       `\nperspectives(func: uid(elements), orderdesc: val(datetemp)
+  //         ${searchOptions ? `,first: ${first}, offset: ${offset}` : ''})
+  //         ${searchOptions ? `@filter(uid(private) OR uid(public))` : ''} {
+  //           ${
+  //             levels === -1
+  //               ? `xid ecosystem {${elementQuery}}`
+  //               : `${elementQuery}`
+  //           }
+  //         }`
+  //     );
+  //   }
+
+  //   let dbResult = await this.db.client.newTxn().query(`query{${query}}`);
+  //   let json = dbResult.getJson();
+
+  //   const perspectives = json.perspectives;
+  //   // initalize the returned result with empty values
+  //   let result: FetchResult = {
+  //     details: {},
+  //     perspectiveIds: [],
+  //     slice: {
+  //       perspectives: [],
+  //       entities: [],
+  //     },
+  //     forksDetails: [],
+  //   };
+
+  //   if (first && perspectives.length < first) {
+  //     result.ended = true;
+  //   }
+
+  //   // then loop over the dgraph results and fill the function output result
+  //   perspectives.forEach((persp: any) => {
+  //     let all = [];
+  //     if (levels && levels > 0) {
+  //       all = [persp].concat(json.recurseChildren);
+  //     } else {
+  //       all = levels === -1 ? persp.ecosystem : [persp];
+  //     }
+
+  //     result.perspectiveIds.push(persp.xid);
+
+  //     all.forEach((element: any) => {
+  //       if (element) {
+  //         /** check access control, if user can't read, simply return undefined head  */
+
+  //         const canRead = !element.finDelegatedTo.publicRead
+  //           ? element.finDelegatedTo.canRead
+  //             ? element.finDelegatedTo.canRead[0].count > 0
+  //             : false
+  //           : true;
+
+  //         if (details) {
+  //           const elementDetails = {
+  //             headId:
+  //               canRead && !element.deleted ? element.head.xid : undefined,
+  //             guardianId: element.delegate ? element.delegateTo.xid : undefined,
+  //             canUpdate: !element.finDelegatedTo.publicWrite
+  //               ? element.finDelegatedTo.canWrite
+  //                 ? element.finDelegatedTo.canWrite[0].count > 0
+  //                 : false
+  //               : true,
+  //           };
+
+  //           if (element.xid === perspectiveId) {
+  //             result.details = elementDetails;
+  //           } else {
+  //             result.slice.perspectives.push({
+  //               id: element.xid,
+  //               details: elementDetails,
+  //             });
+  //           }
+  //         }
+
+  //         if (entities) {
+  //           const commit = {
+  //             hash: element.head.xid,
+  //             object: decodeData(element.head.jsonString),
+  //             remote: '',
+  //           };
+
+  //           const data: Entity<any> = {
+  //             hash: element.head.data.xid,
+  //             object: decodeData(element.head.data.jsonString),
+  //             remote: '',
+  //           };
+
+  //           result.slice.entities.push(commit, data);
+
+  //           if (element.xid !== perspectiveId) {
+  //             // add the perspective entity only if a subperspective
+  //             const perspective = {
+  //               hash: element.xid,
+  //               object: decodeData(element.jsonString),
+  //               remote: '',
+  //             };
+  //             result.slice.entities.push(perspective);
+  //           }
+  //         }
+  //       }
+  //     });
+  //   });
+
+  //   // We avoid duplicated results
+  //   result.perspectiveIds = Array.from(new Set(result.perspectiveIds));
+  //   result.slice.perspectives = Array.from(new Set(result.slice.perspectives));
+  //   result.slice.entities = Array.from(new Set(result.slice.entities));
+
+  //   if (json.forksOf) {
+  //     json.forksOf.map((persp: any) => {
+  //       if (persp.context)
+  //         result.forksDetails!.push({
+  //           forkIds: persp.context.forks.map((fork: any) => fork.forkId),
+  //           ofPerspectiveId: persp.ofPerspective,
+  //         });
+  //     });
+  //   }
+  //   return result;
+  // }
+
   async explore(
     searchOptions: SearchOptions,
     getPerspectiveOptions: GetPerspectiveOptions = {
@@ -1561,37 +1826,29 @@ export class UprtclRepository {
     searchUpsert: SearchUpsert,
     loggedUserId: string | null
   ): SearchUpsert {
-
     /** build the treePERPID variables with the three (under or above) of each
-     * of the JointTree elements in the start property */ 
+     * of the JointTree elements in the start property */
     if (searchOptions.start) {
-      searchOptions.start.elements.forEach(el => {
-        const ecosystem = el.levels ? el.levels < 0 : true;
-        const direction = el.direction ? el.direction : 'under';
-        const forks = el.forks !== undefined;
-
-        // if fork,  then ecoOf is more complex in the sense that it is expected to include the forks of el.id and its children and maybe only those independent
-        const ecoOfQuery = `ecoOf${el.id}(func: eq(xid, ${el.id})) @cascade ${ecosystem ? '' : `@recurse(depth: ${el.levels})`} {
-          ${`ecoOf${el.id} as ${`${direction === 'above' ? '~' : ''} ${ecosystem ? 'ecosystem' : 'children'}`}`
-        }`;
-
-      })
-
-      // then joined
-      ..`filtered = func(OR(uid(ecoOf())))`
-
-      // then further filtered based on linksTo
-
-      // then further filtered absed on text.
-
-
+      // searchOptions.start.elements.forEach(el => {
+      //   const ecosystem = el.levels ? el.levels < 0 : true;
+      //   const direction = el.direction ? el.direction : 'under';
+      //   const forks = el.forks !== undefined;
+      //   // if fork,  then ecoOf is more complex in the sense that it is expected to include the forks of el.id and its children and maybe only those independent
+      //   const ecoOfQuery = `ecoOf${el.id}(func: eq(xid, ${el.id})) @cascade ${ecosystem ? '' : `@recurse(depth: ${el.levels})`} {
+      //     ${`ecoOf${el.id} as ${`${direction === 'above' ? '~' : ''} ${ecosystem ? 'ecosystem' : 'children'}`}`
+      //   }`;
+      // })
+      // // then joined
+      // ..`filtered = func(OR(uid(ecoOf())))`
+      // // then further filtered based on linksTo
+      // // then further filtered absed on text.
     }
-    
+
     const ids = searchEcoOption.elements.map((el) => el.id);
     const ecoLevels =
       searchEcoOption.levels !== undefined ? searchEcoOption.levels : -1;
-   
-      let { startQuery, internalWrapper, optionalWrapper } = searchUpsert;
+
+    let { startQuery, internalWrapper, optionalWrapper } = searchUpsert;
 
     if (searchEcoOption.type === Join.full) {
       startQuery = `search(func: eq(xid, ${ids})) @cascade ${
@@ -1751,5 +2008,128 @@ export class UprtclRepository {
       internalWrapper,
       optionalWrapper,
     };
+  }
+
+  private linksToQuery(
+    previousSearch: boolean,
+    nextSearch: boolean,
+    elements: string[],
+    type?: Join
+  ): string {
+    if (type === Join.full || !type) {
+      return `
+        ${
+          previousSearch
+            ? `${
+                nextSearch ? `searchResult` : `filtered`
+              } as search(func: uid(treeResult)) @cascade {
+            linksTo @filter(eq(xid, ${elements}))
+          }`
+            : `${
+                nextSearch ? `searchResult` : `filtered`
+              } as search(func: type(Perspective)) @cascade {
+            linksTo @filter(eq(xid, ${elements}))
+          }`
+        }
+      `;
+    } else if (type === Join.inner) {
+      let query = ``;
+
+      for (let i = 0; i < elements.length; i++) {
+        query = query.concat(`
+        \nvar(func: eq(xid, ${elements[i]})) {
+          perspectives${i} as ~linksTo 
+          ${i > 0 ? `@filter(uid(perspectives${i - 1}))` : ''}
+        }`);
+      }
+
+      return `
+        ${query}
+        \n
+        ${
+          previousSearch
+            ? `${
+                nextSearch ? `searchResult` : `filtered`
+              } as search(func: uid(perspectives${elements.length - 1}))
+          @filter(type(treeResult))`
+            : `${
+                nextSearch ? `searchResult` : `filtered`
+              } as search(func: uid(perspectives${elements.length - 1}))
+          @filter(type(Perspective))`
+        }
+      `;
+    }
+    return '';
+  }
+
+  private textSearchQuery(
+    previousSearch: boolean,
+    value: string,
+    levels?: number
+  ): string {
+    if (levels) {
+      // We return the depth of the perspective found.
+      return `
+      ${
+        previousSearch
+          ? `search(func: uid(searchResult)) @filter(anyoftext(text, "${value}"))`
+          : `search(func: anyoftext(text, "${value}"))`
+      }
+
+      search(func: anyoftext(text, "${value}")) 
+        ${
+          levels
+            ? `@recurse(depth: ${levels}) {
+            filtered as children
+          }`
+            : `{
+            filtered as ecosystem
+          }`
+        }
+      }`;
+    } else {
+      return `
+      ${
+        previousSearch
+          ? `filtered as search(func: uid(searchResult)) @filter(anyoftext(text, "${value}"))`
+          : `filtered as search(func: anyoftext(text, "${value}"))`
+      }`;
+    }
+  }
+
+  private startQuery(type: Join, elements: JoinTree[]): string {
+    // First we retrieve the Join Trees
+    // Then we join every join tree element depending on the Join Type
+  }
+
+  private retrieveJoinTree(
+    id: string,
+    direction?: 'under' | 'above',
+    levels?: number,
+    exclusive?: boolean,
+    independent?: boolean,
+    independentOf?: string
+  ): string {
+    const forks = exclusive || independent || independentOf;
+    const under = direction === 'under' ? true : false;
+    const eco = levels && levels < 0 ? true : false;
+
+    // We collect first the perspectives corresponding the tree element.
+    let query = `
+      original${id} as var(func: eq(xid, ${id}))
+      ${
+        eco
+          ? `{
+          ${under ? `ecosystem` : `~ecosystem`}
+        }`
+          : `@recurse (depth: ${levels}) {
+          ${under ? `children` : `~children`}
+        }`
+      }
+    `;
+    // Consequently, we check for forks regarding the given element.
+    if (forks) {
+      // TODO: Deliver forks.
+    }
   }
 }
