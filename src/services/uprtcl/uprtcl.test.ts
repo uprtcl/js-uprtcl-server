@@ -17,9 +17,9 @@ import {
   getEcosystem,
   explore,
   forkPerspective,
-  getForks,
 } from './uprtcl.testsupport';
 import { createUser, TestUser } from '../user/user.testsupport';
+//import { DocumentsModule } from '@uprtcl/documents';
 import {
   addPermission,
   setPublicPermission,
@@ -43,6 +43,8 @@ import {
   AppElement,
   AppElements,
 } from '@uprtcl/evees';
+// import { HttpSupertest } from '@uprtcl/http-provider';
+// import { EveesHttp } from '@uprtcl/evees-http';
 import { Join } from './uprtcl.repository';
 import { Test } from 'supertest';
 
@@ -670,66 +672,24 @@ describe('routes', async () => {
   //   done();
   // });
 
-  test('get forks and independent of top', async (done) => {
-    const result = await getForks(
-      [treeBChildren[1]],
-      {
-        independent: false,
-        independentOf: treeB, // Top element of treeB
-      },
-      userScenarioB,
-      0
-    );
-
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0]).toEqual(treeC);
-    done();
-  });
-
-  test('get independent of top and independent forks', async (done) => {
-    const result = await getForks(
-      [treeBChildren[1]],
-      {
-        independentOf: treeC, // Top element of treeB
-      },
-      userScenarioB,
-      0
-    );
-
-    expect(result.data).toHaveLength(2);
-    expect(result.data[0]).toEqual(treeA.pages[0].links[1]);
-    expect(result.data[1]).toEqual(treeC);
-    done();
-  });
-
-  test('get forks', async (done) => {
-    const result = await getForks([treeBChildren[1]], {}, userScenarioB, 0);
-
-    expect(result.data).toHaveLength(2);
-    expect(result.data[0]).toEqual(treeA.pages[0].links[1]);
-    expect(result.data[1]).toEqual(treeC);
-    done();
-  });
-
   test('batch create', async (done) => {
     // Emulate the user
 
     // const user = await createUser('seed1');
-    // // const homeSpace = await createHomeSpace(user);
+    // //const homeSpace = await createHomeSpace(user);
 
     // const httpConnection = await new HttpSupertest(
     //   process.env.HOST as string,
     //   user
     // );
 
-    // const httpStore = new HttpStore(httpConnection, httpCidConfig);
-    // const httpEvees = new EveesHttp(httpConnection, httpStore.casID);
+    // const httpEvees = new EveesHttp(httpConnection);
 
     // const remotes = [httpEvees];
-    // const modules = new Map<string, EveesContentModule>();
-    // modules.set(DocumentsModule.id, new DocumentsModule());
+    //const modules = new Map<string, EveesContentModule>();
+    //modules.set(DocumentsModule.id, new DocumentsModule());
 
-    // const evees = eveesConstructorHelper(remotes, [httpStore], modules);
+    //const evees = init(remotes, modules);
 
     // const appElementsInit: AppElement = {
     //   path: '/',
@@ -1335,7 +1295,6 @@ describe('routes', async () => {
     expect(result.data.perspectiveIds.length).toBe(10);
     done();
   });
-
   // TODO: Test ecosystem levels in forks and explore.
   // TODO: Test exclusive in forks
 });
