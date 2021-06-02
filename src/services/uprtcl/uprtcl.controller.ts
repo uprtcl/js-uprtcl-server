@@ -194,40 +194,6 @@ export class UprtclController {
           },
         ],
       },
-      // A Get with put, it receive the get options in the body
-      {
-        path: '/uprtcl/1/forks',
-        method: 'put',
-        handler: [
-          checkJwt,
-          async (req: Request, res: Response) => {
-            try {
-              let perspectives = await this.uprtclService.getForks(
-                req.body.perspectiveIds,
-                req.body.forkOptions,
-                getUserFromReq(req),
-                req.body.ecoLevels
-              );
-
-              let result: GetResult<string[]> = {
-                result: SUCCESS,
-                message: 'forks found',
-                data: perspectives,
-              };
-
-              res.status(200).send(result);
-            } catch (error) {
-              console.log(error);
-              let result: GetResult<string[]> = {
-                result: ERROR,
-                message: error.message,
-                data: [],
-              };
-              res.status(400).send(result);
-            }
-          },
-        ],
-      },
 
       {
         path: '/uprtcl/1/persp',
