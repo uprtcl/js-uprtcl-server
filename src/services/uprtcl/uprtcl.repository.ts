@@ -1327,9 +1327,13 @@ export class UprtclRepository {
     independent = independent === undefined ? true : independent;
 
     query = query.concat(`
-      independentOfContext${perspectiveId} as var(xid, ${independentOf})
+      context${perspectiveId}(func: uid(topElement${perspectiveId})) {
+        officialTopContext${perspectiveId} as context
+      }
 
-      normalIndependentOf${perspectiveId}(func: uid(officialTopContext${perspectiveId}))) {
+      independentOfContext${perspectiveId} as var(func:eq(xid, ${independentOf}))
+
+      normalOf${perspectiveId}(func: uid(officialTopContext${perspectiveId})) {
         normalIndependentOf${perspectiveId} as ~context @filter(
           not(uid(topElement${perspectiveId}))
         ) @cascade {
@@ -1339,7 +1343,7 @@ export class UprtclRepository {
         }
       }
 
-      orphanIndependentOf${perspectiveId}(func: uid(officialTopContext${perspectiveId})) {
+      orphantOf${perspectiveId}(func: uid(officialTopContext${perspectiveId})) {
         orphanIndependentOf${perspectiveId} as ~context @filter(
           not(uid(topElement${perspectiveId}))
           AND
@@ -1353,17 +1357,24 @@ export class UprtclRepository {
     `);
 
     // eveeContext = ecoContext (same meaning)
-    if ((levels !== undefined && levels > 0) || levels === -1) {
+    if (levels === 0) {
       query = query.concat(`
-        forks(func: uid(ecoPersps${perspectiveId})) {
-          officialEcoContext${perspectiveId} as context
-          ~children {
-            parentEcoContext${perspectiveId}
+        independent${perspectiveId} as var(func: has(undefined))
+        eveeContext${perspectiveId}(func: uid(officialTopContext${perspectiveId})) {
+          allForks${perspectiveId} as var ~context {
+            xid
           }
         }
+      `);
+    } else {
+      query = query.concat(`
+        forks${perspectiveId}(func: uid(ecoPersps${perspectiveId})) {
+          officialEcoContext${perspectiveId} as context
+          parentEcoContext${perspectiveId} as ~children
+        }
 
-        eveeContext(func: uid(officialEcoContext${perspectiveId})) {
-          allForks${perspectiveId} as var ~context {
+        eveeContext${perspectiveId}(func: uid(officialEcoContext${perspectiveId})) {
+          allForks${perspectiveId} as ~context {
             xid
           }
         }
@@ -1371,8 +1382,8 @@ export class UprtclRepository {
 
       if (independent) {
         query = query.concat(`
-          normalIndependent${perspectiveId} as var(func: uid(officialEcoContext${perspectiveId})) {
-            ~context @filter(
+          normalInd${perspectiveId}(func: uid(officialEcoContext${perspectiveId})) {
+            normalIndependent${perspectiveId} as ~context @filter(
               not(
                 uid(topElement${perspectiveId})
                 AND
@@ -1385,7 +1396,7 @@ export class UprtclRepository {
             }
           }
 
-          orphanIndependent${perspectiveId} as var(func: uid(officialEcoContext${perspectiveId})) {
+          orphInd${perspectiveId}(func: uid(officialEcoContext${perspectiveId})) {
             orphanIndependent${perspectiveId} as ~context @filter(
               not(
                 uid(topElement${perspectiveId})
@@ -1408,17 +1419,9 @@ export class UprtclRepository {
          */
         query = query.concat(
           `emptyPlaceHolder${perspectiveId}(func: uid(parentEcoContext${perspectiveId}))
-           independent${perspectiveId} as (func: has(undefined))`
+           independent${perspectiveId} as var(func: has(undefined))`
         );
       }
-    } else {
-      query = query.concat(`
-        eveeContext${perspectiveId}(func: uid(officialTopContext${perspectiveId})) {
-          allForks${perspectiveId} as var ~context {
-            xid
-          }
-        }
-      `);
     }
 
     // We join every fork result
