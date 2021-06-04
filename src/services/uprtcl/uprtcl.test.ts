@@ -61,12 +61,12 @@ describe('routes', async () => {
   // Fork and independent perspectives scenario
   let userScenarioB: TestUser,
     pageBranchA: TestFlatPage[],
-    treeA: FlatScenario,
-    treeB: string,
-    treeBChildren: string[],
-    treeC: string,
-    treeCChildren: string[],
-    treeD: string;
+    p1: FlatScenario,
+    p2: string,
+    p2children: string[],
+    p31: string,
+    p31children: string[],
+    p421: string;
 
   beforeAll(async () => {
     // Emulate user.
@@ -146,11 +146,11 @@ describe('routes', async () => {
       },
     ];
 
-    treeA = await createFlatScenario(pageBranchA, userScenarioB);
+    p1 = await createFlatScenario(pageBranchA, userScenarioB);
     // End of branch A
 
-    // We fork treeA and convert it to treeB
-    treeB = await forkPerspective(treeA.pages[0].id, userScenarioB);
+    // We fork treeA and convert it to treeB or top p2
+    p2 = await forkPerspective(p1.pages[0].id, userScenarioB);
 
     // We create a new text
     const textP221 = await newText(
@@ -160,25 +160,26 @@ describe('routes', async () => {
           context: 'c221',
         },
       ],
-      treeB,
+      p2,
       userScenarioB
     );
 
-    treeBChildren = await getPerspectiveRelatives(treeB, 'children');
+    p2children = await getPerspectiveRelatives(p2, 'children');
 
-    // Then we add it to the last treeB child
+    // Then we add it to the last treeB child or p22
     await addNewElementsToPerspective(
-      treeBChildren[1],
+      p2children[1], // p22
       [textP221[0].perspective.hash],
       userScenarioB
     );
 
-    // We fork the last treeB child and convert it to branchC
-    treeC = await forkPerspective(treeBChildren[1], userScenarioB);
+    // We fork the last treeB child and convert it to branchC or top p31
+    // Children of this fork will be p321
+    p31 = await forkPerspective(p2children[1], userScenarioB);
 
-    treeCChildren = await getPerspectiveRelatives(treeC, 'children');
+    p31children = await getPerspectiveRelatives(p31, 'children');
     // We fork the treeC only child and call it treeD
-    treeD = await forkPerspective(treeCChildren[0], userScenarioB);
+    p421 = await forkPerspective(p31children[0], userScenarioB);
   });
   // expect.extend({ toBeValidCid });
   // test('CRUD private perspectives', async (done) => {
@@ -1160,7 +1161,7 @@ describe('routes', async () => {
           joinType: Join.full,
           elements: [
             {
-              id: treeA.pages[0].id,
+              id: p1.pages[0].id,
               levels: 1,
               forks: {
                 independent: false,
@@ -1174,10 +1175,10 @@ describe('routes', async () => {
     );
 
     expect(result.data.perspectiveIds.length).toEqual(4);
-    expect(result.data.perspectiveIds[0]).toEqual(treeC);
-    expect(result.data.perspectiveIds[1]).toEqual(treeBChildren[1]);
-    expect(result.data.perspectiveIds[2]).toEqual(treeB);
-    expect(result.data.perspectiveIds[3]).toEqual(treeBChildren[0]);
+    expect(result.data.perspectiveIds[0]).toEqual(p31);
+    expect(result.data.perspectiveIds[1]).toEqual(p2children[1]);
+    expect(result.data.perspectiveIds[2]).toEqual(p2);
+    expect(result.data.perspectiveIds[3]).toEqual(p2children[0]);
 
     done();
   });
@@ -1189,32 +1190,8 @@ describe('routes', async () => {
           joinType: Join.full,
           elements: [
             {
-              id: treeA.pages[0].id,
+              id: p1.pages[0].id,
               forks: {
-                exclusive: true,
-              },
-            },
-          ],
-        },
-      },
-      userScenarioB
-    );
-
-    expect(result.data.perspectiveIds.length).toEqual(1);
-    expect(result.data.perspectiveIds[0]).toEqual(treeC);
-    done();
-  });
-
-  test('search independent forks within a perspective ecosystem and independent forks of top element (under level = -1)', async (done) => {
-    const result = await explore(
-      {
-        start: {
-          joinType: Join.full,
-          elements: [
-            {
-              id: treeBChildren[1],
-              forks: {
-                independentOf: treeB,
                 exclusive: true,
               },
             },
@@ -1225,8 +1202,33 @@ describe('routes', async () => {
     );
 
     expect(result.data.perspectiveIds.length).toEqual(2);
-    expect(result.data.perspectiveIds[0]).toEqual(treeD);
-    expect(result.data.perspectiveIds[1]).toEqual(treeC);
+    expect(result.data.perspectiveIds[0]).toEqual(p31);
+    expect(result.data.perspectiveIds[1]).toEqual(p2);
+    done();
+  });
+
+  test('search independent forks within a perspective ecosystem and independent forks of top element (under level = -1)', async (done) => {
+    const result = await explore(
+      {
+        start: {
+          joinType: Join.full,
+          elements: [
+            {
+              id: p2children[1],
+              forks: {
+                independentOf: p2,
+                exclusive: true,
+              },
+            },
+          ],
+        },
+      },
+      userScenarioB
+    );
+
+    expect(result.data.perspectiveIds.length).toEqual(2);
+    expect(result.data.perspectiveIds[0]).toEqual(p421);
+    expect(result.data.perspectiveIds[1]).toEqual(p31);
 
     done();
   });
@@ -1238,14 +1240,14 @@ describe('routes', async () => {
           joinType: Join.full,
           elements: [
             {
-              id: treeA.pages[0].id,
+              id: p1.pages[0].id,
               levels: 1,
               forks: {
                 exclusive: true,
               },
             },
             {
-              id: treeB,
+              id: p2,
               levels: 1,
               forks: {
                 exclusive: true,
@@ -1259,7 +1261,7 @@ describe('routes', async () => {
 
     // Results with level 0
     expect(result.data.perspectiveIds.length).toEqual(1);
-    expect(result.data.perspectiveIds[0]).toEqual(treeC);
+    expect(result.data.perspectiveIds[0]).toEqual(p31);
 
     const resultEcosystem = await explore(
       {
@@ -1267,13 +1269,13 @@ describe('routes', async () => {
           joinType: Join.full,
           elements: [
             {
-              id: treeA.pages[0].id,
+              id: p1.pages[0].id,
               forks: {
                 exclusive: true,
               },
             },
             {
-              id: treeB,
+              id: p2,
               forks: {
                 exclusive: true,
               },
@@ -1286,8 +1288,8 @@ describe('routes', async () => {
 
     // Results with level -1
     expect(resultEcosystem.data.perspectiveIds.length).toEqual(2);
-    expect(resultEcosystem.data.perspectiveIds[0]).toEqual(treeD);
-    expect(resultEcosystem.data.perspectiveIds[1]).toEqual(treeC);
+    expect(resultEcosystem.data.perspectiveIds[0]).toEqual(p421);
+    expect(resultEcosystem.data.perspectiveIds[1]).toEqual(p31);
     done();
   });
 
