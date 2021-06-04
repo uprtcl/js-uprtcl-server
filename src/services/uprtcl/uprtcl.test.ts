@@ -1019,7 +1019,7 @@ describe('routes', async () => {
       userScenarioA
     );
 
-    expect(result.data.perspectiveIds.length).toBe(2);
+    expect(result.data.perspectiveIds.length).toBe(1);
     done();
   });
 
@@ -1031,6 +1031,7 @@ describe('routes', async () => {
           elements: [
             {
               id: scenario.pages[2].links[0],
+              direction: 'above',
             },
           ],
         },
@@ -1096,6 +1097,7 @@ describe('routes', async () => {
           elements: [
             {
               id: page1relatives[0],
+              direction: 'above',
             },
           ],
         },
@@ -1147,7 +1149,7 @@ describe('routes', async () => {
       userScenarioA
     );
 
-    expect(result.data.perspectiveIds.length).toBe(4);
+    expect(result.data.perspectiveIds.length).toBe(1);
     done();
   });
 
