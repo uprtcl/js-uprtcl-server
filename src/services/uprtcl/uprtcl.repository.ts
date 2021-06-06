@@ -1325,60 +1325,70 @@ export class UprtclRepository {
     let query = ``;
     independent = independent === undefined ? true : independent;
 
+    // We set a provisional use in case of no further use.
     query = query.concat(`
       context${perspectiveId}(func: uid(topElement${perspectiveId})) {
         officialTopContext${perspectiveId} as context
       }
-
-      indOf${perspectiveId}(func:eq(xid, ${independentOf})) {
-        independentOfContext${perspectiveId} as context
-      }
-
-      normalOf${perspectiveId}(func: uid(officialTopContext${perspectiveId})) {
-        normalIndependentOf${perspectiveId} as ~context @filter(
-          not(uid(topElement${perspectiveId}))
-        ) @cascade {
-          ~children {
-            context @filter(not(uid(independentOfContext${perspectiveId})))
-          }
-        }
-      }
-
-      orphantOf${perspectiveId}(func: uid(officialTopContext${perspectiveId})) {
-        orphanIndependentOf${perspectiveId} as ~context @filter(
-          not(uid(topElement${perspectiveId}))
-          AND
-          eq(count(~children), 0)
-        )
-      }
-
-      independentOf${perspectiveId} as var(func: uid(normalIndependentOf${perspectiveId}, orphanIndependentOf${perspectiveId})) {
-        xid
+      provisionalUse${perspectiveId}(func:uid(officialTopContext${perspectiveId})) {
+        name
       }
     `);
+
+    if (independentOf) {
+      query = query.concat(`
+        indOf${perspectiveId}(func:eq(xid, ${independentOf})) {
+          independentOfContext${perspectiveId} as context
+        }
+
+        normalOf${perspectiveId}(func: uid(officialTopContext${perspectiveId})) {
+          normalIndependentOf${perspectiveId} as ~context @filter(
+            not(uid(topElement${perspectiveId}))
+          ) @cascade {
+            ~children {
+              context @filter(not(uid(independentOfContext${perspectiveId})))
+            }
+          }
+        }
+
+        orphantOf${perspectiveId}(func: uid(officialTopContext${perspectiveId})) {
+          orphanIndependentOf${perspectiveId} as ~context @filter(
+            not(uid(topElement${perspectiveId}))
+            AND
+            eq(count(~children), 0)
+          )
+        }
+
+        independentOf${perspectiveId} as var(func: uid(normalIndependentOf${perspectiveId}, orphanIndependentOf${perspectiveId})) {
+          xid
+        }
+      `);
+    } else {
+      query = query.concat(
+        `independentOf${perspectiveId} as var(func: has(undefined))`
+      );
+    }
 
     // eveeContext = ecoContext (same meaning)
     if (levels === 0) {
       query = query.concat(`
         independent${perspectiveId} as var(func: has(undefined))
         eveeContext${perspectiveId}(func: uid(officialTopContext${perspectiveId})) {
-          allForks${perspectiveId} as var ~context {
+          allForks${perspectiveId} as var ~context @filter(not(uid(topElement${perspectiveId}))) {
             xid
           }
         }
       `);
     } else {
-      query = query.concat(`
-        forks${perspectiveId}(func: uid(ecoPersps${perspectiveId})) {
-          officialEcoContext${perspectiveId} as context
-          ~children {
-            parentEcoContext${perspectiveId} as context
-          }
-        }
-      `);
-
       if (independent) {
         query = query.concat(`
+          forks${perspectiveId}(func: uid(ecoPersps${perspectiveId})) 
+          @filter(not(uid(topElement${perspectiveId}))) {
+            officialEcoContext${perspectiveId} as context
+            ~children {
+              parentEcoContext${perspectiveId} as context
+            }
+          }
           allForks${perspectiveId} as var(func:has(undefined))
           normalInd${perspectiveId}(func: uid(officialEcoContext${perspectiveId})) {
             normalIndependent${perspectiveId} as ~context @filter(
@@ -1413,15 +1423,20 @@ export class UprtclRepository {
          * We set an empty placeholder for unsused @parentEcoContext variable.
          * We define @independent as empty in order to be used as a placeholder.
          */
-        query = query.concat(
-          `emptyPlaceHolder${perspectiveId}(func: uid(parentEcoContext${perspectiveId}))
+        query = query.concat(`
+          forks${perspectiveId}(func: uid(ecoPersps${perspectiveId})) {
+            officialEcoContext${perspectiveId} as context
+            ~children {
+              parentEcoContext${perspectiveId} as context
+            }
+          }
+          emptyPlaceHolder${perspectiveId}(func: uid(parentEcoContext${perspectiveId}))
            independent${perspectiveId} as var(func: has(undefined))
-           eveeContext${perspectiveId}(func: uid(officialEcoContext${perspectiveId})) {
-              allForks${perspectiveId} as ~context {
+           eveeContext${perspectiveId}(func: uid(officialEcoContext${perspectiveId}, officialTopContext${perspectiveId})) {
+              allForks${perspectiveId} as ~context @filter(not(uid(topElement${perspectiveId}, ecoPersps${perspectiveId}))) {
                 xid
               }
-            }`
-        );
+            }`);
       }
     }
 
