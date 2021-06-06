@@ -1174,6 +1174,8 @@ describe('routes', async () => {
       userScenarioB
     );
 
+    // Should receive p2, p21, p22, p31
+
     expect(result.data.perspectiveIds.length).toEqual(4);
     expect(result.data.perspectiveIds[0]).toEqual(p31);
     expect(result.data.perspectiveIds[1]).toEqual(p2children[1]);
@@ -1201,9 +1203,8 @@ describe('routes', async () => {
       userScenarioB
     );
 
-    expect(result.data.perspectiveIds.length).toEqual(2);
+    expect(result.data.perspectiveIds.length).toEqual(1);
     expect(result.data.perspectiveIds[0]).toEqual(p31);
-    expect(result.data.perspectiveIds[1]).toEqual(p2);
     done();
   });
 
@@ -1259,7 +1260,7 @@ describe('routes', async () => {
       userScenarioB
     );
 
-    // Results with level 0
+    // Results with level 1
     expect(result.data.perspectiveIds.length).toEqual(1);
     expect(result.data.perspectiveIds[0]).toEqual(p31);
 
