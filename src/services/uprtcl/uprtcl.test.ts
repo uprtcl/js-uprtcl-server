@@ -39,7 +39,6 @@ import { PermissionType } from '../uprtcl/types';
 import {
   EveesContentModule,
   NewPerspective,
-  init,
   AppElement,
   AppElements,
 } from '@uprtcl/evees';
