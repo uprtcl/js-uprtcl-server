@@ -577,21 +577,3 @@ export const explore = async (
     .set('Authorization', user ? (user.jwt ? `Bearer ${user.jwt}` : '') : '');
   return JSON.parse(get.text);
 };
-
-export const getForks = async (
-  perspectiveIds: string[],
-  forkOptions: SearchForkOptions,
-  user?: TestUser,
-  ecoLevels?: number
-): Promise<GetResult<string[]>> => {
-  const router = await createApp();
-  const get = await request(router)
-    .put(`/uprtcl/1/forks`)
-    .send({
-      perspectiveIds,
-      forkOptions,
-      ecoLevels,
-    })
-    .set('Authorization', user ? (user.jwt ? `Bearer ${user.jwt}` : '') : '');
-  return JSON.parse(get.text);
-};

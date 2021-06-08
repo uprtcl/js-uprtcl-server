@@ -160,20 +160,6 @@ export class UprtclService {
     );
   }
 
-  async getForks(
-    perspectiveIds: string[],
-    forkOptions: SearchForkOptions,
-    loggedUserId: string | null,
-    ecoLevels?: number
-  ): Promise<string[]> {
-    return await this.uprtclRepo.getForks(
-      perspectiveIds,
-      forkOptions,
-      loggedUserId,
-      ecoLevels
-    );
-  }
-
   async findPerspectives(
     context: string,
     loggedUserId: string | null

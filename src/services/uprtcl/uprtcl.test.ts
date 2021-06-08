@@ -17,9 +17,9 @@ import {
   getEcosystem,
   explore,
   forkPerspective,
-  getForks,
 } from './uprtcl.testsupport';
 import { createUser, TestUser } from '../user/user.testsupport';
+//import { DocumentsModule } from '@uprtcl/documents';
 import {
   addPermission,
   setPublicPermission,
@@ -43,6 +43,8 @@ import {
   AppElement,
   AppElements,
 } from '@uprtcl/evees';
+// import { HttpSupertest } from '@uprtcl/http-provider';
+// import { EveesHttp } from '@uprtcl/evees-http';
 import { Join } from './uprtcl.repository';
 import { Test } from 'supertest';
 
@@ -59,12 +61,12 @@ describe('routes', async () => {
   // Fork and independent perspectives scenario
   let userScenarioB: TestUser,
     pageBranchA: TestFlatPage[],
-    treeA: FlatScenario,
-    treeB: string,
-    treeBChildren: string[],
-    treeC: string,
-    treeCChildren: string[],
-    treeD: string;
+    p1: FlatScenario,
+    p2: string,
+    p2children: string[],
+    p31: string,
+    p31children: string[],
+    p421: string;
 
   beforeAll(async () => {
     // Emulate user.
@@ -144,11 +146,11 @@ describe('routes', async () => {
       },
     ];
 
-    treeA = await createFlatScenario(pageBranchA, userScenarioB);
+    p1 = await createFlatScenario(pageBranchA, userScenarioB);
     // End of branch A
 
-    // We fork treeA and convert it to treeB
-    treeB = await forkPerspective(treeA.pages[0].id, userScenarioB);
+    // We fork treeA and convert it to treeB or top p2
+    p2 = await forkPerspective(p1.pages[0].id, userScenarioB);
 
     // We create a new text
     const textP221 = await newText(
@@ -158,25 +160,26 @@ describe('routes', async () => {
           context: 'c221',
         },
       ],
-      treeB,
+      p2,
       userScenarioB
     );
 
-    treeBChildren = await getPerspectiveRelatives(treeB, 'children');
+    p2children = await getPerspectiveRelatives(p2, 'children');
 
-    // Then we add it to the last treeB child
+    // Then we add it to the last treeB child or p22
     await addNewElementsToPerspective(
-      treeBChildren[1],
+      p2children[1], // p22
       [textP221[0].perspective.hash],
       userScenarioB
     );
 
-    // We fork the last treeB child and convert it to branchC
-    treeC = await forkPerspective(treeBChildren[1], userScenarioB);
+    // We fork the last treeB child and convert it to branchC or top p31
+    // Children of this fork will be p321
+    p31 = await forkPerspective(p2children[1], userScenarioB);
 
-    treeCChildren = await getPerspectiveRelatives(treeC, 'children');
+    p31children = await getPerspectiveRelatives(p31, 'children');
     // We fork the treeC only child and call it treeD
-    treeD = await forkPerspective(treeCChildren[0], userScenarioB);
+    p421 = await forkPerspective(p31children[0], userScenarioB);
   });
   // expect.extend({ toBeValidCid });
   // test('CRUD private perspectives', async (done) => {
@@ -670,66 +673,24 @@ describe('routes', async () => {
   //   done();
   // });
 
-  test('get forks and independent of top', async (done) => {
-    const result = await getForks(
-      [treeBChildren[1]],
-      {
-        independent: false,
-        independentOf: treeB, // Top element of treeB
-      },
-      userScenarioB,
-      0
-    );
-
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0]).toEqual(treeC);
-    done();
-  });
-
-  test('get independent of top and independent forks', async (done) => {
-    const result = await getForks(
-      [treeBChildren[1]],
-      {
-        independentOf: treeC, // Top element of treeB
-      },
-      userScenarioB,
-      0
-    );
-
-    expect(result.data).toHaveLength(2);
-    expect(result.data[0]).toEqual(treeA.pages[0].links[1]);
-    expect(result.data[1]).toEqual(treeC);
-    done();
-  });
-
-  test('get forks', async (done) => {
-    const result = await getForks([treeBChildren[1]], {}, userScenarioB, 0);
-
-    expect(result.data).toHaveLength(2);
-    expect(result.data[0]).toEqual(treeA.pages[0].links[1]);
-    expect(result.data[1]).toEqual(treeC);
-    done();
-  });
-
   test('batch create', async (done) => {
     // Emulate the user
 
     // const user = await createUser('seed1');
-    // // const homeSpace = await createHomeSpace(user);
+    // //const homeSpace = await createHomeSpace(user);
 
     // const httpConnection = await new HttpSupertest(
     //   process.env.HOST as string,
     //   user
     // );
 
-    // const httpStore = new HttpStore(httpConnection, httpCidConfig);
-    // const httpEvees = new EveesHttp(httpConnection, httpStore.casID);
+    // const httpEvees = new EveesHttp(httpConnection);
 
     // const remotes = [httpEvees];
-    // const modules = new Map<string, EveesContentModule>();
-    // modules.set(DocumentsModule.id, new DocumentsModule());
+    //const modules = new Map<string, EveesContentModule>();
+    //modules.set(DocumentsModule.id, new DocumentsModule());
 
-    // const evees = eveesConstructorHelper(remotes, [httpStore], modules);
+    //const evees = init(remotes, modules);
 
     // const appElementsInit: AppElement = {
     //   path: '/',
@@ -929,12 +890,8 @@ describe('routes', async () => {
     const result = await explore(
       {
         linksTo: {
-          type: Join.full,
-          elements: [
-            {
-              id: 'textnodelinksto',
-            },
-          ],
+          joinType: Join.full,
+          elements: ['textnodelinksto'],
         },
       },
       userScenarioA
@@ -948,16 +905,12 @@ describe('routes', async () => {
     const levelZeroResult = await explore(
       {
         linksTo: {
-          type: Join.full,
-          elements: [
-            {
-              id: 'textnodelinksto',
-            },
-          ],
+          joinType: Join.full,
+          elements: ['textnodelinksto'],
         },
         text: {
           value: 'Lorem',
-          levels: 0,
+          textLevels: 0,
         },
       },
       userScenarioA
@@ -970,8 +923,8 @@ describe('routes', async () => {
   test('search under', async (done) => {
     const result = await explore(
       {
-        under: {
-          type: Join.inner,
+        start: {
+          joinType: Join.inner,
           elements: [
             {
               id: scenario.privateId,
@@ -989,8 +942,8 @@ describe('routes', async () => {
   test('seacrh by under and text', async (done) => {
     const result = await explore(
       {
-        under: {
-          type: Join.full,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: scenario.privateId,
@@ -999,7 +952,7 @@ describe('routes', async () => {
         },
         text: {
           value: 'long established',
-          levels: 0,
+          textLevels: 0,
         },
       },
       userScenarioA
@@ -1012,8 +965,8 @@ describe('routes', async () => {
   test('search by under and linksTo', async (done) => {
     const result = await explore(
       {
-        under: {
-          type: Join.full,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: scenario.linkedThoughts,
@@ -1021,12 +974,8 @@ describe('routes', async () => {
           ],
         },
         linksTo: {
-          type: Join.full,
-          elements: [
-            {
-              id: 'textnodelinksto',
-            },
-          ],
+          joinType: Join.full,
+          elements: ['textnodelinksto'],
         },
       },
       userScenarioA
@@ -1051,8 +1000,8 @@ describe('routes', async () => {
 
     const result = await explore(
       {
-        under: {
-          type: Join.full,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: scenario.linkedThoughts,
@@ -1060,33 +1009,30 @@ describe('routes', async () => {
           ],
         },
         linksTo: {
-          type: Join.full,
-          elements: [
-            {
-              id: 'textnodelinksto',
-            },
-          ],
+          joinType: Join.full,
+          elements: ['textnodelinksto'],
         },
         text: {
           value: 'Why do we use it',
-          levels: -1,
+          textLevels: -1,
         },
       },
       userScenarioA
     );
 
-    expect(result.data.perspectiveIds.length).toBe(2);
+    expect(result.data.perspectiveIds.length).toBe(1);
     done();
   });
 
   test('search above', async (done) => {
     const result = await explore(
       {
-        above: {
-          type: Join.inner,
+        start: {
+          joinType: Join.inner,
           elements: [
             {
               id: scenario.pages[2].links[0],
+              direction: 'above',
             },
           ],
         },
@@ -1111,17 +1057,18 @@ describe('routes', async () => {
   test('seacrh by above and text', async (done) => {
     const result = await explore(
       {
-        above: {
-          type: Join.full,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: scenario.pages[1].links[0],
+              direction: 'above',
             },
           ],
         },
         text: {
           value: 'Why do we use it',
-          levels: 0,
+          textLevels: 0,
         },
       },
       userScenarioA
@@ -1146,21 +1093,18 @@ describe('routes', async () => {
 
     const result = await explore(
       {
-        above: {
-          type: Join.full,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: page1relatives[0],
+              direction: 'above',
             },
           ],
         },
         linksTo: {
-          type: Join.full,
-          elements: [
-            {
-              id: 'textnodelinksto',
-            },
-          ],
+          joinType: Join.full,
+          elements: ['textnodelinksto'],
         },
       },
       userScenarioA
@@ -1185,47 +1129,44 @@ describe('routes', async () => {
 
     const result = await explore(
       {
-        above: {
-          type: Join.full,
+        start: {
+          joinType: Join.full,
           elements: [
             {
               id: page1relatives[0],
+              direction: 'above',
             },
           ],
         },
         linksTo: {
-          type: Join.full,
-          elements: [
-            {
-              id: 'textnodelinksto',
-            },
-          ],
+          joinType: Join.full,
+          elements: ['textnodelinksto'],
         },
         text: {
           value: 'Why do we use it',
-          levels: -1,
+          textLevels: -1,
         },
       },
       userScenarioA
     );
 
-    expect(result.data.perspectiveIds.length).toBe(4);
+    expect(result.data.perspectiveIds.length).toBe(1);
     done();
   });
 
   test('search forks within the children of a given perspective (under level = 1)', async (done) => {
     const result = await explore(
       {
-        forks: {
-          independent: false,
-          exclusive: true,
-        },
-        under: {
-          type: Join.full,
-          levels: 1,
+        start: {
+          joinType: Join.full,
           elements: [
             {
-              id: treeA.pages[0].id,
+              id: p1.pages[0].id,
+              levels: 1,
+              forks: {
+                independent: false,
+                exclusive: true,
+              },
             },
           ],
         },
@@ -1233,11 +1174,13 @@ describe('routes', async () => {
       userScenarioB
     );
 
+    // Should receive p2, p21, p22, p31
+
     expect(result.data.perspectiveIds.length).toEqual(4);
-    expect(result.data.perspectiveIds[0]).toEqual(treeC);
-    expect(result.data.perspectiveIds[1]).toEqual(treeBChildren[1]);
-    expect(result.data.perspectiveIds[2]).toEqual(treeB);
-    expect(result.data.perspectiveIds[3]).toEqual(treeBChildren[0]);
+    expect(result.data.perspectiveIds[0]).toEqual(p31);
+    expect(result.data.perspectiveIds[1]).toEqual(p2children[1]);
+    expect(result.data.perspectiveIds[2]).toEqual(p2);
+    expect(result.data.perspectiveIds[3]).toEqual(p2children[0]);
 
     done();
   });
@@ -1245,15 +1188,14 @@ describe('routes', async () => {
   test('search independent forks within a perspective ecosystem (under level = -1)', async (done) => {
     const result = await explore(
       {
-        forks: {
-          exclusive: true,
-        },
-        under: {
-          type: Join.full,
-          levels: -1,
+        start: {
+          joinType: Join.full,
           elements: [
             {
-              id: treeA.pages[0].id,
+              id: p1.pages[0].id,
+              forks: {
+                exclusive: true,
+              },
             },
           ],
         },
@@ -1262,23 +1204,22 @@ describe('routes', async () => {
     );
 
     expect(result.data.perspectiveIds.length).toEqual(1);
-    expect(result.data.perspectiveIds[0]).toEqual(treeC);
+    expect(result.data.perspectiveIds[0]).toEqual(p31);
     done();
   });
 
   test('search independent forks within a perspective ecosystem and independent forks of top element (under level = -1)', async (done) => {
     const result = await explore(
       {
-        forks: {
-          independentOf: treeB,
-          exclusive: true,
-        },
-        under: {
-          type: Join.full,
-          levels: -1,
+        start: {
+          joinType: Join.full,
           elements: [
             {
-              id: treeBChildren[1],
+              id: p2children[1],
+              forks: {
+                independentOf: p2,
+                exclusive: true,
+              },
             },
           ],
         },
@@ -1287,8 +1228,8 @@ describe('routes', async () => {
     );
 
     expect(result.data.perspectiveIds.length).toEqual(2);
-    expect(result.data.perspectiveIds[0]).toEqual(treeD);
-    expect(result.data.perspectiveIds[1]).toEqual(treeC);
+    expect(result.data.perspectiveIds[0]).toEqual(p421);
+    expect(result.data.perspectiveIds[1]).toEqual(p31);
 
     done();
   });
@@ -1296,18 +1237,22 @@ describe('routes', async () => {
   test('search forks within the ecosystem or children of many perspectives (level 1 and level -1 | multiple under elements)', async (done) => {
     const result = await explore(
       {
-        forks: {
-          exclusive: true,
-        },
-        under: {
-          type: Join.full,
-          levels: 1,
+        start: {
+          joinType: Join.full,
           elements: [
             {
-              id: treeA.pages[0].id,
+              id: p1.pages[0].id,
+              levels: 1,
+              forks: {
+                exclusive: true,
+              },
             },
             {
-              id: treeB,
+              id: p2,
+              levels: 1,
+              forks: {
+                exclusive: true,
+              },
             },
           ],
         },
@@ -1315,24 +1260,26 @@ describe('routes', async () => {
       userScenarioB
     );
 
-    // Results with level 0
+    // Results with level 1
     expect(result.data.perspectiveIds.length).toEqual(1);
-    expect(result.data.perspectiveIds[0]).toEqual(treeC);
+    expect(result.data.perspectiveIds[0]).toEqual(p31);
 
     const resultEcosystem = await explore(
       {
-        forks: {
-          exclusive: true,
-        },
-        under: {
-          type: Join.full,
-          levels: -1,
+        start: {
+          joinType: Join.full,
           elements: [
             {
-              id: treeA.pages[0].id,
+              id: p1.pages[0].id,
+              forks: {
+                exclusive: true,
+              },
             },
             {
-              id: treeB,
+              id: p2,
+              forks: {
+                exclusive: true,
+              },
             },
           ],
         },
@@ -1342,8 +1289,8 @@ describe('routes', async () => {
 
     // Results with level -1
     expect(resultEcosystem.data.perspectiveIds.length).toEqual(2);
-    expect(resultEcosystem.data.perspectiveIds[0]).toEqual(treeD);
-    expect(resultEcosystem.data.perspectiveIds[1]).toEqual(treeC);
+    expect(resultEcosystem.data.perspectiveIds[0]).toEqual(p421);
+    expect(resultEcosystem.data.perspectiveIds[1]).toEqual(p31);
     done();
   });
 
@@ -1353,7 +1300,6 @@ describe('routes', async () => {
     expect(result.data.perspectiveIds.length).toBe(10);
     done();
   });
-
   // TODO: Test ecosystem levels in forks and explore.
   // TODO: Test exclusive in forks
 });
