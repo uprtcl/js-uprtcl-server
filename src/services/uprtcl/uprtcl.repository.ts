@@ -22,7 +22,6 @@ import { Upsert } from './types';
 import { PERSPECTIVE_SCHEMA_NAME, COMMIT_SCHEMA_NAME } from './uprtcl.schema';
 import { ipldService } from '../ipld/ipldService';
 import { decodeData } from '../data/utils';
-import e from 'express';
 
 const dgraph = require('dgraph-js');
 
@@ -1309,7 +1308,7 @@ export class UprtclRepository {
     levels?: number
   ): string {
     let query = ``;
-    independent = independent === undefined ? true : independent;
+    independent = independent !== undefined && independent != false;
 
     // We set a provisional use in case of no further use.
     query = query.concat(`
