@@ -1223,16 +1223,7 @@ export class UprtclRepository {
 
     // Retreive the JoinTree and collect Ids
     for (let i = 0; i < elements.length; i++) {
-      query = query.concat(
-        this.retrieveJoinTree(
-          elements[i].id,
-          elements[i].direction,
-          elements[i].levels,
-          elements[i].forks?.independent,
-          elements[i].forks?.independentOf,
-          elements[i].forks?.exclusive
-        )
-      );
+      query = query.concat(this.retrieveJoinTree(elements[i]));
 
       ids.push(elements[i].id);
     }
@@ -1263,17 +1254,12 @@ export class UprtclRepository {
     return query;
   }
 
-  private retrieveJoinTree(
-    id: string,
-    direction?: 'under' | 'above',
-    levels?: number,
-    independent?: boolean,
-    independentOf?: string,
-    exclusive?: boolean
-  ): string {
-    const forks = exclusive || independent || independentOf;
+  private retrieveJoinTree(element: JoinTree): string {
     const under =
-      direction === undefined || direction === 'under' ? true : false;
+      element.direction === undefined || element.direction === 'under';
+    const levels = element.levels !== undefined ? element.levels : -1;
+    const id = element.id;
+
     let query = ``;
 
     if (levels === 0) {
@@ -1295,9 +1281,14 @@ export class UprtclRepository {
       }`;
     }
     // Consequently, we check for forks regarding the given element.
-    if (forks) {
+    if (element.forks) {
       query = query.concat(
-        this.getForksUpsert(id, independent, independentOf, levels)
+        this.getForksUpsert(
+          id,
+          element.forks.independent,
+          element.forks.independentOf,
+          levels
+        )
       );
     } else {
       /**
@@ -1308,9 +1299,9 @@ export class UprtclRepository {
 
     query = query.concat(`\nelement${id} as var(func:uid(
       ${
-        !exclusive
-          ? `topElement${id}, ecoPersps${id}, forksOf${id}`
-          : `forksOf${id}`
+        element.forks && element.forks.exclusive
+          ? `forksOf${id}`
+          : `topElement${id}, ecoPersps${id}, forksOf${id}`
       }))`);
 
     return query;
