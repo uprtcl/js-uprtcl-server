@@ -1255,11 +1255,11 @@ export class UprtclRepository {
   }
 
   private retrieveJoinTree(element: JoinTree): string {
+    const forks = element.forks;
     const under =
       element.direction === undefined || element.direction === 'under';
-    const levels = element.levels !== undefined ? element.levels : -1;
+    const levels = element.levels;
     const id = element.id;
-
     let query = ``;
 
     if (levels === 0) {
@@ -1281,14 +1281,9 @@ export class UprtclRepository {
       }`;
     }
     // Consequently, we check for forks regarding the given element.
-    if (element.forks) {
+    if (forks) {
       query = query.concat(
-        this.getForksUpsert(
-          id,
-          element.forks.independent,
-          element.forks.independentOf,
-          levels
-        )
+        this.getForksUpsert(id, forks.independent, forks.independentOf, levels)
       );
     } else {
       /**
@@ -1299,9 +1294,9 @@ export class UprtclRepository {
 
     query = query.concat(`\nelement${id} as var(func:uid(
       ${
-        element.forks && element.forks.exclusive
-          ? `forksOf${id}`
-          : `topElement${id}, ecoPersps${id}, forksOf${id}`
+        !forks || !forks.exclusive
+          ? `topElement${id}, ecoPersps${id}, forksOf${id}`
+          : `forksOf${id}`
       }))`);
 
     return query;
@@ -1356,16 +1351,16 @@ export class UprtclRepository {
       `);
     } else {
       query = query.concat(
-        `independentOf${perspectiveId} as var(func: has(undefined))`
+        `independentOf${perspectiveId} as var(func: uid(0x01))`
       );
     }
 
     // eveeContext = ecoContext (same meaning)
     if (levels === 0) {
       query = query.concat(`
-        independent${perspectiveId} as var(func: has(undefined))
+        independent${perspectiveId} as var(func: uid(0x01))
         eveeContext${perspectiveId}(func: uid(officialTopContext${perspectiveId})) {
-          allForks${perspectiveId} as var ~context @filter(not(uid(topElement${perspectiveId}))) {
+          allForks${perspectiveId} as ~context @filter(not(uid(topElement${perspectiveId}))) {
             xid
           }
         }
@@ -1380,7 +1375,7 @@ export class UprtclRepository {
               parentEcoContext${perspectiveId} as context
             }
           }
-          allForks${perspectiveId} as var(func:has(undefined))
+          allForks${perspectiveId} as var(func:uid(0x01))
           normalInd${perspectiveId}(func: uid(officialEcoContext${perspectiveId})) {
             normalIndependent${perspectiveId} as ~context @filter(
               not(
@@ -1422,7 +1417,7 @@ export class UprtclRepository {
             }
           }
           emptyPlaceHolder${perspectiveId}(func: uid(parentEcoContext${perspectiveId}))
-           independent${perspectiveId} as var(func: has(undefined))
+           independent${perspectiveId} as var(func: uid(0x01))
            eveeContext${perspectiveId}(func: uid(officialEcoContext${perspectiveId}, officialTopContext${perspectiveId})) {
               allForks${perspectiveId} as ~context @filter(not(uid(topElement${perspectiveId}, ecoPersps${perspectiveId}))) {
                 xid
