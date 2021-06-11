@@ -1390,9 +1390,7 @@ export class UprtclRepository {
           orphInd${perspectiveId}(func: uid(officialEcoContext${perspectiveId})) {
             orphanIndependent${perspectiveId} as ~context @filter(
               not(
-                uid(topElement${perspectiveId})
-                AND
-                uid(ecoPersps${perspectiveId})
+                uid(topElement${perspectiveId}, ecoPersps${perspectiveId})
               )
               AND
               eq(count(~children), 0)
