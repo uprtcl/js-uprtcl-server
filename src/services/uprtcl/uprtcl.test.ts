@@ -61,10 +61,13 @@ describe('routes', async () => {
   let userScenarioB: TestUser,
     pageBranchA: TestFlatPage[],
     p1: FlatScenario,
+    p1children: string[],
     p2: string,
     p2children: string[],
     p31: string,
     p31children: string[],
+    p321: string,
+    p221: string,
     p421: string;
 
   beforeAll(async () => {
@@ -146,6 +149,7 @@ describe('routes', async () => {
     ];
 
     p1 = await createFlatScenario(pageBranchA, userScenarioB);
+    p1children = await getPerspectiveRelatives(p1.pages[0].id, 'children');
     // End of branch A
 
     // We fork treeA and convert it to treeB or top p2
@@ -172,9 +176,12 @@ describe('routes', async () => {
       userScenarioB
     );
 
+    p221 = (await getPerspectiveRelatives(p2children[1], 'children'))[0];
+
     // We fork the last treeB child and convert it to branchC or top p31
     // Children of this fork will be p321
     p31 = await forkPerspective(p2children[1], userScenarioB);
+    p321 = (await getPerspectiveRelatives(p31, 'children'))[0];
 
     p31children = await getPerspectiveRelatives(p31, 'children');
     // We fork the treeC only child and call it treeD
@@ -1299,6 +1306,70 @@ describe('routes', async () => {
     expect(result.data.perspectiveIds.length).toBe(10);
     done();
   });
-  // TODO: Test ecosystem levels in forks and explore.
-  // TODO: Test exclusive in forks
+
+  test('-> inner -> exclusive -> above -> -1', async (done) => {
+    const result = await explore(
+      {
+        start: {
+          joinType: Join.inner,
+          elements: [
+            {
+              id: p1children[0],
+              direction: 'above',
+              forks: {
+                exclusive: true,
+              },
+            },
+            {
+              id: p221,
+              direction: 'above',
+              forks: {
+                exclusive: true,
+              },
+            },
+          ],
+        },
+      },
+      userScenarioB
+    );
+
+    expect(result.data.perspectiveIds).toHaveLength(1);
+    expect(result.data.perspectiveIds[0]).toEqual(p31);
+
+    done();
+  });
+
+  test('-> inner -> exclusive -> above -> -1', async (done) => {
+    const result = await explore(
+      {
+        start: {
+          joinType: Join.inner,
+          elements: [
+            {
+              id: p221,
+              direction: 'above',
+              forks: {
+                exclusive: true,
+                independent: true,
+              },
+            },
+            {
+              id: p321,
+              direction: 'above',
+              forks: {
+                exclusive: true,
+                independent: true,
+              },
+            },
+          ],
+        },
+      },
+      userScenarioB
+    );
+
+    expect(result.data.perspectiveIds).toHaveLength(0);
+    done();
+  });
+
+  // TODO: Test exclusive: false and all forks
 });

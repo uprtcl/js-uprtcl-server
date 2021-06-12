@@ -1265,7 +1265,8 @@ export class UprtclRepository {
       // Define ecoPersp as empty for Dgraph purposes
       query = `
         topElement${id} as var(func: eq(xid, ${id}))
-        ecoPersps${id} as var(func: has(undefined))
+        ecoPersps${id} as var(func: uid(0x01))
+        ecoPerspsDefinition${id} (func: uid(ecoPersps${id}))
       `;
     } else {
       query = `\ntopElement${id} as var(func: eq(xid, ${id}))
@@ -1288,7 +1289,7 @@ export class UprtclRepository {
       /**
        * We define @forksOf as empty in order to be used as a placeholder.
        */
-      query = query.concat(`\nforksOf${id} as var(func: has(undefined))`);
+      query = query.concat(`\nforksOf${id} as var(func: uid(0x01))`);
     }
 
     query = query.concat(`\nelement${id} as var(func:uid(
@@ -1315,7 +1316,7 @@ export class UprtclRepository {
       context${perspectiveId}(func: uid(topElement${perspectiveId})) {
         officialTopContext${perspectiveId} as context
       }
-      provisionalUse${perspectiveId}(func:uid(officialTopContext${perspectiveId})) {
+      officialTopContextDefinition${perspectiveId}(func:uid(officialTopContext${perspectiveId})) {
         name
       }
     `);
@@ -1358,10 +1359,14 @@ export class UprtclRepository {
     if (levels === 0) {
       query = query.concat(`
         independent${perspectiveId} as var(func: uid(0x01))
-        eveeContext${perspectiveId}(func: uid(officialTopContext${perspectiveId})) {
-          allForks${perspectiveId} as ~context @filter(not(uid(topElement${perspectiveId}))) {
-            xid
-          }
+        ${
+          independentOf !== undefined
+            ? `allForks${perspectiveId} as var(func: uid(0x01))`
+            : `eveeContext${perspectiveId}(func: uid(officialTopContext${perspectiveId})) {
+              allForks${perspectiveId} as ~context @filter(not(uid(topElement${perspectiveId}))) {
+                xid
+              }
+            }`
         }
       `);
     } else {
@@ -1390,9 +1395,7 @@ export class UprtclRepository {
           orphInd${perspectiveId}(func: uid(officialEcoContext${perspectiveId})) {
             orphanIndependent${perspectiveId} as ~context @filter(
               not(
-                uid(topElement${perspectiveId})
-                AND
-                uid(ecoPersps${perspectiveId})
+                uid(topElement${perspectiveId}, ecoPersps${perspectiveId})
               )
               AND
               eq(count(~children), 0)
