@@ -84,6 +84,11 @@ export class DataRepository {
     const datas = hashes.map((hash) => {
       const data = json[`data${hash}`][0];
 
+      if (data === undefined) {
+        console.error(`Data for ${hash} not found`);
+        return undefined;
+      }
+
       if (data.stored) {
         const object = decodeData(data.jsonString);
         return {
@@ -92,6 +97,7 @@ export class DataRepository {
           remote: '',
         };
       }
+
       return undefined;
     });
 
