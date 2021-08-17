@@ -59,8 +59,6 @@ export function verifyC1Token(token: string) {
 
 export const checkJwt = (req: any, res: any, next: NextFunction) => {
   let token;
-  let credentialsRequired = false;
-
   if (
     req.method === 'OPTIONS' &&
     req.headers.hasOwnProperty('access-control-request-headers')
@@ -88,11 +86,7 @@ export const checkJwt = (req: any, res: any, next: NextFunction) => {
       if (/^Bearer$/i.test(scheme)) {
         token = credentials;
       } else {
-        if (credentialsRequired) {
-          return next(new Error('credentials_bad_scheme'));
-        } else {
-          return next();
-        }
+        return next();
       }
     } else {
       return next(new Error('credentials_bad_format'));
@@ -100,11 +94,7 @@ export const checkJwt = (req: any, res: any, next: NextFunction) => {
   }
 
   if (!token) {
-    if (credentialsRequired) {
-      return next(new Error('credentials_required'));
-    } else {
-      return next();
-    }
+    return next();
   }
 
   let dtoken;
