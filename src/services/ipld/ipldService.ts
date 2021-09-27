@@ -1,14 +1,16 @@
+import { Secured } from '@uprtcl/evees';
 import CID from 'cids';
 const CBOR = require('cbor-js');
 
 import multihashing from 'multihashing-async';
-import { CidConfig } from './cid.config';
-import { Secured } from '../uprtcl/types';
 import { localCidConfig } from '.';
+import { CidConfig } from './cid.config';
 
 type genericObject = {
   [key: string]: any;
 };
+
+const LOGINFO = false;
 
 function sortObject(object: genericObject): object {
   if (typeof object !== 'object' || object instanceof Array) {
@@ -38,26 +40,30 @@ export class IpldService {
       cidConfig.base
     );
 
-    console.log(`hashed object:`, {
-      object,
-      sorted,
-      buffer,
-      buffer2,
-      cidConfig,
-      cid,
-      cidStr: cid.toString(),
-    });
+    if (LOGINFO) {
+      console.log(`hashed object:`, {
+        object,
+        sorted,
+        buffer,
+        buffer2,
+        cidConfig,
+        cid,
+        cidStr: cid.toString(),
+      });
+    }
 
     return cid.toString();
   }
 
-  async validateSecured(secured: Secured) {
-    if (secured.id !== undefined && secured.id !== '') {
-      let valid = await this.validateCid(secured.id, secured.object);
+  async validateSecured(secured: Secured<any>) {
+    if (secured.hash !== undefined && secured.hash !== '') {
+      let valid = await this.validateCid(secured.hash, secured.object);
       if (!valid) {
-        throw new Error(`Invalid cid ${secured.id}`);
+        throw new Error(
+          `Invalid cid ${secured.hash} (see log above for details)`
+        );
       }
-      return secured.id;
+      return secured.hash;
     } else {
       const id = await ipldService.generateCidOrdered(
         secured.object,

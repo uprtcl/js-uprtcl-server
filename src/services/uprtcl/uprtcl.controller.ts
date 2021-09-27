@@ -1,5 +1,10 @@
 import { Request, Response } from 'express';
-import { checksPlaceholder } from '../../middleware/checks';
+import {
+  PerspectiveGetResult,
+  ParentAndChild,
+  SearchResult,
+} from '@uprtcl/evees';
+
 import { UprtclService } from './uprtcl.service';
 import { checkJwt } from '../../middleware/jwtCheck';
 import {
@@ -9,13 +14,6 @@ import {
   PostResult,
   ERROR,
 } from '../../utils';
-import {
-  Secured,
-  Perspective,
-  PerspectiveDetails,
-  Commit,
-  Proposal,
-} from './types';
 
 declare global {
   namespace Express {
@@ -36,15 +34,15 @@ export class UprtclController {
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const elementId = await this.uprtclService.createAndInitPerspective(
-              req.body,
+            const elementIds = await this.uprtclService.createAndInitPerspectives(
+              req.body.perspectives,
               getUserFromReq(req)
             );
 
             let result: PostResult = {
               result: SUCCESS,
               message: '',
-              elementIds: [elementId],
+              elementIds,
             };
             res.status(200).send(result);
           },
@@ -52,70 +50,88 @@ export class UprtclController {
       },
 
       {
-        path: '/uprtcl/1/persp/:perspectiveId',
-        method: 'get',
+        path: '/uprtcl/1/persp/update',
+        method: 'put',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            let inputs: any = {
-              perspectiveId: req.params.perspectiveId,
-              userId: getUserFromReq(req),
-            };
-
             try {
-              const perspective = await this.uprtclService.getPerspective(
-                inputs.perspectiveId,
-                inputs.userId
+              await this.uprtclService.updatePerspectives(
+                req.body.updates,
+                getUserFromReq(req)
               );
-              let result: GetResult<Secured<Perspective>> = {
+
+              let result: PostResult = {
                 result: SUCCESS,
-                message: '',
-                data: perspective,
+                message: 'perspective head updated',
+                elementIds: [],
               };
-
-              console.log('[UPRTCL CONTROLLER] getPerspective', {
-                inputs: JSON.stringify(inputs),
-                result: JSON.stringify(result),
-              });
-
               res.status(200).send(result);
             } catch (error) {
-              console.log(
-                '[UPRTCL CONTROLLER] getPerspective - Error',
-                JSON.stringify(inputs),
-                error
-              );
-
-              let result: GetResult<null> = {
+              console.error(error);
+              let result: PostResult = {
                 result: ERROR,
                 message: error.message,
-                data: null,
+                elementIds: [],
               };
-
-              res.status(200).send(result);
+              res.status(400).send(result);
             }
           },
         ],
       },
 
       {
-        path: '/uprtcl/1/persp/:perspectiveId/details',
-        method: 'get',
+        path: '/uprtcl/1/deletePersp',
+        method: 'put',
+        handler: [
+          checkJwt,
+          async (req: Request, res: Response) => {
+            try {
+              await this.uprtclService.deletePerspective(
+                req.body.perspectiveIds,
+                getUserFromReq(req)
+              );
+
+              let result: PostResult = {
+                result: SUCCESS,
+                message: 'perspective deleted',
+                elementIds: [],
+              };
+              res.status(200).send(result);
+            } catch (error) {
+              console.error(error);
+              let result: PostResult = {
+                result: ERROR,
+                message: error.message,
+                elementIds: [],
+              };
+              res.status(400).send(result);
+            }
+          },
+        ],
+      },
+
+      {
+        // A Get with put, it receive the get options in the body
+        path: '/uprtcl/1/persp/:perspectiveId',
+        method: 'put',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
             let inputs: any = {
               perspectiveId: req.params.perspectiveId,
+              options: req.body,
               userId: getUserFromReq(req),
             };
 
             try {
-              const data = await this.uprtclService.getPerspectiveDetails(
+              const data = await this.uprtclService.getPerspective(
                 inputs.perspectiveId,
-                inputs.userId
+                inputs.userId,
+                inputs.options
               );
 
-              let result: GetResult<PerspectiveDetails> = {
+              let result: GetResult<PerspectiveGetResult> = {
                 result: SUCCESS,
                 message: '',
                 data: data,
@@ -147,105 +163,31 @@ export class UprtclController {
       },
 
       {
-        path: '/uprtcl/1/persp/:perspectiveId/details',
+        // A locate GETasPUT action (search upwards) that receives options in the body
+        path: '/uprtcl/1/locate',
         method: 'put',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
             try {
-              await this.uprtclService.updatePerspective(
-                req.params.perspectiveId,
-                req.body,
+              let perspectives = await this.uprtclService.locatePerspective(
+                req.body.elementId,
+                req.body.forks,
                 getUserFromReq(req)
               );
 
-              let result: PostResult = {
+              let result: GetResult<ParentAndChild[]> = {
                 result: SUCCESS,
-                message: 'perspective head updated',
-                elementIds: [],
-              };
-              res.status(200).send(result);
-            } catch (error) {
-              console.error(error);
-              let result: PostResult = {
-                result: ERROR,
-                message: error.message,
-                elementIds: [],
-              };
-              res.status(400).send(result);
-            }
-          },
-        ],
-      },
-
-      {
-        path: '/uprtcl/1/persp/:perspectiveId',
-        method: 'delete',
-        handler: [
-          checkJwt,
-          async (req: Request, res: Response) => {
-            try {
-              await this.uprtclService.deletePerspective(
-                req.params.perspectiveId,
-                getUserFromReq(req)
-              );
-
-              let result: PostResult = {
-                result: SUCCESS,
-                message: 'perspective deleted',
-                elementIds: [],
-              };
-              res.status(200).send(result);
-            } catch (error) {
-              console.error(error);
-              let result: PostResult = {
-                result: ERROR,
-                message: error.message,
-                elementIds: [],
-              };
-              res.status(400).send(result);
-            }
-          },
-        ],
-      },
-
-      {
-        path: '/uprtcl/1/persp/context/:perspectiveId',
-        method: 'get',
-        handler: [
-          checkJwt,
-          async (req: Request, res: Response) => {
-            const inputs = {
-              perspId: req.params.perspectiveId,
-              eco: req.query.includeEcosystem,
-            };
-
-            try {
-              let perspectives = await this.uprtclService.findIndPerspectives(
-                inputs.perspId,
-                inputs.eco === 'false'
-                  ? false
-                  : inputs.eco === 'true'
-                  ? true
-                  : inputs.eco === '' || inputs.eco === 'undefined'
-                  ? false
-                  : false,
-                getUserFromReq(req)
-              );
-
-              let result: GetResult<string[]> = {
-                result: SUCCESS,
-                message: 'perspectives found',
+                message: 'perspectives located',
                 data: perspectives,
               };
-
               res.status(200).send(result);
             } catch (error) {
-              console.log(error);
-              let result: GetResult<string[]> = {
+              console.error(error);
+              let result: PostResult = {
                 result: ERROR,
                 message: error.message,
-                data: [],
+                elementIds: [],
               };
               res.status(400).send(result);
             }
@@ -283,43 +225,35 @@ export class UprtclController {
           },
         ],
       },
-
       {
-        path: '/uprtcl/1/commit',
-        method: 'post',
+        path: '/uprtcl/1/explore',
+        method: 'put',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const elementId = await this.uprtclService.createCommit(
-              req.body,
+            const perspectives = await this.uprtclService.explore(
+              req.body.searchOptions,
+              req.body.fetchOptions,
               getUserFromReq(req)
             );
-            let result: PostResult = {
-              result: SUCCESS,
-              message: '',
-              elementIds: [elementId],
-            };
-            res.status(200).send(result);
-          },
-        ],
-      },
 
-      {
-        path: '/uprtcl/1/commit/:commitId',
-        method: 'get',
-        handler: [
-          checkJwt,
-          async (req: Request, res: Response) => {
-            const data = await this.uprtclService.getCommit(
-              req.params.commitId,
-              getUserFromReq(req)
-            );
-            let result: GetResult<Secured<Commit>> = {
-              result: SUCCESS,
-              message: '',
-              data: data,
-            };
-            res.status(200).send(result);
+            try {
+              let result: GetResult<SearchResult> = {
+                result: SUCCESS,
+                message: 'search result',
+                data: perspectives,
+              };
+
+              res.status(200).send(result);
+            } catch (error) {
+              console.error(error);
+              let result: PostResult = {
+                result: ERROR,
+                message: error.message,
+                elementIds: [],
+              };
+              res.status(400).send(result);
+            }
           },
         ],
       },

@@ -1,9 +1,10 @@
+import { Entity } from '@uprtcl/evees';
+
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
-import { localCidConfig } from '../ipld';
-import { ipldService } from '../ipld/ipldService';
 import { DATA_SCHEMA_NAME } from './data.schema';
-import { Hashed } from '../uprtcl/types';
+import { ipldService } from '../ipld/ipldService';
+import { decodeData, encodeData } from './utils';
 
 const dgraph = require('dgraph-js');
 
@@ -16,45 +17,39 @@ export class DataRepository {
   /** All data objects are stored as textValues, intValues, floatValues and boolValues
    * or links to other objects, if the value is a valid CID string.
    * The path of the property in the JSON object is stored in a facet */
-  async createData(hashedData: Hashed<any>) {
+  async createDatas(datas: Entity<any>[]): Promise<Entity<any>[]> {
+    if (datas.length === 0) return [];
     await this.db.ready();
 
-    /** Validate ID */
-    const data = hashedData.object;
-    let id: string;
+    let query = ``;
+    let nquads = ``;
+    let entities: Entity<any>[] = [];
 
-    if (hashedData.id !== undefined && hashedData.id !== '') {
-      let valid = await ipldService.validateCid(hashedData.id, data);
-      if (!valid) {
-        throw new Error(`Invalid cid ${hashedData.id}`);
-      }
-      id = hashedData.id;
-    } else {
-      id = await ipldService.generateCidOrdered(data, localCidConfig);
-      console.log('[DGRAPH] createData - create id', { data, id });
+    for (let hashedData of datas) {
+      const data = hashedData.object;
+      const id = await ipldService.validateSecured(hashedData);
+
+      query = query.concat(`\ndata${id} as var(func: eq(xid, ${id}))`);
+      nquads = nquads.concat(`\nuid(data${id}) <xid> "${id}" .`);
+
+      nquads = nquads.concat(`\nuid(data${id}) <stored> "true" .`);
+      nquads = nquads.concat(
+        `\nuid(data${id}) <dgraph.type> "${DATA_SCHEMA_NAME}" .`
+      );
+
+      // patch store quotes of string attributes as symbol
+      const dataCoded = encodeData(data);
+      nquads = nquads.concat(`\nuid(data${id}) <jsonString> "${dataCoded}" .`);
+
+      entities.push({
+        hash: id,
+        object: data,
+        remote: '',
+      });
     }
 
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
-
-    // patch store quotes of string attributes as symbol
-    const dataCoded = { ...data };
-    if (dataCoded.text !== undefined)
-      dataCoded.text = dataCoded.text.replace(/"/g, '&quot;');
-    if (dataCoded.title !== undefined)
-      dataCoded.title = dataCoded.title.replace(/"/g, '&quot;');
-
-    let query = `data as var(func: eq(xid, ${id}))`;
-    let nquads = `uid(data) <xid> "${id}" .`;
-
-    nquads = nquads.concat(`\nuid(data) <stored> "true" .`);
-    nquads = nquads.concat(`\nuid(data) <dgraph.type> "${DATA_SCHEMA_NAME}" .`);
-    nquads = nquads.concat(
-      `\nuid(data) <jsonString> "${JSON.stringify(dataCoded).replace(
-        /"/g,
-        '\\"'
-      )}" .`
-    );
 
     req.setQuery(`query {${query}}`);
     mu.setSetNquads(nquads);
@@ -67,50 +62,48 @@ export class DataRepository {
       { nquads },
       result.getUidsMap().toArray()
     );
-    return id;
+    return entities;
   }
 
-  async getData(dataId: string): Promise<Hashed<Object>> {
+  async getDatas(hashes: string[]): Promise<Entity[]> {
     await this.db.ready();
 
-    const query = `query {
-      data(func: eq(xid, ${dataId})) {
+    let query = '';
+    hashes.forEach((hash) => {
+      query = query.concat(`\ndata${hash}(func: eq(xid, ${hash})) {
         xid
         stored
         jsonString
-      }
-    }`;
+      }`);
+    });
 
-    let result = await this.db.client.newTxn().query(query);
+    let result = await this.db.client.newTxn().query(`query{${query}}`);
     const json = result.getJson();
     console.log('[DGRAPH] getData', { query, json });
 
-    if (json.data.length === 0) {
-      throw new Error(`element with xid ${dataId} not found`);
-    }
+    const datas = hashes.map((hash) => {
+      const data = json[`data${hash}`][0];
 
-    if (json.data.length > 1) {
-      throw new Error(
-        `unexpected number of entries ${json.data.length} for xid ${dataId}`
-      );
-    }
+      if (data === undefined) {
+        console.error(`Data for ${hash} not found`);
+        return undefined;
+      }
 
-    if (!json.data[0].stored) {
-      throw new Error(`element with xid ${dataId} content not stored`);
-    }
+      if (data.stored) {
+        const object = decodeData(data.jsonString);
+        return {
+          hash,
+          object,
+          remote: '',
+        };
+      }
 
-    const dataCoded = JSON.parse(json.data[0].jsonString);
+      return undefined;
+    });
 
-    const data = { ...dataCoded };
-    if (data.text !== undefined) data.text = data.text.replace(/&quot;/g, '"');
-    if (data.title !== undefined)
-      data.title = data.title.replace(/&quot;/g, '"');
+    const datasValid = datas.filter((d) => !!d);
+    console.log('[DGRAPH] getData', { query, json, datasValid });
 
-    console.log('[DGRAPH] getData', { query, json, data });
-
-    return {
-      id: dataId,
-      object: data,
-    };
+    return datasValid as Entity[];
   }
 }

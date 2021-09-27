@@ -9,11 +9,8 @@ import { AccessRepository } from './access/access.repository';
 import { UserRepository } from './user/user.repository';
 import { UprtclRepository } from './uprtcl/uprtcl.repository';
 import { DataRepository } from './data/data.repository';
-import { KnownSourcesRepository } from './knownsources/knownsources.repository';
-import { KnownSourcesController } from './knownsources/knownsources.controller';
 import { DataService } from './data/data.service';
 import { DataController } from './data/data.controller';
-import { KnownSourcesService } from './knownsources/knownsources.service';
 import { ProposalsController } from './proposals/proposals.controller';
 import { ProposalsService } from './proposals/proposals.service';
 import { ProposalsRepository } from './proposals/proposals.repository';
@@ -37,7 +34,6 @@ export const getRoutes = async () => {
   const accessRepo = new AccessRepository(dbService, userRepo);
   const dataRepo = new DataRepository(dbService, userRepo);
   const uprtclRepo = new UprtclRepository(dbService, userRepo, dataRepo);
-  const knownSourcesRepo = new KnownSourcesRepository(dbService);
 
   const accessService = new AccessService(dbService, accessRepo);
   const accessController = new AccessController(accessService);
@@ -58,28 +54,18 @@ export const getRoutes = async () => {
 
   const proposalsRepo = new ProposalsRepository(dbService, userRepo);
   const proposalsService = new ProposalsService(
+    accessService,
     proposalsRepo,
     dataService,
     uprtclService
   );
   const proposalsController = new ProposalsController(proposalsService);
 
-  const knownSourcesService = new KnownSourcesService(
-    dbService,
-    knownSourcesRepo,
-    dataService,
-    uprtclService
-  );
-  const knownSourcesController = new KnownSourcesController(
-    knownSourcesService
-  );
-
   return [
     ...uprtclController.routes(),
     ...dataController.routes(),
     ...userController.routes(),
     ...accessController.routes(),
-    ...knownSourcesController.routes(),
     ...proposalsController.routes(),
   ];
 };

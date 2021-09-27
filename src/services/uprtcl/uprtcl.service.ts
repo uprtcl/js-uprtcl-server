@@ -1,64 +1,161 @@
 import {
-  Perspective,
-  Commit,
-  PerspectiveDetails,
+  Entity,
   Secured,
-  NewPerspectiveData,
-  DgUpdate,
-} from './types';
+  NewPerspective,
+  Update,
+  Commit,
+  PerspectiveGetResult,
+  GetPerspectiveOptions,
+  ParentAndChild,
+  SearchOptions,
+  SearchResult,
+  condensateUpdates,
+  EntityResolver,
+  SearchForkOptions,
+} from '@uprtcl/evees';
+
+import { PermissionType } from './types';
 import { DGraphService } from '../../db/dgraph.service';
 import { AccessService } from '../access/access.service';
 import { UprtclRepository } from './uprtcl.repository';
-import { PermissionType } from '../access/access.schema';
 import { NOT_AUTHORIZED_MSG } from '../../utils';
 import { DataService } from '../data/data.service';
+import { LocalEntityResolver } from './local.entity.resolver';
 
 export class UprtclService {
+  entityResolver: EntityResolver;
+
   constructor(
     protected db: DGraphService,
     protected uprtclRepo: UprtclRepository,
     protected access: AccessService,
     protected dataService: DataService
-  ) {}
+  ) {
+    this.entityResolver = new LocalEntityResolver(this.dataService);
+  }
 
-  private async createPerspective(
-    perspective: Secured<Perspective>,
+  async createAclRecursively(
+    of: NewPerspective,
+    all: NewPerspective[],
+    loggedUserId: string
+  ) {
+    /** top first traverse the tree of new perspectives*/
+    await this.access.createAccessConfig(
+      of.perspective.hash,
+      of.update.details.guardianId,
+      loggedUserId
+    );
+
+    /** recursively call on all children */
+    const children = all.filter(
+      (p) => p.update.details.guardianId === of.perspective.hash
+    );
+    for (const child of children) {
+      await this.createAclRecursively(child, all, loggedUserId);
+    }
+  }
+
+  async createAndInitPerspectives(
+    newPerspectives: NewPerspective[],
     loggedUserId: string | null
-  ): Promise<string> {
-    console.log('[UPRTCL-SERVICE] createPerspective', {
-      perspective,
+  ): Promise<string[]> {
+    // TEMP
+
+    if (loggedUserId === null)
+      throw new Error('Anonymous user. Cant create a perspective');
+
+    await this.dataService.createDatas(
+      newPerspectives.map((newPerspective) => newPerspective.perspective),
+      loggedUserId
+    );
+
+    await this.uprtclRepo.createPerspectives(newPerspectives, loggedUserId);
+
+    await this.uprtclRepo.updatePerspectives(
+      newPerspectives.map((newPerspective) => newPerspective.update)
+    );
+
+    return [];
+  }
+
+  async updatePerspectives(
+    updates: Update[],
+    loggedUserId: string | null
+  ): Promise<void> {
+    /**
+     * What about the access control? We might need to find a way to check
+     * if the user can write a perspective, we used to call access.can(id, userId, permisstions)
+     */
+    if (loggedUserId === null)
+      throw new Error('Anonymous user. Cant update a perspective');
+
+    /** combine updates to the same perspective */
+    const updatesSingle = await condensateUpdates(updates, this.entityResolver);
+
+    const canUpdate = await this.access.canAll(
+      updatesSingle.map((u) => u.perspectiveId),
       loggedUserId,
-    });
-    return this.uprtclRepo.createPerspective(perspective);
+      PermissionType.Write
+    );
+
+    if (!canUpdate)
+      throw new Error('Anonymous user. Cant update a perspective');
+
+    const result = await this.uprtclRepo.updatePerspectives(updatesSingle);
+    console.log('[UPRTCL-SERVICE] updatePerspectives', { result });
+  }
+
+  async deletePerspective(
+    perspectiveIds: string[],
+    loggedUserId: string | null
+  ): Promise<void> {
+    console.log('[UPRTCL-SERVICE] deletePerspective', { perspectiveIds });
+    if (loggedUserId === null)
+      throw new Error('Anonymous user. Cant delete a perspective');
+    if (
+      !(await this.access.canAll(
+        perspectiveIds,
+        loggedUserId,
+        PermissionType.Admin
+      ))
+    )
+      throw new Error(NOT_AUTHORIZED_MSG);
+
+    await this.uprtclRepo.setDeletedPerspectives(perspectiveIds, true);
   }
 
   async getPerspective(
     perspectiveId: string,
-    loggedUserId: string | null
-  ): Promise<Secured<Perspective>> {
-    console.log('[UPRTCL-SERVICE] getPerspective', {
+    loggedUserId: string | null,
+    options?: GetPerspectiveOptions
+  ): Promise<PerspectiveGetResult> {
+    console.log('[UPRTCL-SERVICE] getPerspectiveDetails', { perspectiveId });
+    let result = await this.uprtclRepo.getPerspective(
       perspectiveId,
       loggedUserId,
-    });
-    if (perspectiveId == undefined || perspectiveId === '') {
-      throw new Error(`perspectiveId is empty`);
-    }
-    // perspectives are hashed objects, not risky to retrieve them. The protection is in getPerspectiveDetails.
-    let perspective = await this.uprtclRepo.getPerspective(perspectiveId);
-    return perspective;
+      options
+    );
+
+    return result;
   }
 
-  async findIndPerspectives(
-    perspectiveId: string,
-    includeEcosystem: boolean,
-    loggedUserId: string | null
-  ): Promise<string[]> {
-    if (loggedUserId === null)
-      throw new Error('Anonymous user. Cant get independent perspectives');
+  async createCommits(
+    commits: Secured<Commit>[],
+    _loggedUserId: string | null
+  ): Promise<Entity<any>[]> {
+    console.log('[UPRTCL-SERVICE] createCommits', commits);
+    return await this.uprtclRepo.createCommits(commits);
+  }
 
-    return await this.uprtclRepo.getOtherIndpPerspectives(
+  /** Search engine methods */
+  async locatePerspective(
+    perspectiveId: string,
+    includeForks: boolean,
+    loggedUserId: string | null
+  ): Promise<ParentAndChild[]> {
+    return await this.uprtclRepo.locatePerspective(
       perspectiveId,
-      includeEcosystem,
+      includeForks,
       loggedUserId
     );
   }
@@ -94,171 +191,15 @@ export class UprtclService {
     return accessiblePerspectives.filter((e: string) => e !== '');
   }
 
-  async createAndInitPerspective(
-    perspectiveData: NewPerspectiveData,
+  async explore(
+    searchOptions: SearchOptions,
+    getPerspectiveOptions: GetPerspectiveOptions,
     loggedUserId: string | null
-  ): Promise<string> {
-    if (loggedUserId === null)
-      throw new Error('Anonymous user. Cant create a perspective');
-
-    let perspId = await this.createPerspective(
-      perspectiveData.perspective,
+  ): Promise<SearchResult> {
+    return await this.uprtclRepo.explore(
+      searchOptions,
+      getPerspectiveOptions,
       loggedUserId
     );
-
-    if (perspectiveData.parentId) {
-      await this.access.createAccessConfig(
-        perspId,
-        perspectiveData.parentId,
-        loggedUserId
-      );
-    } else {
-      await this.access.createAccessConfig(perspId, undefined, loggedUserId);
-    }
-
-    if (perspectiveData.details) {
-      /** Bypass update perspective ACL because this is perspective inception */
-      await this.updatePerspective(
-        perspId,
-        perspectiveData.details,
-        loggedUserId
-      );
-    }
-
-    return perspId;
-  }
-
-  getDataChildren(data: any) {
-    if (data.pages !== undefined) {
-      return data.pages;
-    }
-    if (data.links !== undefined) {
-      return data.links;
-    }
-    if (data.value !== undefined) {
-      return [data.description];
-    }
-  }
-
-  async updatePerspective(
-    perspectiveId: string,
-    details: PerspectiveDetails,
-    loggedUserId: string | null
-  ): Promise<void> {
-    console.log(
-      '[UPRTCL-SERVICE] updatePerspective',
-      { perspectiveId },
-      { details }
-    );
-    if (
-      !(await this.access.can(
-        perspectiveId,
-        loggedUserId,
-        PermissionType.Write
-      ))
-    )
-      throw new Error(NOT_AUTHORIZED_MSG);
-
-    const oldDetails = await this.getPerspectiveDetails(
-      perspectiveId,
-      loggedUserId
-    );
-    let addedChildren: Array<string> = [];
-    let removedChildren: Array<string> = [];
-
-    if (oldDetails.headId && oldDetails.headId !== '' && details.headId) {
-      const oldDataId = (await this.getCommit(oldDetails.headId, loggedUserId))
-        .object.payload.dataId;
-      const newDataId = (await this.getCommit(details.headId, loggedUserId))
-        .object.payload.dataId;
-
-      const oldData = (await this.dataService.getData(oldDataId)).object;
-      const newData = (await this.dataService.getData(newDataId)).object;
-
-      const currentChildren: Array<string> = this.getDataChildren(oldData);
-      const updatedChildren: Array<string> = this.getDataChildren(newData);
-
-      const difference = currentChildren
-        .filter((oldChild: string) => !updatedChildren.includes(oldChild))
-        .concat(
-          updatedChildren.filter(
-            (newChild: string) => !currentChildren.includes(newChild)
-          )
-        );
-
-      difference.map((child) => {
-        if (currentChildren.includes(child)) {
-          removedChildren.push(child);
-        }
-
-        if (updatedChildren.includes(child)) {
-          addedChildren.push(child);
-        }
-      });
-    }
-
-    await this.uprtclRepo.updatePerspective(perspectiveId, details, {
-      addedChildren: addedChildren,
-      removedChildren: removedChildren,
-    });
-  }
-
-  async deletePerspective(
-    perspectiveId: string,
-    loggedUserId: string | null
-  ): Promise<void> {
-    console.log('[UPRTCL-SERVICE] deletePerspective', { perspectiveId });
-    if (
-      !(await this.access.can(
-        perspectiveId,
-        loggedUserId,
-        PermissionType.Admin
-      ))
-    )
-      throw new Error(NOT_AUTHORIZED_MSG);
-    await this.uprtclRepo.setDeletedPerspective(perspectiveId, true);
-  }
-
-  async getPerspectiveDetails(
-    perspectiveId: string,
-    loggedUserId: string | null
-  ): Promise<PerspectiveDetails> {
-    console.log('[UPRTCL-SERVICE] getPerspectiveDetails', { perspectiveId });
-    if (
-      !(await this.access.can(perspectiveId, loggedUserId, PermissionType.Read))
-    ) {
-      throw new Error(NOT_AUTHORIZED_MSG);
-    }
-    let details = await this.uprtclRepo.getPerspectiveDetails(perspectiveId);
-    return details;
-  }
-
-  async createCommit(
-    commit: Secured<Commit>,
-    _loggedUserId: string | null
-  ): Promise<string> {
-    console.log('[UPRTCL-SERVICE] createCommit', commit);
-    let commitId = await this.uprtclRepo.createCommit(commit);
-
-    return commitId;
-  }
-
-  async getCommit(
-    commitId: string,
-    loggedUserId: string | null
-  ): Promise<Secured<Commit>> {
-    console.log('[UPRTCL-SERVICE] getCommit', { commitId });
-    let commit = await this.uprtclRepo.getCommit(commitId);
-    return commit;
-  }
-
-  async canAuthorizeProposal(
-    proposalUpdates: DgUpdate[],
-    loggedUserId: string
-  ): Promise<boolean> {
-    if (loggedUserId === null)
-      throw new Error("Anonymous user. Can't authorize a proposal");
-
-    return this.access.canAuthorizeProposal(proposalUpdates, loggedUserId);
   }
 }

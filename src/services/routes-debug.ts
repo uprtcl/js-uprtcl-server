@@ -10,11 +10,8 @@ import { AccessRepository } from './access/access.repository';
 import { UserRepository } from './user/user.repository';
 import { UprtclRepository } from './uprtcl/uprtcl.repository';
 import { DataRepository } from './data/data.repository';
-import { KnownSourcesRepository } from './knownsources/knownsources.repository';
-import { KnownSourcesController } from './knownsources/knownsources.controller';
 import { DataService } from './data/data.service';
 import { DataController } from './data/data.controller';
-import { KnownSourcesService } from './knownsources/knownsources.service';
 import { ProposalsRepository } from './proposals/proposals.repository';
 import { ProposalsController } from './proposals/proposals.controller';
 
@@ -51,20 +48,12 @@ const uprtclController = new UprtclController(uprtclService);
 
 const proposalsRepo = new ProposalsRepository(dbService, userRepo);
 const proposalsService = new ProposalsService(
+  accessService,
   proposalsRepo,
   dataService,
   uprtclService
 );
 const proposalsController = new ProposalsController(proposalsService);
-
-const knownSourcesRepo = new KnownSourcesRepository(dbService);
-const knownSourcesService = new KnownSourcesService(
-  dbService,
-  knownSourcesRepo,
-  dataService,
-  uprtclService
-);
-const knownSourcesController = new KnownSourcesController(knownSourcesService);
 
 export const routes = [
   ...uprtclController.routes(),
@@ -72,5 +61,4 @@ export const routes = [
   ...dataController.routes(),
   ...userController.routes(),
   ...accessController.routes(),
-  ...knownSourcesController.routes(),
 ];

@@ -1,12 +1,25 @@
 import { C1_ETH_AUTH } from '../services/user/user.service';
 import { NextFunction } from 'express';
+import { isValidUser } from './userOkList';
 
 var jwt = require('jsonwebtoken');
 const fs = require('fs');
-const jwksRsa = require('jwks-rsa');
+
+require('dotenv').config();
+
+if (!process.env.PUBKEY_FILE) {
+  throw new Error('process.env.PUBKEY_FILE undefined');
+}
+
+if (!process.env.JWT_SECRET) {
+  throw new Error('process.env.JWT_SECRET undefined');
+}
+
+if (!process.env.AUTH0_DOMAIN) {
+  throw new Error('process.env.AUTH0_DOMAIN undefined');
+}
 
 const publicKey = fs.readFileSync(process.env.PUBKEY_FILE);
-require('dotenv').config();
 
 export function verifyAuth0Token(token: string, kid: string) {
   return new Promise((resolve, reject) => {
@@ -46,8 +59,6 @@ export function verifyC1Token(token: string) {
 
 export const checkJwt = (req: any, res: any, next: NextFunction) => {
   let token;
-  let credentialsRequired = false;
-
   if (
     req.method === 'OPTIONS' &&
     req.headers.hasOwnProperty('access-control-request-headers')
@@ -75,11 +86,7 @@ export const checkJwt = (req: any, res: any, next: NextFunction) => {
       if (/^Bearer$/i.test(scheme)) {
         token = credentials;
       } else {
-        if (credentialsRequired) {
-          return next(new Error('credentials_bad_scheme'));
-        } else {
-          return next();
-        }
+        return next();
       }
     } else {
       return next(new Error('credentials_bad_format'));
@@ -87,11 +94,7 @@ export const checkJwt = (req: any, res: any, next: NextFunction) => {
   }
 
   if (!token) {
-    if (credentialsRequired) {
-      return next(new Error('credentials_required'));
-    } else {
-      return next();
-    }
+    return next();
   }
 
   let dtoken;
@@ -107,7 +110,7 @@ export const checkJwt = (req: any, res: any, next: NextFunction) => {
       try {
         verifyC1Token(token)
           .then((decodedToken: any) => {
-            req.user = decodedToken.user;
+            req.user = isValidUser(decodedToken.user);
             console.log(`[JWT CHECK] Authenticated req.user: ${req.user}`);
             next();
           })
@@ -122,7 +125,7 @@ export const checkJwt = (req: any, res: any, next: NextFunction) => {
     case `https://${process.env.AUTH0_DOMAIN}/`:
       try {
         verifyAuth0Token(token, dtoken.header.kid).then((decodedToken: any) => {
-          req.user = decodedToken.sub;
+          req.user = isValidUser(decodedToken.sub);
           console.log(`[JWT CHECK] Authenticated req.user: ${req.user}`);
           next();
         });

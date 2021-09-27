@@ -2,8 +2,12 @@ import { Request, Response } from 'express';
 import { DataService } from './data.service';
 import { UprtclService } from '../uprtcl/uprtcl.service';
 import { checkJwt } from '../../middleware/jwtCheck';
-import { Secured, Commit, Signed } from '../uprtcl/types';
-import { getUserFromReq, SUCCESS, PostResult, GetResult } from '../../utils';
+import {
+  getUserFromReq,
+  SUCCESS,
+  PostEntityResult,
+  GetResult,
+} from '../../utils';
 
 const propertyOrder = [
   'creatorsIds',
@@ -20,6 +24,13 @@ declare global {
   }
 }
 
+const commitFilter = (data: any) => {
+  return (
+    data.object.payload !== undefined &&
+    propertyOrder.every((p) => data.object.payload.hasOwnProperty(p))
+  );
+};
+
 export class DataController {
   constructor(
     protected dataService: DataService,
@@ -34,47 +45,48 @@ export class DataController {
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const data = req.body;
-            let elementId: string = '';
+            const allDatas = req.body.datas;
 
-            if (
-              (data.object as Signed<any>).payload !== undefined &&
-              propertyOrder.every((p) =>
-                (data.object as Signed<any>).payload.hasOwnProperty(p)
-              )
-            ) {
-              elementId = await this.uprtclService.createCommit(
-                data as Secured<Commit>,
-                getUserFromReq(req)
-              );
-            } else {
-              elementId = await this.dataService.createData(
-                data,
-                getUserFromReq(req)
-              );
-            }
+            /** all entities are stored in plain text */
+            const resultDatas = await this.dataService.createDatas(
+              allDatas,
+              getUserFromReq(req)
+            );
 
-            let result: PostResult = {
+            /** explicitely store structured commits to link them to other elements */
+            const commits = allDatas.filter((data: any) => commitFilter(data));
+
+            const resultCommits = await this.uprtclService.createCommits(
+              commits,
+              getUserFromReq(req)
+            );
+
+            let result: PostEntityResult = {
               result: SUCCESS,
               message: '',
-              elementIds: [elementId],
+              entities: Array.prototype.concat(
+                [],
+                resultDatas.concat(resultCommits)
+              ),
             };
             res.status(200).send(result);
           },
         ],
       },
 
+      /** GET with put to receive the list of hashes as an object */
       {
-        path: '/uprtcl/1/data/:dataId',
-        method: 'get',
+        path: '/uprtcl/1/data',
+        method: 'put',
         handler: [
           checkJwt,
           async (req: Request, res: Response) => {
-            const data = await this.dataService.getData(req.params.dataId);
+            const hashes = req.body.hashes as string[];
+            const datas = await this.dataService.getDatas(hashes);
             let result: GetResult<any> = {
               result: SUCCESS,
               message: '',
-              data: data,
+              data: datas,
             };
             res.status(200).send(result);
           },

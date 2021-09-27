@@ -1,6 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
 var CID = require('cids');
 
+import { Entity } from '@uprtcl/evees';
+
 type Wrapper = (router: Router) => void;
 
 export const applyMiddleware = (
@@ -43,6 +45,11 @@ export interface PostResult {
   result: string;
   message: string;
   elementIds: string[];
+}
+export interface PostEntityResult {
+  result: string;
+  message: string;
+  entities: Entity<any>[];
 }
 
 export interface GetResult<T> {

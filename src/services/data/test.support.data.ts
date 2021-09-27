@@ -1,33 +1,40 @@
+import { Entity } from '@uprtcl/evees';
+
 import request from 'supertest';
 import { createApp } from '../../server';
-import { ExtendedMatchers } from '../../utils';
-import { Hashed } from '../uprtcl/types';
+import { ipldService } from '../ipld/ipldService';
+import { localCidConfig } from '../ipld';
 
 export const createData = async (
-  data: Object,
+  data: Object[],
   jwt: string
-): Promise<string> => {
-  const hashedData: Hashed<Object> = {
-    id: '',
-    object: data,
-  };
+): Promise<Entity<Object>[]> => {
+  const hashedPromises = data.map(async (obj) => {
+    const dataId = await ipldService.generateCidOrdered(obj, localCidConfig);
+    const hashedData: Entity<Object> = {
+      hash: dataId,
+      object: obj,
+      remote: '',
+    };
+    return hashedData;
+  });
+
+  const hashedDatas = await Promise.all(hashedPromises);
+
   const router = await createApp();
   const post = await request(router)
     .post('/uprtcl/1/data')
-    .send(hashedData)
+    .send({ datas: hashedDatas })
     .set('Authorization', jwt ? `Bearer ${jwt}` : '');
 
   expect(post.status).toEqual(200);
-  let result: any = JSON.parse(post.text).elementIds[0];
-  ((expect(result) as unknown) as ExtendedMatchers).toBeValidCid();
-
-  return result;
+  return hashedDatas;
 };
 
 export const getData = async (
   dataId: string,
   jwt: string
-): Promise<Hashed<any>> => {
+): Promise<Entity<any>> => {
   const router = await createApp();
   const get = await request(router)
     .get(`/uprtcl/1/data/${dataId}`)

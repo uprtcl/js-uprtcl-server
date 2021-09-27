@@ -1,13 +1,9 @@
 import { DGraphService } from '../../db/dgraph.service';
 import { UserRepository } from '../user/user.repository';
-import {
-  PERMISSIONS_SCHEMA_NAME,
-  PermissionType,
-  ACCESS_CONFIG_SCHEMA_NAME,
-} from './access.schema';
+import { Upsert, PermissionType } from '../uprtcl/types';
+import { Update } from '@uprtcl/evees';
 
 const dgraph = require('dgraph-js');
-
 export interface PermissionConfig {
   publicRead: boolean;
   publicWrite: boolean;
@@ -17,11 +13,10 @@ export interface PermissionConfig {
 }
 
 export interface AccessConfig {
-  uid?: string;
   delegate: boolean;
   delegateTo?: string;
   finDelegatedTo?: string;
-  permissionsUid?: string;
+  permissions: PermissionConfig;
 }
 
 export interface AccessConfigInherited {
@@ -49,54 +44,58 @@ export class AccessRepository {
     protected userRepo: UserRepository
   ) {}
 
-  async createPermissionsConfig(permissions: PermissionConfig) {
-    await this.db.ready();
-
-    const mu = new dgraph.Mutation();
-    const req = new dgraph.Request();
-
-    /** commit object might exist because of parallel update head call */
-    let query = ``;
-
-    let nquads = `_:permissions <publicRead> "${permissions.publicRead}" .`;
+  createPermissionsConfigUpsert(
+    permissions: PermissionConfig,
+    { upsert: { query, nquads } }: { upsert: Upsert }
+  ) {
     nquads = nquads.concat(
-      `\n_:permissions <dgraph.type> "${PERMISSIONS_SCHEMA_NAME}" .`
-    );
-    nquads = nquads.concat(
-      `\n_:permissions <publicWrite> "${permissions.publicWrite}" .`
+      `\n_:permissions <publicRead> "${permissions.publicRead}" .
+       \n_:permissions <publicWrite> "${permissions.publicWrite}" .`
     );
 
-    if (permissions.canRead) {
-      for (let ix = 0; ix < permissions.canRead.length; ix++) {
-        await this.userRepo.upsertProfile(permissions.canRead[ix]);
+    const canRead = permissions.canRead ? permissions.canRead : [];
+    const canWrite = permissions.canWrite ? permissions.canWrite : [];
+    const canAdmin = permissions.canAdmin ? permissions.canAdmin : [];
+
+    let profiles: string[] = [];
+
+    profiles.push(
+      ...canRead,
+      PermissionType.Write,
+      ...canWrite,
+      PermissionType.Admin,
+      ...canAdmin
+    );
+
+    // Upsert profiles just once per user
+    [...new Set(profiles)].map((did) => {
+      query.concat(this.userRepo.upsertQueries(did).query);
+      nquads.concat(this.userRepo.upsertQueries(did).nquads);
+    });
+
+    for (let ix = 0; ix < profiles.length; ix++) {
+      if (ix < profiles.indexOf(PermissionType.Write)) {
         query = query.concat(
-          `\ncanRead${ix} as var(func: eq(did, "${permissions.canRead[
+          `\ncanRead${ix} as var(func: eq(did, "${profiles[
             ix
           ].toLowerCase()}"))`
         );
         nquads = nquads.concat(`\n_:permissions <canRead> uid(canRead${ix}) .`);
-      }
-    }
-
-    if (permissions.canWrite) {
-      for (let ix = 0; ix < permissions.canWrite.length; ix++) {
-        await this.userRepo.upsertProfile(permissions.canWrite[ix]);
+      } else if (
+        ix > profiles.indexOf(PermissionType.Write) &&
+        ix < profiles.indexOf(PermissionType.Admin)
+      ) {
         query = query.concat(
-          `\ncanWrite${ix} as var(func: eq(did, "${permissions.canWrite[
+          `\ncanWrite${ix} as var(func: eq(did, "${profiles[
             ix
           ].toLowerCase()}"))`
         );
         nquads = nquads.concat(
           `\n_:permissions <canWrite> uid(canWrite${ix}) .`
         );
-      }
-    }
-
-    if (permissions.canAdmin) {
-      for (let ix = 0; ix < permissions.canAdmin.length; ix++) {
-        await this.userRepo.upsertProfile(permissions.canAdmin[ix]);
+      } else {
         query = query.concat(
-          `\ncanAdmin${ix} as var(func: eq(did, "${permissions.canAdmin[
+          `\ncanAdmin${ix} as var(func: eq(did, "${profiles[
             ix
           ].toLowerCase()}"))`
         );
@@ -106,18 +105,7 @@ export class AccessRepository {
       }
     }
 
-    if (query !== '') req.setQuery(`query{${query}}`);
-    mu.setSetNquads(nquads);
-    req.setMutationsList([mu]);
-
-    let result = await this.db.callRequest(req);
-    console.log(
-      '[DGRAPH] createPermissionsSet',
-      { query },
-      { nquads },
-      result.getUidsMap().toArray()
-    );
-    return result.getUidsMap().toArray()[0][1];
+    return { query, nquads };
   }
 
   /** updates the pointer of the accessControl node of an elementId to point
@@ -208,15 +196,83 @@ export class AccessRepository {
     }
   }
 
+  async canAll(
+    perspectiveIds: string[],
+    loggedUserId: string,
+    type: PermissionType
+  ): Promise<boolean> {
+    let query = '';
+
+    for (let i = 0; i < perspectiveIds.length; i++) {
+      const queryString = this.canQuery(
+        perspectiveIds[i],
+        query,
+        loggedUserId,
+        type
+      );
+
+      if (i < 1) {
+        query = query.concat(queryString);
+      }
+
+      query = queryString;
+    }
+
+    const result = (
+      await this.db.client.newTxn().query(`query{${query}}`)
+    ).getJson();
+
+    const notAllowed = Object.keys(result).filter(
+      (el) => result[el].length < 1
+    );
+
+    return notAllowed.length === 0;
+  }
+
+  canQuery(
+    updateId: string,
+    query: string,
+    userId: string,
+    type: PermissionType
+  ) {
+    if ([PermissionType.Read || PermissionType.Write].includes(type)) {
+      query = query.concat(
+        `\nprivate${updateId} as var(func: eq(xid, ${updateId})) @cascade {
+            ${
+              type === PermissionType.Write ? 'canWrite' : 'canRead'
+            } @filter(eq(did, "${userId}")) {
+              did
+            }
+          }
+        \npublic${updateId} as var(func: eq(xid, ${updateId})) @filter(eq(publicWrite, true)) {
+          xid
+         }
+        \npersp${updateId}(func: eq(xid, ${updateId})) @filter(uid(private${updateId}) OR uid(public${updateId})) {
+            xid
+          }`
+      );
+    } else {
+      /** can adming case */
+      query = query.concat(
+        `\nprivate${updateId} as var(func: eq(xid, ${updateId})) @cascade {
+            canAdmin @filter(eq(did, "${userId}")) {
+              did
+            }
+          }
+        \npersp${updateId}(func: eq(xid, ${updateId})) @filter(uid(private${updateId})) {
+            xid
+          }`
+      );
+    }
+
+    return query;
+  }
+
   async getPublicPermissions(elementId: string): Promise<PublicPermissions> {
     let query = `
     element(func: eq(xid, "${elementId}")) {
-      accessConfig {
-        permissions {
-          publicRead
-          publicWrite
-        }
-      }
+      publicRead
+      publicWrite
     }`;
 
     let result = await this.db.client.newTxn().query(`query{${query}}`);
@@ -224,15 +280,11 @@ export class AccessRepository {
 
     if (json.element.length > 0) {
       if (json.element[0] === undefined) {
-        throw new Error(
-          `undefined accessConfig in getUserPermissions() for element ${elementId}`
-        );
+        throw new Error(`undefined element ${elementId}`);
       }
 
-      const publicRead: boolean =
-        json.element[0].accessConfig.permissions.publicRead;
-      const publicWrite: boolean =
-        json.element[0].accessConfig.permissions.publicWrite;
+      const publicRead: boolean = json.element[0].publicRead;
+      const publicWrite: boolean = json.element[0].publicWrite;
 
       /** apply the logic canAdmin > canWrite > canRead */
       return {
@@ -254,18 +306,14 @@ export class AccessRepository {
   ): Promise<UserPermissions> {
     let query = `
     element(func: eq(xid, "${elementId}")) {
-      accessConfig {
-        permissions {
-          canRead @filter(eq(did, "${userId.toLowerCase()}")) {
-            count(uid)
-          }
-          canWrite @filter(eq(did, "${userId.toLowerCase()}")) {
-            count(uid)
-          }
-          canAdmin @filter(eq(did, "${userId.toLowerCase()}")) {
-            count(uid)
-          }
-        }
+      canRead @filter(eq(did, "${userId}")) {
+        count(uid)
+      }
+      canWrite @filter(eq(did, "${userId}")) {
+        count(uid)
+      }
+      canAdmin @filter(eq(did, "${userId}")) {
+        count(uid)
       }
     }`;
 
@@ -274,22 +322,20 @@ export class AccessRepository {
 
     if (json.element.length > 0) {
       if (json.element[0] === undefined) {
-        throw new Error(
-          `undefined accessConfig in getUserPermissions() for element ${elementId}`
-        );
+        throw new Error(`undefined element ${elementId}`);
       }
 
       const canReadUser: boolean =
-        json.element[0].accessConfig.permissions.canRead !== undefined &&
-        json.element[0].accessConfig.permissions.canRead[0].count > 0;
+        json.element[0].canRead !== undefined &&
+        json.element[0].canRead[0].count > 0;
 
       const canWriteUser: boolean =
-        json.element[0].accessConfig.permissions.canWrite !== undefined &&
-        json.element[0].accessConfig.permissions.canWrite[0].count > 0;
+        json.element[0].canWrite !== undefined &&
+        json.element[0].canWrite[0].count > 0;
 
       const canAdminUser: boolean =
-        json.element[0].accessConfig.permissions.canAdmin !== undefined &&
-        json.element[0].accessConfig.permissions.canAdmin[0].count > 0;
+        json.element[0].canAdmin !== undefined &&
+        json.element[0].canAdmin[0].count > 0;
 
       /** apply the logic canAdmin > canWrite > canRead */
       return {
@@ -308,11 +354,9 @@ export class AccessRepository {
   }
 
   /** only accessible to an admin */
-  async getPermissionsConfig(
-    permissionsUid: string
-  ): Promise<PermissionConfig> {
+  async getPermissionsConfig(elementId: string): Promise<PermissionConfig> {
     let query = `
-    permissions(func: uid(${permissionsUid})) {
+    permissionsOf${elementId}(func: eq(xid, ${elementId})) {
       publicRead
       publicWrite
       canRead {
@@ -330,11 +374,11 @@ export class AccessRepository {
     let result = await this.db.client.newTxn().query(`query{${query}}`);
     console.log(
       '[DGRAPH] getPermissionsConfig',
-      { permissionsUid },
+      { elementId },
       result.getJson()
     );
 
-    let dpermissionsConfig = result.getJson().permissions[0];
+    let dpermissionsConfig = result.getJson()[`permissionsOf${elementId}`][0];
 
     return {
       publicRead: dpermissionsConfig.publicRead,
@@ -354,20 +398,25 @@ export class AccessRepository {
   /** TODO: protect getAccessConnfig to admins of the element */
   async getAccessConfigOfElement(elementId: string): Promise<AccessConfig> {
     let query = `
-    elements(func: eq(xid, ${elementId})) {
-      accessConfig {
-        uid
-        delegate
-        delegateTo {
-          xid
-        }
-        finDelegatedTo {
-          xid
-        }
-        permissions {
-          uid
-        }
+    element(func: eq(xid, ${elementId})) {
+      delegate
+      delegateTo {
+        xid
       }
+      finDelegatedTo {
+        xid
+      }
+      canRead {
+        did
+      }
+      canWrite {
+        did
+      }
+      canAdmin {
+        did
+      }
+      publicRead
+      publicWrite
     }
     `;
     let result = await this.db.client.newTxn().query(`query{${query}}`);
@@ -377,14 +426,11 @@ export class AccessRepository {
       { elementId },
       JSON.stringify(json)
     );
-    if (json.elements[0] === undefined)
-      throw new Error(
-        `undefined accessConfig in getAccessConfigOfElement() for element ${elementId}`
-      );
-    let daccessConfig = json.elements[0].accessConfig;
 
+    if (json.element[0] === undefined)
+      throw new Error(`undefined for element ${elementId}`);
+    let daccessConfig = json.element[0];
     return {
-      uid: daccessConfig.uid,
       delegate:
         daccessConfig.delegate !== undefined ? daccessConfig.delegate : false,
       delegateTo: daccessConfig.delegateTo
@@ -393,7 +439,13 @@ export class AccessRepository {
       finDelegatedTo: daccessConfig.finDelegatedTo
         ? daccessConfig.finDelegatedTo.xid
         : undefined,
-      permissionsUid: daccessConfig.permissions.uid,
+      permissions: {
+        publicRead: daccessConfig.publicRead,
+        publicWrite: daccessConfig.publicWrite,
+        canRead: daccessConfig.canRead,
+        canWrite: daccessConfig.canWrite,
+        canAdmin: daccessConfig.canAdmin,
+      },
     };
   }
 
@@ -402,11 +454,7 @@ export class AccessRepository {
 
     let query = `
     element(func: eq(xid, ${elementId})) {
-      accessConfig {
-        permissions {
-          public${type}
-        }
-      }
+      public${type}
     }
     `;
 
@@ -423,7 +471,7 @@ export class AccessRepository {
         `undefined accessConfig in isPublic() for element ${elementId}`
       );
 
-    return json.element[0].accessConfig.permissions[`public${type}`];
+    return json.element[0][`public${type}`];
   }
 
   async setPublic(
@@ -433,22 +481,16 @@ export class AccessRepository {
   ): Promise<void> {
     await this.db.ready();
 
-    let query = `
-    var(func: eq(xid, ${elementId})) {
-      accessConfig {
-        per as permissions
-      }
-    }
-    `;
+    let query = `perspective as var(func: eq(xid, ${elementId}))`;
 
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    let nquads = `uid(per) <public${type}> "${value}" .`;
+    let nquads = `uid(perspective) <public${type}> "${value}" .`;
 
     req.setQuery(`query{${query}}`);
     mu.setSetNquads(nquads);
-    mu.setCond(`@if(eq(len(per), 1))`);
+    mu.setCond(`@if(eq(len(perspective), 1))`);
     req.setMutationsList([mu]);
 
     let result = await this.db.callRequest(req);
@@ -459,52 +501,6 @@ export class AccessRepository {
     );
   }
 
-  async createAccessConfig(accessConfig: AccessConfig): Promise<string> {
-    await this.db.ready();
-
-    const mu = new dgraph.Mutation();
-    const req = new dgraph.Request();
-
-    let query = '';
-    if (accessConfig.delegateTo)
-      query = query.concat(
-        `\ndelegateToEl as var(func: eq(xid, "${accessConfig.delegateTo}"))`
-      );
-    if (accessConfig.finDelegatedTo)
-      query = query.concat(
-        `\nfinDelegatedToEl as var(func: eq(xid, "${accessConfig.finDelegatedTo}"))`
-      );
-
-    let nquads = `_:accessConfig <permissions> <${accessConfig.permissionsUid}> .`;
-    nquads = nquads.concat(
-      `\n_:accessConfig <dgraph.type> "${ACCESS_CONFIG_SCHEMA_NAME}" .`
-    );
-    nquads = nquads.concat(
-      `\n_:accessConfig <delegate> "${accessConfig.delegate}" .`
-    );
-    if (accessConfig.delegateTo)
-      nquads = nquads.concat(
-        `\n_:accessConfig <delegateTo> uid(delegateToEl) .`
-      );
-    if (accessConfig.finDelegatedTo)
-      nquads = nquads.concat(
-        `\n_:accessConfig <finDelegatedTo> uid(finDelegatedToEl) .`
-      );
-
-    if (query !== '') req.setQuery(`query{${query}}`);
-
-    mu.setSetNquads(nquads);
-    req.setMutationsList([mu]);
-
-    let result = await this.db.callRequest(req);
-    console.log(
-      '[DGRAPH] createAccessConfig',
-      { query, nquads },
-      result.getUidsMap().toArray()
-    );
-    return result.getUidsMap().toArray()[0][1];
-  }
-
   async toggleDelegate(
     elementId: string,
     delegateTo: string | undefined
@@ -512,10 +508,7 @@ export class AccessRepository {
     await this.db.ready();
 
     /** get the accessConfig Uid */
-    let query = `
-      element(func: eq(xid, ${elementId})) {
-        config as accessConfig
-      }`;
+    let query = `element as var(func: eq(xid, ${elementId}))`;
 
     /** now update the the accessConfig */
     const mu = new dgraph.Mutation();
@@ -523,7 +516,7 @@ export class AccessRepository {
 
     const delegate = delegateTo !== undefined;
 
-    let nquads = `uid(config) <delegate> "${delegate}" .`;
+    let nquads = `uid(element) <delegate> "${delegate}" .`;
 
     let finDelegatedTo: string;
 
@@ -545,7 +538,7 @@ export class AccessRepository {
       query = query.concat(
         `\ndelegateTo as var(func: eq(xid, "${delegateTo}"))`
       );
-      nquads = nquads.concat(`\nuid(config) <delegateTo> uid(delegateTo) .`);
+      nquads = nquads.concat(`\nuid(element) <delegateTo> uid(delegateTo) .`);
 
       /* add logic to compute and keep finDelegateTo of this element consistent and 
     also of all the elements that where inheriting from this element */
@@ -558,15 +551,14 @@ export class AccessRepository {
       `\nfinDelegatedTo as var(func: eq(xid, "${finDelegatedTo}"))`
     );
     nquads = nquads.concat(
-      `\nuid(config) <finDelegatedTo> uid(finDelegatedTo) .`
+      `\nuid(element) <finDelegatedTo> uid(finDelegatedTo) .`
     );
 
     query = query.concat(
       `\n q(func: eq(xid, "${elementId}")) 
           @recurse
           {
-            perspective: ~accessConfig
-            a as accessConfig: ~delegateTo
+            a as ~delegateTo
             uid
           }`
     );
@@ -595,8 +587,8 @@ export class AccessRepository {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
-    let query = `accessConfig as var(func: eq(xid, "${elementId}")) { accessConfig { uid } }`;
-    let nquads = `uid(accessConfig) <finDelegatedTo> <${newFinDelegatedTo}> .`;
+    let query = `perspective as var(func: eq(xid, "${elementId}"))`;
+    let nquads = `uid(perspective) <finDelegatedTo> <${newFinDelegatedTo}> .`;
 
     mu.setSetNquads(nquads);
     req.setQuery(`query{${query}}`);
@@ -613,7 +605,7 @@ export class AccessRepository {
 
   async setAccessConfigOf(
     elementId: string,
-    accessConfigUid: string
+    accessConfig: AccessConfig
   ): Promise<void> {
     await this.db.ready();
 
@@ -623,9 +615,36 @@ export class AccessRepository {
     const mu = new dgraph.Mutation();
     const req = new dgraph.Request();
 
+    const {
+      permissions: { canRead, canWrite, canAdmin },
+    } = accessConfig;
+
     /** make sure creatorId exist */
     let query = `element as var(func: eq(xid, "${elementId}"))`;
-    let nquads = `uid(element) <accessConfig> <${accessConfigUid}> .`;
+    let nquads = `\nuid(element) <delegate> ${accessConfig.delegate} .
+                  \nuid(element) <finDelegatedTo> ${accessConfig.finDelegatedTo} .
+                  \nuid(element) <canRead> ${accessConfig.delegate} .`;
+
+    canRead?.map((did) => {
+      const creatorSegment = this.userRepo.upsertQueries(did);
+      query = query.concat(creatorSegment.query);
+      nquads = nquads.concat(creatorSegment.nquads);
+      nquads = nquads.concat(`\nuid(element) <canRead> uid(profile${did}) .`);
+    });
+
+    canWrite?.map((did) => {
+      const creatorSegment = this.userRepo.upsertQueries(did);
+      query = query.concat(creatorSegment.query);
+      nquads = nquads.concat(creatorSegment.nquads);
+      nquads = nquads.concat(`\nuid(element) <canWrite> uid(profile${did}) .`);
+    });
+
+    canAdmin?.map((did) => {
+      const creatorSegment = this.userRepo.upsertQueries(did);
+      query = query.concat(creatorSegment.query);
+      nquads = nquads.concat(creatorSegment.nquads);
+      nquads = nquads.concat(`\nuid(element) <canAdmin> uid(profile${did}) .`);
+    });
 
     req.setQuery(`query{${query}}`);
     mu.setSetNquads(nquads);
@@ -643,20 +662,17 @@ export class AccessRepository {
   async getDelegatedFrom(elementId: string): Promise<string[]> {
     let query = `
     elements(func: eq(xid, "${elementId}")) {
-      accessConfig: ~delegateTo {
-        perspective: ~accessConfig {
-          xid
-        }
+      ~delegateTo {
+        xid
       }
     }
     `;
 
     let result = await this.db.client.newTxn().query(`query{${query}}`);
     let json = result.getJson();
-
     return json.elements.length > 0
-      ? json.elements[0].accessConfig.map(
-          (accessConfig: any) => accessConfig.perspective[0].xid
+      ? json.elements[0]['~delegateTo'].map(
+          (accessConfig: any) => accessConfig.xid
         )
       : [];
   }
@@ -673,40 +689,36 @@ export class AccessRepository {
 
     let ndelquads: string = '';
     let query = `
-    var(func: eq(xid, ${elementId})) {
-      accessConfig {
-        per as permissions
-      }
-    }
+    persp as var(func: eq(xid, ${elementId}))
     user as var(func: eq(did, "${toUserId.toLowerCase()}"))
     `;
 
     /** delete other permissions so that each user has one role only */
     switch (type) {
       case PermissionType.Admin:
-        ndelquads = ndelquads.concat(`\nuid(per) <canRead> uid(user) .`);
-        ndelquads = ndelquads.concat(`\nuid(per) <canWrite> uid(user) .`);
+        ndelquads = ndelquads.concat(`\nuid(persp) <canRead> uid(user) .`);
+        ndelquads = ndelquads.concat(`\nuid(persp) <canWrite> uid(user) .`);
         break;
 
       case PermissionType.Write:
-        ndelquads = ndelquads.concat(`\nuid(per) <canRead> uid(user) .`);
-        ndelquads = ndelquads.concat(`\nuid(per) <canAdmin> uid(user) .`);
+        ndelquads = ndelquads.concat(`\nuid(persp) <canRead> uid(user) .`);
+        ndelquads = ndelquads.concat(`\nuid(persp) <canAdmin> uid(user) .`);
         break;
 
       case PermissionType.Read:
-        ndelquads = ndelquads.concat(`\nuid(per) <canWrite> uid(user) .`);
-        ndelquads = ndelquads.concat(`\nuid(per) <canAdmin> uid(user) .`);
+        ndelquads = ndelquads.concat(`\nuid(persp) <canWrite> uid(user) .`);
+        ndelquads = ndelquads.concat(`\nuid(persp) <canAdmin> uid(user) .`);
         break;
     }
 
-    let nquads = `uid(per) <can${type}> uid(user).`;
+    let nquads = `uid(persp) <can${type}> uid(user) .`;
 
     const req = new dgraph.Request();
     const mu = new dgraph.Mutation();
 
     mu.setDelNquads(ndelquads);
     mu.setSetNquads(nquads);
-    mu.setCond(`@if(eq(len(per), 1))`);
+    mu.setCond(`@if(eq(len(persp), 1))`);
     req.setQuery(`query{${query}}`);
     req.setMutationsList([mu]);
 
@@ -722,22 +734,18 @@ export class AccessRepository {
     await this.db.ready();
 
     let query = `
-    var(func: eq(xid, ${elementId})) {
-      accessConfig {
-        per as permissions
-      }
-    }
+    perspective as var(func: eq(xid, ${elementId}))
     user as var(func: eq(did, "${toUserId.toLowerCase()}"))`;
     let ndelquads: string = '';
-    ndelquads = ndelquads.concat(`\nuid(per) <canRead> uid(user) .`);
-    ndelquads = ndelquads.concat(`\nuid(per) <canWrite> uid(user) .`);
-    ndelquads = ndelquads.concat(`\nuid(per) <canAdmin> uid(user) .`);
+    ndelquads = ndelquads.concat(`\nuid(perspective) <canRead> uid(user) .`);
+    ndelquads = ndelquads.concat(`\nuid(perspective) <canWrite> uid(user) .`);
+    ndelquads = ndelquads.concat(`\nuid(perspective) <canAdmin> uid(user) .`);
 
     const req = new dgraph.Request();
     const mu = new dgraph.Mutation();
 
     mu.setDelNquads(ndelquads);
-    mu.setCond(`@if(eq(len(per), 1))`);
+    mu.setCond(`@if(eq(len(perspective), 1))`);
     req.setQuery(`query{${query}}`);
     req.setMutationsList([mu]);
 
@@ -754,23 +762,19 @@ export class AccessRepository {
 
     let query = `
       query{
-        var(func: eq(xid, ${elementId})) {
-          accessConfig {
-            per as permissions
-          }
-        }
+        perspective as var(func: eq(xid, ${elementId})) 
       }
     `;
 
-    let delNquads = `uid(per) <canRead> * .`;
-    delNquads = delNquads.concat(`\nuid(per) <canWrite> * .`);
-    delNquads = delNquads.concat(`\nuid(per) <canAdmin> * .`);
+    let delNquads = `uid(perspective) <canRead> * .`;
+    delNquads = delNquads.concat(`\nuid(perspective) <canWrite> * .`);
+    delNquads = delNquads.concat(`\nuid(perspective) <canAdmin> * .`);
 
     const req = new dgraph.Request();
     const mu = new dgraph.Mutation();
 
     mu.setDelNquads(delNquads);
-    mu.setCond(`@if(eq(len(per), 1))`);
+    mu.setCond(`@if(eq(len(perspective), 1))`);
     req.setQuery(query);
     req.setMutationsList([mu]);
 
@@ -785,40 +789,31 @@ export class AccessRepository {
 
     let query = `
       finDelegateTo(func: eq(xid, "${finDelegatedTo}")) {        
-        accessConfig {
-          permissions {
-            canRead {
-              userCr as uid          
-            }
-            canWrite {
-              userCw as uid
-            }
-            canAdmin {
-              userAd as uid
-            }
-          }
+        canRead {
+          userCr as uid          
+        }
+        canWrite {
+          userCw as uid
+        }
+        canAdmin {
+          userAd as uid
         }
       }
     `;
 
     query = query.concat(`
-      \nelementId(func:eq(xid, "${elementId}")) {
-        accessConfig {
-          per as permissions
-        }
-      }
-    `);
+      \nelement as var(func:eq(xid, "${elementId}"))`);
 
     const readMutation = new dgraph.Mutation();
-    readMutation.setSetNquads(`uid(per) <canRead> uid(userCr) .`);
+    readMutation.setSetNquads(`uid(element) <canRead> uid(userCr) .`);
     readMutation.setCond(`@if(gt(len(userCr), 0))`);
 
     const writeMutation = new dgraph.Mutation();
-    writeMutation.setSetNquads(`uid(per) <canWrite> uid(userCw) .`);
+    writeMutation.setSetNquads(`uid(element) <canWrite> uid(userCw) .`);
     writeMutation.setCond(`@if(gt(len(userCw), 0))`);
 
     const adminMutation = new dgraph.Mutation();
-    adminMutation.setSetNquads(`uid(per) <canAdmin> uid(userAd) .`);
+    adminMutation.setSetNquads(`uid(element) <canAdmin> uid(userAd) .`);
     adminMutation.setCond(`@if(gt(len(userAd), 0))`);
 
     const req = new dgraph.Request();

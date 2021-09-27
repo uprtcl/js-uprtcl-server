@@ -1,47 +1,28 @@
+import { Entity } from '@uprtcl/evees';
 import { DGraphService } from '../../db/dgraph.service';
 import { DataRepository } from '../data/data.repository';
-import {
-  Hashed,
-  Secured,
-  Commit,
-  Signed,
-  NewPerspectiveData,
-  Perspective,
-} from '../uprtcl/types';
-
-const propertyOrder = [
-  'creatorsIds',
-  'dataId',
-  'message',
-  'timestamp',
-  'parentsIds',
-];
-const perspectivePropertyOrder = [
-  'remote',
-  'path',
-  'creatorId',
-  'context',
-  'timestamp',
-];
-
 export class DataService {
   constructor(
     protected db: DGraphService,
     protected dataRepo: DataRepository
   ) {}
 
-  async createData(
-    data: Hashed<Object>,
+  async createDatas(
+    datas: Entity[],
     _loggedUserId: string | null
-  ): Promise<string> {
-    console.log('[UPRTCL-SERVICE] createData', data);
-    let dataId = await this.dataRepo.createData(data);
-    return dataId;
+  ): Promise<Entity<any>[]> {
+    console.log('[UPRTCL-SERVICE] createDatas', datas);
+    return await this.dataRepo.createDatas(datas);
   }
 
-  async getData(dataId: string): Promise<any> {
-    console.log('[UPRTCL-SERVICE] getData', dataId);
-    let data = await this.dataRepo.getData(dataId);
-    return data;
+  async getDatas(hashes: string[]): Promise<Entity[]> {
+    console.log('[UPRTCL-SERVICE] getData', hashes);
+    let datas = await this.dataRepo.getDatas(hashes);
+    return datas;
+  }
+
+  async getData(hash: string): Promise<Entity> {
+    let entities = await this.dataRepo.getDatas([hash]);
+    return entities[0];
   }
 }

@@ -2,14 +2,18 @@ import request from 'supertest';
 
 import { PostResult } from '../../utils';
 import { createApp } from '../../server';
-import { PermissionType } from './access.schema';
+import { PermissionType } from '../uprtcl/types';
 import { AccessRepository } from './access.repository';
 import { UserRepository } from '../user/user.repository';
 import { DGraphService } from '../../db/dgraph.service';
 import { UprtclRepository } from '../uprtcl/uprtcl.repository';
 import { DataRepository } from '../data/data.repository';
 
-const db = new DGraphService('localhost', '9080', '');
+const db = new DGraphService(
+  process.env.DGRAPH_HOST as string, 
+  process.env.DGRAPH_PORT as string, 
+  ''
+);
 const userRepo = new UserRepository(db);
 const accessRepo = new AccessRepository(db, userRepo);
 const dataRepo = new DataRepository(db, userRepo);
@@ -36,7 +40,6 @@ export const delegatePermissionsTo = async (
 
 export const finDelegatedChildNodes = async (elementId: string) => {
   const childNodes = await accessRepo.getDelegatedFrom(elementId);
-
   const accessConfigs = childNodes.map(async (child) => {
     const accessConfig = await accessRepo.getAccessConfigOfElement(child);
     return accessConfig.finDelegatedTo;
@@ -67,8 +70,8 @@ export const getAccessConfigOfElement = async (elementId: string) => {
   return await accessRepo.getAccessConfigOfElement(elementId);
 };
 
-export const getPermissionsConfig = async (permissionsUid: string) => {
-  return await accessRepo.getPermissionsConfig(permissionsUid);
+export const getPermissionsConfig = async (elementId: string) => {
+  return await accessRepo.getPermissionsConfig(elementId);
 };
 
 export const addPermission = async (
