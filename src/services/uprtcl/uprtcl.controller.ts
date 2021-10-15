@@ -67,7 +67,7 @@ export class UprtclController {
                 elementIds: [],
               };
               res.status(200).send(result);
-            } catch (error) {
+            } catch (error: any) {
               console.error(error);
               let result: PostResult = {
                 result: ERROR,
@@ -98,7 +98,7 @@ export class UprtclController {
                 elementIds: [],
               };
               res.status(200).send(result);
-            } catch (error) {
+            } catch (error: any) {
               console.error(error);
               let result: PostResult = {
                 result: ERROR,
@@ -143,7 +143,7 @@ export class UprtclController {
               });
 
               res.status(200).send(result);
-            } catch (error) {
+            } catch (error: any) {
               console.error(
                 '[UPRTCL CONTROLLER] getPerspectiveDetails - Error',
                 JSON.stringify(inputs),
@@ -182,7 +182,7 @@ export class UprtclController {
                 data: perspectives,
               };
               res.status(200).send(result);
-            } catch (error) {
+            } catch (error: any) {
               console.error(error);
               let result: PostResult = {
                 result: ERROR,
@@ -213,7 +213,7 @@ export class UprtclController {
                 data: perspectives,
               };
               res.status(200).send(result);
-            } catch (error) {
+            } catch (error: any) {
               console.error(error);
               let result: PostResult = {
                 result: ERROR,
@@ -245,7 +245,7 @@ export class UprtclController {
               };
 
               res.status(200).send(result);
-            } catch (error) {
+            } catch (error: any) {
               console.error(error);
               let result: PostResult = {
                 result: ERROR,

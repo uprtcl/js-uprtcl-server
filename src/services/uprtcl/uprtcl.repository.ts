@@ -487,7 +487,8 @@ export class UprtclRepository {
           nquads = nquads.concat(
             `\nuid(persp${id}) <text> "${text
               .toString()
-              .replace(/"/g, '\\"')}" .`
+              .replace(/"/g, '$DQUOTES$')
+              .replace(/\\/g, '$BACKLASH$')}" .`
           );
 
         // The linksTo edges are generic links from this perspective to any another perspective.

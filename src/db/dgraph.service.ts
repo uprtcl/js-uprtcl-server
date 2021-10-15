@@ -75,7 +75,7 @@ export class DGraphService {
         let result = await tx.doRequest(req);
         await tx.commit();
         resolve(result);
-      } catch (e) {
+      } catch (e: any) {
         console.log('[DGRAPH] error during request', {
           req: requestToObj(req),
           message: e.message,
