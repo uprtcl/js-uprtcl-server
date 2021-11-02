@@ -137,11 +137,8 @@ export const forkPerspective = async (
           headId: commitUpdates[0].hash,
         },
         indexData: {
-          linkChanges: {
-            children: {
-              added: children,
-              removed: [],
-            },
+          links: {
+            children: [],
           },
         },
       },

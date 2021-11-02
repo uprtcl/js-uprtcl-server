@@ -355,8 +355,8 @@ export class UprtclRepository {
   }
 
   async updatePerspectives(updates: Update[]): Promise<void> {
-    let childrenUpsert: Upsert = { nquads: ``, delNquads: ``, query: `` };
-    let ecoUpsert: Upsert = { query: ``, nquads: ``, delNquads: `` };
+    let childrenUpsert: Upsert = { nquads: ``, query: `` };
+    let ecoUpsert: Upsert = { query: ``, nquads: `` };
 
     /**
      * The reason why we have a second loop, is beacuse the first one
@@ -406,18 +406,34 @@ export class UprtclRepository {
       ecoUpsert = ecoUpsertString;
     }
 
+    /** Build the links and children delete delNQuads to remove all links before the new ones are set */
+    let delNquads = ``;
+    for (let i = 0; i < updates.length; i++) {
+      const update = updates[i];
+      delNquads = delNquads.concat(
+        `\nuid(persp${update.perspectiveId} ) <linksTo> * .`
+      );
+      delNquads = delNquads.concat(
+        `\nuid(persp${update.perspectiveId} ) <children> * .`
+      );
+    }
+
     if (childrenUpsert.query && childrenUpsert.nquads !== '') {
       // We call the db to be prepared for transactions
       await this.db.ready();
       // We perform first, the children transaction | TRX #3
       const childrenMutation = new dgraph.Mutation();
+      /** the reset mutation must run before and will delete all links and children to
+       * be reset by the new values */
+
+      const resetMutation = new dgraph.Mutation();
       const childrenRequest = new dgraph.Request();
 
       childrenRequest.setQuery(`query{${childrenUpsert.query}}`);
       childrenMutation.setSetNquads(childrenUpsert.nquads);
-      childrenMutation.setDelNquads(childrenUpsert.delNquads);
 
-      childrenRequest.setMutationsList([childrenMutation]);
+      resetMutation.setDelNquads(delNquads);
+      childrenRequest.setMutationsList([resetMutation, childrenMutation]);
 
       console.log('[DGRAPH] updatePerspectives - childrenRequest', {
         childrenUpsert,
@@ -435,7 +451,6 @@ export class UprtclRepository {
 
       ecoRequest.setQuery(`query{${ecoUpsert.query}}`);
       ecoMutation.setSetNquads(ecoUpsert.nquads);
-      ecoMutation.setDelNquads(ecoUpsert.delNquads);
 
       ecoRequest.setMutationsList([ecoMutation]);
 
@@ -448,7 +463,7 @@ export class UprtclRepository {
   }
 
   updatePerspectiveUpsert(update: Update, upsert: Upsert) {
-    let { query, nquads, delNquads } = upsert;
+    let { query, nquads } = upsert;
     const { perspectiveId: id } = update;
 
     // WARNING: IF THE PERSPECTIVE ENDS UP HAVING TWO HEADS, CHECK DGRAPH DOCS FOR RECENT UPDATES
@@ -468,13 +483,11 @@ export class UprtclRepository {
       if (update.details.headId !== undefined) {
         const { details } = update;
 
-        const linkChanges = update.indexData?.linkChanges;
+        const links = update.indexData?.links;
         const text = update.indexData?.text;
         const headId = details.headId;
-        const addedLinksTo = linkChanges?.linksTo?.added;
-        const removedLinksTo = linkChanges?.linksTo?.removed;
-        const addedChildren = linkChanges?.children?.added;
-        const removedChildren = linkChanges?.children?.removed;
+        const newLinksTo = links?.linksTo;
+        const newChildren = links?.children;
 
         // We set the head for previous created perspective.
         query = query.concat(
@@ -496,7 +509,7 @@ export class UprtclRepository {
         // have a linkTo another one.
 
         // linksTo[] to be added.
-        addedLinksTo?.forEach((link, ix) => {
+        newLinksTo?.forEach((link, ix) => {
           query = query.concat(
             `\naddedLinkToOf${id}${ix} as var(func: eq(xid, ${link}))`
           );
@@ -509,16 +522,6 @@ export class UprtclRepository {
           );
         });
 
-        // linksTo[] to be removed.
-        removedLinksTo?.forEach((link, ix) => {
-          query = query.concat(
-            `\nremovedLinksToOf${id}${ix} as var(func: eq(xid, ${link}))`
-          );
-          delNquads = delNquads?.concat(
-            `\nuid(persp${id} ) <linksTo> uid(removedLinksToOf${id}${ix}) .`
-          );
-        });
-
         // Children links are a special case of linkTo and a first-class citizen in _Prtcl.
         // When forking and merging perpsectives of an evee, the children links are recursively forked and
         // merged (while linksTo are not). In addition, the children of a perspective build its "ecosystem"
@@ -527,7 +530,7 @@ export class UprtclRepository {
         // expected that searchEngine implementations will optimize for these kind of queries.
 
         // We set the external children for the previous created persvective.
-        addedChildren?.forEach((child, ix) => {
+        newChildren?.forEach((child, ix) => {
           query = query.concat(
             `\naddedChildOf${id}${ix} as var(func: eq(xid, ${child}))`
           );
@@ -535,24 +538,14 @@ export class UprtclRepository {
             `\nuid(persp${id}) <children> uid(addedChildOf${id}${ix}) .`
           );
         });
-
-        // We remove the possible external children for an existing perspective.
-        removedChildren?.forEach((child, ix) => {
-          query = query.concat(
-            `\nremovedChildOf${id}${ix} as var(func: eq(xid, ${child}))`
-          );
-          delNquads = delNquads?.concat(
-            `\nuid(persp${id}) <children> uid(removedChildOf${id}${ix}) .`
-          );
-        });
       }
     }
 
-    return { query, nquads, delNquads };
+    return { query, nquads };
   }
 
   updateEcosystemUpsert(update: Update, upsert: Upsert) {
-    let { query, nquads, delNquads } = upsert;
+    let { query, nquads } = upsert;
     const { perspectiveId: id } = update;
 
     query = query.concat(
@@ -573,7 +566,7 @@ export class UprtclRepository {
        \nuid(revEcosystem${id}) <ecosystem> uid(ecosystemOfUref${id}) .`
     );
 
-    return { query, nquads, delNquads };
+    return { query, nquads };
   }
 
   async createCommits(commits: Secured<Commit>[]): Promise<Entity<any>[]> {

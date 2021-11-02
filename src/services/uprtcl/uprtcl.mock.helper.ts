@@ -176,15 +176,8 @@ export const createHomeSpace = async (user: TestUser) => {
         headId: commitWrapperNodes[0].hash,
       },
       indexData: {
-        linkChanges: {
-          children: {
-            added: [
-              perspectivesInitialNodes[1].perspective.hash,
-              perspectivesInitialNodes[2].perspective.hash,
-              perspectivesInitialNodes[3].perspective.hash,
-            ],
-            removed: [],
-          },
+        links: {
+          children: [],
         },
       },
     },
@@ -237,11 +230,8 @@ export const createHomeSpace = async (user: TestUser) => {
         headId: commitWrapperNodes[1].hash,
       },
       indexData: {
-        linkChanges: {
-          children: {
-            added: [perspectivesWrapperNodes[0].perspective.hash],
-            removed: [],
-          },
+        links: {
+          children: [],
         },
       },
     },
@@ -299,11 +289,8 @@ export const createHomeSpace = async (user: TestUser) => {
         headId: newBlogDataCommit[0].hash,
       },
       indexData: {
-        linkChanges: {
-          linksTo: {
-            added: ['bloglinksto'],
-            removed: [],
-          },
+        links: {
+          children: ['bloglinksto'],
         },
       },
     },
@@ -349,11 +336,8 @@ export const createHomeSpace = async (user: TestUser) => {
         headId: newPageDataToPrivateCommit[0].hash,
       },
       indexData: {
-        linkChanges: {
-          children: {
-            added: [perspectivesInitialNodes[0].perspective.hash],
-            removed: [],
-          },
+        links: {
+          children: [perspectivesInitialNodes[0].perspective.hash],
         },
       },
     },
@@ -408,11 +392,8 @@ export const createHomeSpace = async (user: TestUser) => {
         headId: newTopElementCommit[0].hash,
       },
       indexData: {
-        linkChanges: {
-          children: {
-            added: [perspectivesWrapperNodes[0].perspective.hash],
-            removed: [],
-          },
+        links: {
+          children: [perspectivesWrapperNodes[0].perspective.hash],
         },
       },
     },
@@ -584,11 +565,8 @@ export const addNewElementsToPerspective = async (
         headId: dataCommit[0].hash,
       },
       indexData: {
-        linkChanges: {
-          children: {
-            added: newElementsIds,
-            removed: [],
-          },
+        links: {
+          children: newElementsIds,
         },
       },
     },
@@ -639,11 +617,8 @@ export const postElementToBlog = async (
         guardianId: blogPerspectiveId,
       },
       indexData: {
-        linkChanges: {
-          linksTo: {
-            added: ['textnodelinksto'],
-            removed: [],
-          },
+        links: {
+          linksTo: ['textnodelinksto'],
         },
       },
     },
@@ -688,11 +663,8 @@ export const postElementToBlog = async (
         headId: updateCommit[0].hash,
       },
       indexData: {
-        linkChanges: {
-          children: {
-            added: [forkedPerspective],
-            removed: [],
-          },
+        links: {
+          children: [forkedPerspective],
         },
       },
     },
